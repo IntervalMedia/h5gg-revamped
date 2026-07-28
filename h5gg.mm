@@ -335,6 +335,33 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         return;
     }
 
+    NSArray *parts = [value componentsSeparatedByString:@","];
+    if(parts.count > 1) {
+        if(_firstSearchDone && _engine->getResultsCount() == 0) {
+            [floatH5 alert:Localized(@"改善搜索失败: 当前列表为空, 请清除后再重新开始搜索")];
+            return;
+        }
+
+        BOOL firstGroup = !_firstSearchDone;
+
+        for(NSString *part in parts) {
+            NSString *trimmed = [part stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            if(trimmed.length == 0) continue;
+
+            UInt8 valuebuf[8*2];
+            int jjtype = [self parseSearchValue:valuebuf from:trimmed byType:type];
+            if(!jjtype) continue;
+
+            _engine->JJScanMemory(range, valuebuf, jjtype);
+            if(firstGroup) {
+                _firstSearchDone = YES;
+                firstGroup = NO;
+            }
+        }
+        _lastSearchType = type;
+        return;
+    }
+
     if(_firstSearchDone && _engine->getResultsCount() == 0) {
         [floatH5 alert:Localized(@"改善搜索失败: 当前列表为空, 请清除后再重新开始搜索")];
         return;
@@ -581,6 +608,28 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     cache[className] = pluginObject;
 
     return pluginObject;
+}
+
+#define MAX_HISTORY 20
+#define HISTORY_KEY @"H5GGInputHistory"
+
+-(NSArray<NSString*>*)getInputHistory {
+    NSArray *history = [[NSUserDefaults standardUserDefaults] arrayForKey:HISTORY_KEY];
+    return history ?: @[];
+}
+
+-(void)addInputHistory:(NSString*)value {
+    if(!value || value.length == 0) return;
+    NSMutableArray *history = [[[NSUserDefaults standardUserDefaults] arrayForKey:HISTORY_KEY] mutableCopy];
+    if(!history) history = [NSMutableArray array];
+    if(history.firstObject && [history.firstObject isEqualToString:value]) return;
+    [history insertObject:value atIndex:0];
+    if(history.count > MAX_HISTORY) [history removeObjectsInRange:NSMakeRange(MAX_HISTORY, history.count - MAX_HISTORY)];
+    [[NSUserDefaults standardUserDefaults] setObject:history forKey:HISTORY_KEY];
+}
+
+-(void)clearInputHistory {
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:HISTORY_KEY];
 }
 
 @end

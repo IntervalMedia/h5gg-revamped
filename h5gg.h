@@ -57,6 +57,10 @@ JSExportAs(loadPlugin, -(nullable id)loadPlugin:(NSString*)className path:(NSStr
 
 JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html);
 
+-(NSArray<NSString*>*)getInputHistory;
+-(void)addInputHistory:(NSString*)value;
+-(void)clearInputHistory;
+
 @end
 
 @interface h5ggEngine : NSObject <h5ggJSExport>
@@ -65,6 +69,9 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 @property BOOL firstSearchDone;
 @property pid_t targetpid;
 @property task_port_t targetport;
+-(NSArray<NSString*>*)getInputHistory;
+-(void)addInputHistory:(NSString*)value;
+-(void)clearInputHistory;
 @end
 
 NS_ASSUME_NONNULL_END

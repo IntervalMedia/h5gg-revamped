@@ -96,7 +96,8 @@ static NSString* _bridgeSource() {
         "'editAll','getResults','getResultsCount','clearResults',"
         "'getLocalScripts','pickScriptFile','getRangesList',"
         "'getProcList','setTargetProc','loadPlugin','makeTweak',"
-        "'require','setFloatTolerance'"
+        "'require','setFloatTolerance',"
+        "'getInputHistory','addInputHistory','clearInputHistory'"
         "];"
         "window.h5gg={};"
         "methods.forEach(function(m){"
@@ -383,6 +384,9 @@ static NSString* _bridgeSource() {
             @"makeTweak":        @"makeTweak:with:",
             @"require":          @"require:",
             @"setFloatTolerance":@"setFloatTolerance:",
+            @"getInputHistory":    @"getInputHistory",
+            @"addInputHistory":    @"addInputHistory:",
+            @"clearInputHistory":  @"clearInputHistory",
         };
     });
     NSString *sel = map[method];

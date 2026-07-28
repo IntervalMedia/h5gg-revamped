@@ -4,8 +4,115 @@
 <!--设置手机显示模式, 填满宽度,原尺寸显示,禁止双指缩放-->
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="color-scheme" content="light dark">
 <!--CSS外观样式表-->
 <style>
+:root {
+    --bg-color: rgba(255,255,255,0.8);
+    --text-color: #000;
+    --btn-bg: #84848450;
+    --btn-hover: #fff;
+    --input-bg: rgba(0,0,0,0);
+    --border-color: #686868F0;
+    --radio-checked-bg: #E8E8E8;
+    --scrollbar-bg: #F5F5F5;
+    --scrollbar-thumb: #B8B8B8;
+    --title-bg: #D1D1D1;
+    --popup-bg: #FDFDFD;
+    --menubox-bg: #E8E8E890;
+    --menubox-current-bg: #848484;
+    --menubox-current-text: #E8E8E8;
+    --result-border: #D1D1D1;
+    --result-font: #848484;
+    --slider-track-bg: #68686830;
+    --slider-track-border: #010101;
+    --slider-thumb-bg: #EEEEEEE0;
+    --slider-thumb-border: #000000;
+    --border-light: #B8B8B880;
+    --checkbox-border: #686868;
+    --checkbox-checked-border: #B8B8B8;
+}
+
+:root.dark {
+    --bg-color: rgba(30,30,30,0.95);
+    --text-color: #E8E8E8;
+    --btn-bg: #48484880;
+    --btn-hover: #686868;
+    --input-bg: rgba(255,255,255,0.1);
+    --border-color: #888888F0;
+    --radio-checked-bg: #484848;
+    --scrollbar-bg: #2A2A2A;
+    --scrollbar-thumb: #686868;
+    --title-bg: #3A3A3A;
+    --popup-bg: #3A3A3A;
+    --menubox-bg: #48484890;
+    --menubox-current-bg: #686868;
+    --menubox-current-text: #D0D0D0;
+    --result-border: #484848;
+    --result-font: #A0A0A0;
+    --slider-track-bg: #48484850;
+    --slider-track-border: #686868;
+    --slider-thumb-bg: #888888E0;
+    --slider-thumb-border: #CCC;
+    --border-light: #68686880;
+    --checkbox-border: #888888;
+    --checkbox-checked-border: #888888;
+}
+
+:root.light {
+    --bg-color: rgba(255,255,255,0.8);
+    --text-color: #000;
+    --btn-bg: #84848450;
+    --btn-hover: #fff;
+    --input-bg: rgba(0,0,0,0);
+    --border-color: #686868F0;
+    --radio-checked-bg: #E8E8E8;
+    --scrollbar-bg: #F5F5F5;
+    --scrollbar-thumb: #B8B8B8;
+    --title-bg: #D1D1D1;
+    --popup-bg: #FDFDFD;
+    --menubox-bg: #E8E8E890;
+    --menubox-current-bg: #848484;
+    --menubox-current-text: #E8E8E8;
+    --result-border: #D1D1D1;
+    --result-font: #848484;
+    --slider-track-bg: #68686830;
+    --slider-track-border: #010101;
+    --slider-thumb-bg: #EEEEEEE0;
+    --slider-thumb-border: #000000;
+    --border-light: #B8B8B880;
+    --checkbox-border: #686868;
+    --checkbox-checked-border: #B8B8B8;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: rgba(30,30,30,0.95);
+        --text-color: #E8E8E8;
+        --btn-bg: #48484880;
+        --btn-hover: #686868;
+        --input-bg: rgba(255,255,255,0.1);
+        --border-color: #888888F0;
+        --radio-checked-bg: #484848;
+        --scrollbar-bg: #2A2A2A;
+        --scrollbar-thumb: #686868;
+        --title-bg: #3A3A3A;
+        --popup-bg: #3A3A3A;
+        --menubox-bg: #48484890;
+        --menubox-current-bg: #686868;
+        --menubox-current-text: #D0D0D0;
+        --result-border: #484848;
+        --result-font: #A0A0A0;
+        --slider-track-bg: #48484850;
+        --slider-track-border: #686868;
+        --slider-thumb-bg: #888888E0;
+        --slider-thumb-border: #CCC;
+        --border-light: #68686880;
+        --checkbox-border: #888888;
+        --checkbox-checked-border: #888888;
+    }
+}
+
 html {
     zoom:1.2; /*在手机上显示整体放大1.2倍*/
 }
@@ -13,11 +120,11 @@ html {
 body {
     width: 100%;
     height: 100%;
-    background-color: rgba(255,255,255,0.8);
+    background-color: var(--bg-color);
 }
 * {
     /*默认文字颜色*/
-    color: #000;
+    color: var(--text-color);
     font-size: 12px;
     font-family: Arial, sans-serif;
     
@@ -38,14 +145,14 @@ body {
 }
 
 input {
-    background-color: rgba(0,0,0,0);
-    height: 25px;
+    background-color: var(--input-bg);
+    height: 30px;
 }
 
 button {
     height: 30px;
     color: #3393EF;
-    background-color: #84848450;
+    background-color: var(--btn-bg);
     display: inline-block;
     cursor: pointer;
     text-align: center;
@@ -58,7 +165,7 @@ button {
 }
 
 button:active {
-    background-color: #fff;
+    background-color: var(--btn-hover);
     transform: translateY(2px);
 }
 
@@ -70,13 +177,13 @@ input[type=radio]  {
     outline-style:none;
     -webkit-appearance:none;
     vertical-align:middle;
-    border:1px solid #686868F0;
+    border:1px solid var(--border-color);
     border-radius:50%;
     margin:6px 4px;
 }
 input[type=radio]:checked {
     border:5px solid #2F7DCDF0;
-    background:#E8E8E8;
+    background: var(--radio-checked-bg);
 }
     
 input[type=checkbox]{
@@ -92,9 +199,9 @@ input[type=checkbox]::after{
  top: 0;
  margin-top:2px;
  width: 14px; height: 14px;
- border: 1px solid #686868;
+ border: 1px solid var(--checkbox-border);
  border-radius: 3px;
- background-color: rgba(0,0,0,0);
+ background-color: var(--input-bg);
  display: inline-block;
  visibility: visible;
  text-align: center;
@@ -103,7 +210,7 @@ input[type=checkbox]::after{
 input[type=checkbox]:checked::after{
  content: "✓";
  color: #FFF;
- border-color: #B8B8B8;
+ border-color: var(--checkbox-checked-border);
  background-color: #4498F7;
  font-size: 12px;
  font-weight: bold;
@@ -119,16 +226,16 @@ input[type=range]::-webkit-slider-runnable-track {
   height: 15px;
   cursor: pointer;
   animate: 0.2s;
-  background: #68686830;
+  background: var(--slider-track-bg);
   border-radius: 1.3px;
-  border: 0.2px solid #010101;
+  border: 0.2px solid var(--slider-track-border);
 }
 input[type=range]::-webkit-slider-thumb {
-  border: 1px solid #000000;
+  border: 1px solid var(--slider-thumb-border);
   height: 18px;
   width: 16px;
   border-radius: 3px;
-  background: #EEEEEEE0;
+  background: var(--slider-thumb-bg);
   cursor: pointer;
   -webkit-appearance: none;
   margin-top: -2px;
@@ -144,12 +251,12 @@ input[type=range]:focus::-webkit-slider-runnable-track {
     height: 20px;
     line-height: 20px; /*height和line-height设置一样即可文字垂直居中*/
     text-align:center;
-    background-color: #E8E8E890;
+    background-color: var(--menubox-bg);
     border-radius: 5px;
 }
 .menubox.current {
-    color: #E8E8E8;
-    background-color: #848484;
+    color: var(--menubox-current-text);
+    background-color: var(--menubox-current-bg);
 }
 
 .menuview {
@@ -171,19 +278,19 @@ input[type=range]:focus::-webkit-slider-runnable-track {
 .scrollbar::-webkit-scrollbar {
     width: 5px; /* 纵向滚动条宽度 */
     height: 5px;/* 横向滚动条高度 */
-    background-color: #F5F5F5; /* 滚动条整体背景，一般被覆盖着 */
+    background-color: var(--scrollbar-bg); /* 滚动条整体背景，一般被覆盖着 */
 }
 /* 滚动条的轨道（里面装有Thumb） */
 .scrollbar::-webkit-scrollbar-track {
     -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3); /* 滚动条轨道阴影 */
     /*border-radius: 10px; /* 滚动条轨道圆角 */
-    background-color: #F5F5F5; /* 滚动条轨道背景 */
+    background-color: var(--scrollbar-bg); /* 滚动条轨道背景 */
 }
 /* 滚动条里面的滑块 */
 .scrollbar::-webkit-scrollbar-thumb {
     border-radius: 15px; /* 滚动条滑块圆角 */
     -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.3); /* 滚动条滑块阴影 */
-    background-color: #B8B8B8; /* 滚动条滑块颜色 */
+    background-color: var(--scrollbar-thumb); /* 滚动条滑块颜色 */
 }
 
 .popup_container {
@@ -196,12 +303,12 @@ input[type=range]:focus::-webkit-slider-runnable-track {
 #popup_search_edit {
     display:none;
     text-align: center;
-    background-color: #FDFDFD;
+    background-color: var(--popup-bg);
     width:200px;
     height:150px;
     position:absolute;
     left:-100px; top:50px;
-    border:1px solid #B8B8B880;
+    border:1px solid var(--border-light);
     border-radius: 5px;
     padding: 10px;
 }
@@ -209,12 +316,12 @@ input[type=range]:focus::-webkit-slider-runnable-track {
 #popup_progress {
     display:none;
     text-align: center;
-    background-color: #FDFDFD;
+    background-color: var(--popup-bg);
     width:200px;
     height:20px;
     position:absolute;
     left:-100px; top:100px;
-    border:1px solid #B8B8B880;
+    border:1px solid var(--border-light);
     border-radius: 5px;
     padding: 10px;
     z-index: 2000;
@@ -223,12 +330,12 @@ input[type=range]:focus::-webkit-slider-runnable-track {
 #popup_loadscripts {
     display:none;
     text-align: center;
-    background-color: #FDFDFD;
+    background-color: var(--popup-bg);
     width:250px;
     height:220px;
     position:absolute;
     left:-125px; top:20px;
-    border:1px solid #B8B8B880;
+    border:1px solid var(--border-light);
     border-radius: 5px;
     padding: 10px;
 }
@@ -236,12 +343,12 @@ input[type=range]:focus::-webkit-slider-runnable-track {
 #popup_proclist {
     display:none;
     text-align: center;
-    background-color: #FDFDFD;
+    background-color: var(--popup-bg);
     width:180px;
     max-height:200px;
     position:absolute;
     left:-90px; top:50px;
-    border:1px solid #B8B8B880;
+    border:1px solid var(--border-light);
     border-radius: 5px;
     padding: 10px;
 }
@@ -249,10 +356,10 @@ input[type=range]:focus::-webkit-slider-runnable-track {
 #popup_proclist button {
     display: block;
     width: 100%;
-    height: 26px;
+    height: 30px;
     border-radius: 2px;
     font-weight:bold;
-    color: black;
+    color: var(--text-color);
     text-align: left;
     background-color: #00000005;
 }
@@ -298,6 +405,7 @@ table.datatype {
     overflow-x:hidden;
     overflow-y:scroll;
     height:100%;
+    padding: 4px;
 }
 
 #resultList tr.hilight td{
@@ -305,17 +413,38 @@ table.datatype {
 }
 
 #resultList td {
-    border-bottom:solid 1px #D1D1D1;
+    border-bottom:solid 1px var(--result-border);
 }
 #resultList td font {
-    font-size:12px;color:#848484
+    font-size:12px;color: var(--result-font);
 }
 
+#theme-toggle {
+    float:right;
+    font-size:14px;
+    line-height:14px;
+    cursor:pointer;
+    padding:0 4px;
+    user-select:none;
+    -webkit-user-select:none;
+}
+
+.control-separator {
+    border: none;
+    border-top: 1px solid var(--result-border);
+    margin: 6px 0;
+}
 </style>
 
 <script>
 
 var h5gg_jquery_stub;
+
+(function() {
+    var theme = localStorage.getItem('h5gg_theme');
+    if(theme === 'dark') document.documentElement.classList.add('dark');
+    else if(theme === 'light') document.documentElement.classList.add('light');
+})();
 
 if(typeof $ == 'undefined')
     document.write("<script src=\"https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js\"><\/script>");
@@ -784,23 +913,39 @@ function onClickMakeTweak()
     }, ["public.image"]);
 }
 
+function toggleTheme() {
+    var html = document.documentElement;
+    if(html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        localStorage.setItem('h5gg_theme', 'light');
+    } else if(html.classList.contains('light')) {
+        html.classList.remove('light');
+        localStorage.setItem('h5gg_theme', 'auto');
+    } else {
+        html.classList.add('dark');
+        localStorage.setItem('h5gg_theme', 'dark');
+    }
+}
+
 </script>
 
 </head>
-<body bgcolor="#E8E8E8" style="margin:0;">
+<body style="margin:0;">
 <!--标题栏-->
-<div id="titleBar" style="background-color:#D1D1D1; padding:5px; margin:0px; height:12px">
+<div id="titleBar" style="background-color:var(--title-bg); padding:5px; margin:0px; height:12px">
 &nbsp;<font style="color:green">H5</font> <font style="color:red">GG</font>&nbsp;v<span id="version"></span>
 <span id="crossproc" style="display:none">
 <font style="color:blue">&nbsp;跨进程&nbsp;</font><font id="procname">procname</font>
 </span>
     
+<div id="theme-toggle" onclick="toggleTheme()">&#9790;</div>
 <div id="closeMenu" style="float:right; font-size:16px; line-height:14px; font-family: Arial, sans-serif;" onclick="setWindowVisible(false)">&nbsp;X&nbsp;</div>
 </div>
 <!--用一个表格来布局左右两栏-->
 <table id="bodyView" width="100%" style="table-layout:fixed;height: calc(100% - 22px) ;">
 <tr>
-<td style="vertical-align:top;width:130px;border-right:solid 2px #D1D1D1;">
+<td style="vertical-align:top;width:130px;border-right:solid 2px var(--result-border);padding:4px;">
 <div>
 搜索下限:<input id="range_min" style="width:80px;padding-left:0" value="0x00000000" />
 <br/>
@@ -823,6 +968,7 @@ function onClickMakeTweak()
 <br/>
 浮点误差:<input id="float_tolerance" style="width:78px" value="0.0"/>
 <br/>
+<hr class="control-separator"/>
 <p id="results_count" style="display:none">共找到<span>0</span>条结果</p>
 </div>
 </td>
@@ -897,7 +1043,6 @@ function onClickMakeTweak()
 <tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
 <tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
 <tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
 </table>
 </div>
 <div id="netjs" class="menuview">
@@ -944,4 +1089,3 @@ function onClickMakeTweak()
 
 </body>
 </html>
-
