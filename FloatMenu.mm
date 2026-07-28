@@ -1,6 +1,7 @@
 #import "FloatMenu.h"
 #import "TopShow.h"
 #import "ModalShow.h"
+#import <JavaScriptCore/JavaScriptCore.h>
 #import "Localized.h"
 #import "version.h"
 #import "globalview/globalview.h"
@@ -11,24 +12,10 @@ INCTXT(INITIAL_JS, "initial.js");
 
 extern GVData* PGVSharedData;
 
-#pragma mark - Weak message handler proxy
+#pragma mark - FloatMenu implementation
 
-@class FloatMenu;
-
-@interface _FloatMenuMessageHandler : NSObject <WKScriptMessageHandler>
-@property (nonatomic, weak) FloatMenu *floatMenu;
-@end
-
-@interface FloatMenu ()
+@interface FloatMenu () <WKScriptMessageHandler>
 @property (nonatomic, strong) NSMutableDictionary<NSString*, id>* actions;
-@property (nonatomic, strong) _FloatMenuMessageHandler *messageHandler;
-- (void)handleScriptMessage:(WKScriptMessage *)message;
-@end
-
-@implementation _FloatMenuMessageHandler
-- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
-    [self.floatMenu handleScriptMessage:message];
-}
 @end
 
 #pragma mark - FloatMenu implementation
@@ -50,8 +37,8 @@ extern GVData* PGVSharedData;
 
         self.touchableAll = YES;
         self.actions = [[NSMutableDictionary alloc] init];
-        self.messageHandler = [[_FloatMenuMessageHandler alloc] init];
-        self.messageHandler.floatMenu = self;
+
+        [userController addScriptMessageHandler:self name:@"h5gg"];
 
         self.opaque = NO;
         self.backgroundColor = [UIColor clearColor];
@@ -81,10 +68,7 @@ extern GVData* PGVSharedData;
 }
 
 - (void)dealloc {
-    WKUserContentController *userController = self.configuration.userContentController;
-    for (NSString *name in [self.actions allKeys]) {
-        [userController removeScriptMessageHandlerForName:name];
-    }
+    [self.configuration.userContentController removeScriptMessageHandlerForName:@"h5gg"];
 }
 
 #pragma mark - JS Bridge injection
@@ -95,34 +79,32 @@ static NSString* _bridgeSource() {
     dispatch_once(&once, ^{
         source =
         @"(function(){"
-        "if(window.__h5ggBridgeInjected)return;"
-        "window.__h5ggBridgeInjected=true;"
-
-        "window.__h5gg_native=function(m,a){"
-        "try{var r=prompt(JSON.stringify({method:m,args:a}));"
-        "return r?JSON.parse(r):null;"
-        "}catch(e){return null;}"
+        "if(window.__h5ggPM)return;"
+        "window.__h5ggPM=true;"
+        "var _id=0,_cb={};"
+        "window.__h5gg_onResult=function(i,e,r){"
+        "var c=_cb[i];if(c){delete _cb[i];if(e)c[1](e);else c[0](r);}"
         "};"
-
-        "var methods=['searchNumber','searchNearby','getValue','setValue',"
-        "'editAll','getResults','getResultsCount','clearResults','getLocalScripts',"
-        "'pickScriptFile','getRangesList','getProcList','setTargetProc',"
-        "'loadPlugin','makeTweak','require','setFloatTolerance'];"
-
-        "var old=window.h5gg;"
+        "window.__h5gg_native=function(m,a){"
+        "return new Promise(function(res,rej){"
+        "var i=++_id;_cb[i]=[res,rej];"
+        "window.webkit.messageHandlers.h5gg.postMessage({callId:i,method:m,args:a});"
+        "});"
+        "};"
+        "var methods=["
+        "'searchNumber','searchNearby','getValue','setValue',"
+        "'editAll','getResults','getResultsCount','clearResults',"
+        "'getLocalScripts','pickScriptFile','getRangesList',"
+        "'getProcList','setTargetProc','loadPlugin','makeTweak',"
+        "'require','setFloatTolerance'"
+        "];"
         "window.h5gg={};"
         "methods.forEach(function(m){"
-        "window.h5gg[m]=function(){"
-        "return window.__h5gg_native(m,Array.prototype.slice.call(arguments));"
-        "};"
+        "Object.defineProperty(window.h5gg,m,{"
+        "configurable:true,writable:true,"
+        "value:function(){return window.__h5gg_native(m,Array.prototype.slice.call(arguments));}"
         "});"
-
-        "if(old&&typeof old==='object'){"
-        "Object.keys(old).forEach(function(k){"
-        "if(typeof old[k]!=='function'&&typeof window.h5gg[k]==='undefined')"
-        "window.h5gg[k]=old[k];"
         "});"
-        "}"
         "})();";
     });
     return source;
@@ -197,20 +179,19 @@ static NSString* _bridgeSource() {
 
     self.actions[name] = block;
 
-    WKUserContentController *uc = self.configuration.userContentController;
-    [uc removeScriptMessageHandlerForName:name];
-    [uc addScriptMessageHandler:self.messageHandler name:name];
+    // The h5gg engine is stored as an action but accessed via method dispatch, not a JS function wrapper
+    if([name isEqualToString:@"h5gg"]) return;
 
-    // Pre-register as WKUserScript so it's available on next page load
+    WKUserContentController *uc = self.configuration.userContentController;
+
     NSString *js = [NSString stringWithFormat:
-        @"if(typeof window.%@!='function'){window.%@=function(){return window.__h5gg_native('%@',Array.prototype.slice.call(arguments));};}",
+        @"(function(){if(typeof window.%@=='function')return;window.%@=function(){return window.__h5gg_native('%@',Array.prototype.slice.call(arguments));};})()",
         name, name, name];
     WKUserScript *us = [[WKUserScript alloc] initWithSource:js
                                               injectionTime:WKUserScriptInjectionTimeAtDocumentStart
                                            forMainFrameOnly:YES];
     [uc addUserScript:us];
 
-    // Also inject immediately if page is already loaded
     [self evaluateJavaScript:js completionHandler:nil];
 }
 
@@ -270,16 +251,6 @@ static NSString* _bridgeSource() {
     return result;
 }
 
-#pragma mark - WKScriptMessage handling
-
-- (void)handleScriptMessage:(WKScriptMessage *)message {
-    id callback = self.actions[message.name];
-    if(!callback) return;
-    if([callback isKindOfClass:NSClassFromString(@"NSBlock")]) {
-        [self _invokeBlock:callback withArgs:message.body ? @[message.body] : @[]];
-    }
-}
-
 #pragma mark - WKNavigationDelegate
 
 - (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(WKNavigation *)navigation {
@@ -302,7 +273,7 @@ static NSString* _bridgeSource() {
     NSLog(@"webView %@ didFailProvisionalNavigation %@", webView, error);
 }
 
-#pragma mark - WKUIDelegate (sandard JS dialogs + synchronous bridge)
+#pragma mark - WKUIDelegate (standard JS dialogs)
 
 - (void)webView:(WKWebView *)webView runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(void))completionHandler {
     [self alert:message];
@@ -312,50 +283,6 @@ static NSString* _bridgeSource() {
 - (void)webView:(WKWebView *)webView runJavaScriptConfirmPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(BOOL))completionHandler {
     BOOL result = [self confirm:message];
     completionHandler(result);
-}
-
-- (void)webView:(WKWebView *)webView runJavaScriptTextInputPanelWithPrompt:(NSString *)prompt defaultText:(NSString *)defaultText initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(NSString * _Nullable))completionHandler {
-    NSData *data = [prompt dataUsingEncoding:NSUTF8StringEncoding];
-    if(!data) { completionHandler(defaultText); return; }
-
-    NSError *error = nil;
-    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
-    if(error || ![json isKindOfClass:[NSDictionary class]]) {
-        NSString *result = [ModalShow prompt:prompt defaultText:defaultText InWindow:self.window];
-        completionHandler(result);
-        return;
-    }
-
-    NSDictionary *dict = (NSDictionary*)json;
-    NSString *method = dict[@"method"];
-    NSArray *args = dict[@"args"];
-
-    if(!method) { completionHandler(@"null"); return; }
-
-    id result = nil;
-
-    // Route h5gg API methods to h5ggEngine
-    if(self.actions[@"h5gg"]) {
-        result = [self _invokeMethod:method onObject:self.actions[@"h5gg"] withArgs:args];
-    }
-
-    // If no result yet, try as a named action block
-    if(!result) {
-        id actionBlock = self.actions[method];
-        if(actionBlock && [actionBlock isKindOfClass:NSClassFromString(@"NSBlock")]) {
-            result = [self _invokeBlock:actionBlock withArgs:args];
-        }
-    }
-
-    if(result && result != [NSNull null]) {
-        NSData *resultData = [NSJSONSerialization dataWithJSONObject:result options:0 error:nil];
-        if(resultData) {
-            completionHandler([[NSString alloc] initWithData:resultData encoding:NSUTF8StringEncoding]);
-            return;
-        }
-    }
-
-    completionHandler(@"null");
 }
 
 #pragma mark - Bridge ready logic (replaces old ts_didCreateJavaScriptContext)
@@ -376,16 +303,38 @@ static NSString* _bridgeSource() {
         if(self.reloadAction) self.reloadAction();
     }
 
-    // Ensure registered actions have bridge functions in current page
-    for (NSString *key in self.actions) {
-        if([key isEqualToString:@"h5gg"]) continue;
-        NSString *js = [NSString stringWithFormat:
-            @"if(typeof window.%@!='function'){window.%@=function(){return window.__h5gg_native('%@',Array.prototype.slice.call(arguments));};}",
-            key, key, key];
-        [self evalJS:js];
-    }
-
     [self evalJS:[NSString stringWithFormat:@"window.h5gg_internel_version=%f;", H5GG_VERSION]];
+}
+
+#pragma mark - WKScriptMessageHandler
+
+- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
+    NSDictionary *body = (NSDictionary*)message.body;
+    if(![body isKindOfClass:[NSDictionary class]]) return;
+
+    NSNumber *callId = body[@"callId"];
+    NSString *methodName = body[@"method"];
+    NSArray *args = body[@"args"];
+
+    id result = [self _dispatchMethod:methodName args:args];
+
+    NSError *err = nil;
+    NSData *json = result ? [NSJSONSerialization dataWithJSONObject:result options:0 error:&err] : nil;
+    NSString *jsonStr = json ? [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding] : @"null";
+    NSString *js = [NSString stringWithFormat:@"window.__h5gg_onResult(%@,null,%@)", callId, jsonStr];
+    [self evaluateJavaScript:js completionHandler:nil];
+}
+
+- (id)_dispatchMethod:(NSString*)methodName args:(NSArray*)args {
+    id action = self.actions[methodName];
+    if(action && [action isKindOfClass:NSClassFromString(@"NSBlock")]) {
+        return [self _invokeBlock:action withArgs:args];
+    }
+    id engine = self.actions[@"h5gg"];
+    if(engine) {
+        return [self _invokeMethod:methodName onObject:engine withArgs:args];
+    }
+    return nil;
 }
 
 #pragma mark - Dynamic invocation helpers
@@ -511,6 +460,9 @@ static NSString* _bridgeSource() {
     if(strcmp(type, @encode(id)) == 0) {
         __unsafe_unretained id v = nil;
         [inv getReturnValue:&v];
+        if(!v) return [NSNull null];
+        if([v isKindOfClass:[JSValue class]])
+            v = [(JSValue*)v toObject];
         return v ?: [NSNull null];
     }
 
