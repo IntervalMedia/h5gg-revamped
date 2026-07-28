@@ -1,48 +1,75 @@
-***************** H5GG JS脚本引擎文档 (v8.0更新, WKWebView) *******************
-h5gg是引擎对象, 可以调用如下函数(类似安卓gg的lua接口,但是参数有些区别)
-h5gg.require(H5GG版本号); //设定脚本需要的最低H5GG版本号, 可以写在脚本开头第一行
-h5gg.setFloatTolerance('浮点偏差'); //设置F32/F64浮点搜索的偏差范围, 引擎默认是0.0
-h5gg.searchNumber('数值', '类型', '搜索下限', '搜索上限'); //搜索或二次搜索(改善)精确数值
-h5gg.searchNearby('数值', '类型', '邻近范围');  //邻近(联合)搜索, 和igg的一致
-h5gg.getValue('地址', '类型'); //读取指定地址的数值, 返回数值字符串
-h5gg.setValue('地址', '数值', '类型'); //设置指定地址的数值, 返回成功或失败
-h5gg.editAll('数值', '类型'); //修改搜索结果中的全部数值(清除结果后不能调用),返回修改成功个数
-h5gg.getResultsCount(); //获取搜索结果的总数量, 返回总个数
-h5gg.getResults('获取个数', '跳过个数'); //获取结果数组, 每个元素有address,value,type三个属性
-h5gg.clearResults(); //清除搜索结果, 开始新的搜索
-h5gg.getRangesList(‘模块文件名’); //返回模块数组,模块有start(基址),end(结尾地址),name(路径)属性
-    (若模块文件名=0, 则返回APP主程序模块信息, 若不传入模块文件名, 则返回所有模块列表)
+**************** H5GG JavaScript 引擎文档 (v8.0, WKWebView, 异步API) ********************
 
-h5gg.loadPlugin('OC类名','dylib路径'); //加载dylib插件, 返回插件中的OC类名的对象实例
-    (返回的OC对象实例可在js中直接调用, dylib支持绝对路径或.app中的相对路径)
+注意: 这是 H5GG-Revamped v8.0, 使用全新的 WKWebView 桥接。所有 h5gg 方法都返回 Promise, 必须用 await 调用。旧版 H5GG (< v8.0) 不兼容这些新API。
 
-跨进程版专用(跨进程版制作插件的html需要先调用选择进程):
-h5gg.setTargetProc(进程号); //设定当前目标进程, 返回成功或失败
-h5gg.getProcList('进程名'); //获取进程数组, 数组中的元素有pid(进程号), name(进程名) 属性
-    (若不传入进程名, 则返回所有运行中的app进程列表, 可以定时循环调用确定目标进程是否已经结束)
+未来可能会加入同步/异步双兼容支持。
 
-其他接口:
-setButtonImage(图标); //设置悬浮按钮图标, 可以传入http开头网址图片或base64编码的DataURL图片
-setButtonAction(js回调函数); //设置自定义的悬浮按钮图标点击动作, 传入一个js函数点击时被调用
+h5gg 是引擎对象, 可以调用以下函数 (类似安卓GG的 Lua 接口, 但参数略有不同)
 
-setWindowRect(x, y, 宽度, 高度); //修改悬浮窗口在屏幕中位置和尺寸
-setWindowDrag(x, y, 宽度, 高度); //设置悬浮窗口中可拖动悬浮窗的区域
-setWindowTouch(是否响应触控); //true=整个悬浮窗口触摸不可穿透, false=整个悬浮窗口触摸可以穿透
-setWindowVisible(悬浮窗显示状态), //设置悬浮窗口的可见性, true=显示, false=隐藏
+await h5gg.require(版本号); //设置脚本所需的最小 H5GG 版本号, 写在脚本第一行
 
-setLayoutAction(js回调函数); //设置屏幕旋转或iPad分屏浮动变化时的js回调,回调函数参数为(宽,高)
+h5gg.setFloatTolerance('浮点误差'); //设置 F32/F64 浮点搜索的误差范围, 默认 0.0
 
-注意:
-1: 地址参数支持十进制或0x开头十六进制格式自动识别, 其他参数必须是字符串格式
-2: 浮点类型分为:F32,F64, 有符号数:I8,I16,I32,I64, 无符号数:U8,U16,U32,U64
-3: 如果搜索结果比较多, 不要一次性getResults获取全部数据, 容易造成内存爆增闪退崩溃, 应分段获取
-4: 搜索结果的地址和数值都是字符串类型, 如果要做数字运算请先用Number(x)转换成数字类型才能进行运算
-5: lua中会自动将+号两边的字符串类型转换成数字类型, js中+号如果是字符串就会连接两个字符串)
-6: lua中数组索引第一个是从[1]开始, js中数组索引第一个是从[0]开始, 这一点需要特别注意
-7: 数字类型可以用x.toString(16)转换成十六进制字符串格式, 但是x一定要是数字类型才能转成功
-8: 搜索的数值支持范围格式, 比如"50~100", 比如"2.3~7.8", 数值搜索和邻近(联合)搜索都支持
-9: 悬浮窗默认尺寸为370x370, 可在H5页面启动时通过js接口设置位置和尺寸以及可拖动区域
+await h5gg.searchNumber('数值', '类型', '搜索下限', '搜索上限'); //搜索或改善搜索精确数值
 
-10: 已迁移至WKWebView (替换UIWebView), 原生h5gg调用均通过webkit.messageHandlers异步回调, 建议使用async/await处理异步逻辑
+await h5gg.searchNearby('数值', '类型', '邻近范围'); //邻近搜索
 
-11: 向后兼容, 现有同步风格脚本通过内部Promise包装仍可正常工作
+await h5gg.getValue('地址', '类型'); //读取指定地址的值, 返回值字符串
+
+await h5gg.setValue('地址', '数值', '类型'); //修改指定地址的值, 返回成功或失败
+
+await h5gg.editAll('数值', '类型'); //修改全部搜索结果, 返回成功修改数量
+
+await h5gg.getResultsCount(); //获取搜索结果总数
+
+await h5gg.getResults('获取数量', '跳过数量'); //获取结果数组, 每个元素有 address, value, type 属性
+
+await h5gg.clearResults(); //清除搜索结果, 重新开始搜索
+
+await h5gg.getRangesList('模块文件名'); //返回模块数组, 模块有 start(基址), end(结束地址), name(路径) 属性
+(模块文件名=0 返回APP主程序模块信息, 不传参返回全部模块列表)
+
+await h5gg.loadPlugin('Objective-C 类名', 'dylib 文件路径'); //加载 dylib 插件, 返回 OC 实例对象
+
+仅跨进程版 APP 可用:
+
+await h5gg.setTargetProc(进程号); //设置目标进程, 返回成功或失败
+
+await h5gg.getProcList('进程名'); //获取进程数组, 元素有 pid(进程号), name(进程名) 属性
+(不传参返回所有运行中的APP进程列表)
+
+其他 API (异步调用, 通常不需要 await 返回值):
+
+setButtonImage(图标); //设置悬浮按钮图标, 可传入 http 图片地址或 base64 编码 DataURL
+
+setButtonAction(JS 回调函数); //自定义悬浮按钮点击动作
+
+setWindowRect(x, y, width, height); //修改悬浮窗位置和尺寸
+
+setWindowDrag(x, y, width, height); //设置 H5 页面中可拖拽悬浮窗的区域
+
+setWindowTouch(是否穿透); //true=悬浮窗触控穿透, false=悬浮窗捕获触控
+
+setWindowVisible(是否显示); //设置悬浮窗可见性
+
+setLayoutAction(JS 回调函数); //屏幕旋转或 iPad 分屏尺寸变化时的回调, 参数 (width, height)
+
+注意事项:
+
+1: 地址参数支持 0x 开头十六进制或十进制自动识别, 其他参数必须为字符串格式
+
+2: 浮点类型: F32, F64。有符号类型: I8, I16, I32, I64。无符号类型: U8, U16, U32, U64
+
+3: 如果搜索结果较多, 不要一次性用 getResults 获取全部数据, 应分段获取避免内存不足
+
+4: 搜索结果的地址和值均为字符串类型, 做数字运算请用 Number(x) 转换后再运算
+
+5: 数值类型可用 x.toString(16) 转换为十六进制字符串, x 必须为数值类型
+
+6: 搜索支持范围格式, 如 "50~100", "2.3~7.8", searchNumber 和 searchNearby 都支持
+
+7: 所有 h5gg 调用现在都是异步的, 返回 Promise。脚本需要包装在 async 函数中使用 await。
+
+8: 旧版使用同步 h5gg 调用的脚本需要更新才能在 v8.0 中使用。
+
+9: 悬浮窗默认尺寸为 370x370, 可通过 JS API 设置位置和尺寸。

@@ -1,4 +1,7 @@
-h5gg.require(7.8);
+// H5GG-Revamped v8.0+ only. Requires await for all h5gg calls.
+(async () => {
+
+await h5gg.require(8.0);
 
 var sleep = (timeountMS) => new Promise((resolve) => {
     setTimeout(resolve, timeountMS);
@@ -20,7 +23,6 @@ function Localized(str) {
 }
 
 //***********************************************************
-(async () => {
 
 await sleep(200);
 
@@ -30,7 +32,7 @@ var versionInfo = "(v7)";
 
 var dataAddress = Number(prompt(Localized("请输入要搜索的数据地址(0x开头十六进制)")));
 if(!dataAddress) return alert("输入的参数有误\n\nIncorrect parameter entered");
-if(h5gg.getValue(dataAddress, "I8")=="") return alert(Localized("无效的数据地址, 无法读取该地址"));
+if(await h5gg.getValue(dataAddress, "I8")=="") return alert(Localized("无效的数据地址, 无法读取该地址"));
 var maxOffset = Number(prompt(Localized("请输入最大搜索偏移(0x开头十六进制)")));
 if(!maxOffset) return alert("输入的参数有误\n\nIncorrect parameter entered");
 var maxLevel = Number(prompt(Localized("请输入最大搜索层数")));
@@ -45,7 +47,7 @@ alert(Localized("当开始搜索之后, 建议将设备放入冰箱以防止过�
 var AppModules = [];
 var FoundChains = [];
 
-var allmodules = h5gg.getRangesList();
+var allmodules = await h5gg.getRangesList();
 for(var i=0; i<allmodules.length; i++)
 {
     if(Number(allmodules[i].end)!=0 && allmodules[i].name.indexOf("/var/")!=-1) {
@@ -103,9 +105,7 @@ function checkInModule(address, chain)
             var offset = address - Number(AppModules[i].start);
             var info = AppModules[i].name + ":0x" + offset.toString(16);
             if(chain.length>0) info += " -> " + chain.join(" -> ");
-            //showlog("找到偏移链 "+info);
             FoundChains.push(info);
-            //throw "ok";
         }
     }
 }
@@ -130,9 +130,9 @@ for(var level=0; level<maxLevel; level++)
         var start = Number(dataAddress) - maxOffset;
         var end = Number(dataAddress) - minOffset;
 
-        h5gg.clearResults();
-        h5gg.searchNumber(Number(start)+'~'+Number(end), "U64", "0x0", "0xFFFFFFFF00000000");
-        var count = h5gg.getResultsCount();
+        await h5gg.clearResults();
+        await h5gg.searchNumber(Number(start)+'~'+Number(end), "U64", "0x0", "0xFFFFFFFF00000000");
+        var count = await h5gg.getResultsCount();
 
         await sleep(100);
 
@@ -156,27 +156,21 @@ for(var level=0; level<maxLevel; level++)
         
         if(window.stopAutoSearchOffset) break;
 
-        var results = h5gg.getResults(count);
+        var results = await h5gg.getResults(count);
 
         results.map(function(obj) {
             var p = Number(obj.value);
-            if(p<start || p>end) return; //filter h5gg itself data and invalid data
-            if(level>0 && (p%8)>0) return; //filter unaligned pointer
+            if(p<start || p>end) return;
+            if(level>0 && (p%8)>0) return;
             var offset = Number(dataAddress) - p;
             offset = '0x'+offset.toString(16);
             var chain2 = [offset, ...chain];
             checkInModule(obj.address, chain2);
             gLevelResults.push({addr:obj.address, chain:chain2});
-            // obj.value='0x'+p.toString(16);
-            // return obj;
         });
-
-        //console.log(results);
     }
 
     if(window.stopAutoSearchOffset) break;
-
-    //console.log(LevelResults);
 }
 
 window.stopAutoSearchOffset = true;

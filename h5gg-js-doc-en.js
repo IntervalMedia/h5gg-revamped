@@ -1,78 +1,75 @@
-**************** H5GG JavaScript Engine Document (updated for v8.0, WKWebView) ********************
+**************** H5GG JavaScript Engine Document (v8.0, WKWebView, async API) ********************
 
-h5gg is the engine object, which can call the following functions (similar to the lua interface of Android gg, but the parameters are somewhat different)
+WARNING: This is H5GG-Revamped v8.0 with a new WKWebView bridge. All h5gg methods now return Promises and must be called with await. These APIs will NOT work with old H5GG versions (< v8.0).
 
+Dual support (old sync style + new async) may be added in a future release.
 
-h5gg.require(H5GG version number); //Set the minimum H5GG version number required by the script, which can be written in the first line at the beginning of the script
+h5gg is the engine object, which can call the following functions:
 
-h5gg.setFloatTolerance('floating-point deviation'); //Set the deviation range of F32/F64 floating-point search, the engine defaults to 0.0
+await h5gg.require(H5GG version number); //Set the minimum H5GG version number required by the script, can be written at the start of the script
 
-h5gg.searchNumber('value', 'type', 'search lower limit', 'search upper limit'); //Search or secondary search (improve) exact value
+h5gg.setFloatTolerance('floating-point deviation'); //Set the deviation range of F32/F64 floating-point search, engine defaults to 0.0
 
-h5gg.searchNearby('value', 'type', 'adjacent range'); //Nearby (joint) search, consistent with igg's
+await h5gg.searchNumber('value', 'type', 'search lower limit', 'search upper limit'); //Search or refine exact value
 
-h5gg.getValue('address', 'type'); //Read the value of the specified address, return the value string
+await h5gg.searchNearby('value', 'type', 'adjacent range'); //Nearby search
 
-h5gg.setValue('Address', 'Value', 'Type'); //Set the value of the specified address, return success or failure
+await h5gg.getValue('address', 'type'); //Read value at address, returns value string
 
-h5gg.editAll('value', 'type'); //Modify all the values in the search results (cannot be called after clearing the results), and return the number of successful modifications
+await h5gg.setValue('Address', 'Value', 'Type'); //Set value at address, returns success/failure
 
-h5gg.getResultsCount(); //Get the total number of search results, return the total number
+await h5gg.editAll('value', 'type'); //Modify all search results, returns count of successful modifications
 
-h5gg.getResults('GetCount', 'SkipCount'); //Get the result array, each element has three attributes of address, value and type
+await h5gg.getResultsCount(); //Get total number of search results
 
-h5gg.clearResults(); //Clear search results, start a new search
+await h5gg.getResults('GetCount', 'SkipCount'); //Get result array, each element has address, value, type
 
-h5gg.getRangesList('module file name'); //Return the module array, the module has start (base address), end (end address), name (path) attributes
-(If the module file name=0, it will return the APP main program module information, if the module file name is not passed in, it will return a list of all modules)
+await h5gg.clearResults(); //Clear search results
 
-h5gg.loadPlugin('Objective-C Class Name','dylib file path'); //load a dylib plugin, return an OC Instance Object (The returned OC object instance can be called directly in js, dylib supports absolute path or relative path in .app)
+await h5gg.getRangesList('module file name'); //Return module array with start, end, name attributes
+(module file name=0 returns app main module, no argument returns all modules)
 
+await h5gg.loadPlugin('Objective-C Class Name','dylib file path'); //Load a dylib plugin, returns an instance object
 
 For standalone CrosProc APP version only:
 
-h5gg.setTargetProc(process number); //Set the current target process, return success or failure
+await h5gg.setTargetProc(process number); //Set target process, returns success/failure
 
-h5gg.getProcList('process name'); //Get the process array, the elements in the array have pid (process number), name (process name) attributes
-(If the process name is not passed in, it will return a list of all running app processes, which can be called periodically to determine whether the target process has ended)
+await h5gg.getProcList('process name'); //Get process array with pid, name attributes
+(no argument returns all processes)
 
+Other APIs (these are async but their return values are usually not needed):
 
-Other APIs:
+setButtonImage(icon); //Set floating button icon (http URL or base64)
 
-setButtonImage(icon); //Set the icon of the floating button, you can pass in the http starting URL image or the base64 encoded DataURL image
+setButtonAction(js callback function); //Custom floating button click action
 
-setButtonAction(js callback function); //Set a custom floating button icon click action, which is called when a js function is passed in to click
+setWindowRect(x, y, width, height); //Set floating window position and size
 
-setWindowRect(x, y, width, height); //Modify the position and size of the window suspended on the screen
+setWindowDrag(x, y, width, height); //Set draggable area on the H5 page
 
-setWindowDrag(x, y, width, height); //Set the area of the draggable floating window in the H5 page
+setWindowTouch(bool); //true = window touch-through, false = window captures touch
 
-setWindowTouch (whether to respond to touch); //true=the entire floating window is impenetrable by touch, false=the entire floating window can be touched by touch
+setWindowVisible(bool); //Show or hide the floating window
 
-setWindowVisible (whether to display), //Set the visibility of the floating window, true=display, false=hidden
+setLayoutAction(js callback function); //Callback when screen rotates or iPad split screen changes, parameters (width, height)
 
-setLayoutAction(js callback function); //Set the js callback when the screen rotates or the iPad split screen float changes, the callback function parameters are (width, height)
+Notes:
 
+1: Address supports decimal or 0x-prefixed hex, other params must be strings
 
+2: Float types: F32, F64. Signed: I8, I16, I32, I64. Unsigned: U8, U16, U32, U64
 
-Notice:
+3: For large result sets, get results in sections to avoid memory issues
 
-1: The address parameter supports automatic identification in decimal or hexadecimal format starting with 0x, other parameters must be in string format
+4: Results are always strings. Use Number(x) for arithmetic
 
-2: float number types: F32, F64, signed number types: I8, I16, I32, I64, unsigned number types: U8, U16, U32, U64
+5: Use x.toString(16) for hex conversion (x must be a number)
 
-3: If there are many search results, do not get all the data at one time with getResults, it maybe crash for using too mach memory, and should be obtained in sections
+6: Search supports range format like "50~100" in both searchNumber and searchNearby
 
-4: The address and value of the search result are all string types. If you want to do digital operations, please use Number(x) to convert them into numeric types before you can perform operations.
-(Unlike lua, which automatically converts the string types on both sides of the + sign to numeric types, in js, if the + sign is a string, the two strings will be concatenated)
+7: All h5gg calls are now async and return Promises. Wrap scripts in async functions and use await.
 
-5: The numeric type can be converted into a hexadecimal string format with x.toString(16), but x must be a numeric type to convert successfully
+8: Existing scripts that use synchronous h5gg calls must be updated for v8.0.
 
-6: The numerical value of the search supports the range format, such as "50～100", such as "2.3～7.8", both searchNumber and searchNearby search are supported
-
-7: With the WKWebView migration, all native h5gg calls are now asynchronous via the `webkit.messageHandlers` bridge. Use async/await or promise chaining for callback-based code.
-
-8: Backward compatible -- existing synchronous-style scripts are internally wrapped in promises and will continue to work.
-
-9: The default size of the floating window is 370 points wide and 370 points high. You can set the position, size and draggable area through the js api on the H5 page.
-
+9: Default floating window size is 370x370. Position and size can be changed via JS API.

@@ -1,14 +1,17 @@
-h5gg.require(7.8); //min version
+// H5GG-Revamped v8.0+ only. Requires await for all h5gg calls.
+(async () => {
 
-h5gg.clearResults();
-h5gg.searchNumber("123", "I32", "0x0", "0xFFFFFFFF00000000");
-var count = h5gg.getResultsCount();
-var results = h5gg.getResults(count);
+await h5gg.require(8.0);
 
-var locker = setInterval(function() {
+await h5gg.clearResults();
+await h5gg.searchNumber("123", "I32", "0x0", "0xFFFFFFFF00000000");
+var count = await h5gg.getResultsCount();
+var results = await h5gg.getResults(count);
+
+var locker = setInterval(async function() {
     console.log("running...");
     for(var i=0; i<count; i++) {
-        h5gg.setValue(results[i].address, "456", "I32");
+        await h5gg.setValue(results[i].address, "456", "I32");
     }
 },
 500  //lock/freeze time interval (millseconds)
@@ -16,3 +19,5 @@ var locker = setInterval(function() {
 
 //then we can cancel the lock/freeze:
 //clearInterval(locker);
+
+})();
