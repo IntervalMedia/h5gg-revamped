@@ -1,0 +1,535 @@
+#import "FloatMenu.h"
+#import "TopShow.h"
+#import "ModalShow.h"
+#import "Localized.h"
+#import "version.h"
+#import "globalview/globalview.h"
+#define INCBIN_SILENCE_BITCODE_WARNING
+#include "incbin.h"
+
+INCTXT(INITIAL_JS, "initial.js");
+
+extern GVData* PGVSharedData;
+
+#pragma mark - Weak message handler proxy
+
+@class FloatMenu;
+
+@interface _FloatMenuMessageHandler : NSObject <WKScriptMessageHandler>
+@property (nonatomic, weak) FloatMenu *floatMenu;
+@end
+
+@interface FloatMenu ()
+@property (nonatomic, strong) NSMutableDictionary<NSString*, id>* actions;
+@property (nonatomic, strong) _FloatMenuMessageHandler *messageHandler;
+- (void)handleScriptMessage:(WKScriptMessage *)message;
+@end
+
+@implementation _FloatMenuMessageHandler
+- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
+    [self.floatMenu handleScriptMessage:message];
+}
+@end
+
+#pragma mark - FloatMenu implementation
+
+@implementation FloatMenu
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    WKUserContentController *userController = [[WKUserContentController alloc] init];
+
+    WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
+    config.userContentController = userController;
+
+    self = [super initWithFrame:frame configuration:config];
+    if (self) {
+        NSLog(@"init FloatMenu=%@", self);
+
+        float version = [UIDevice currentDevice].systemVersion.floatValue;
+        self.usingCustomDialog = version > 13.0 && version < 13.4;
+
+        self.touchableAll = YES;
+        self.actions = [[NSMutableDictionary alloc] init];
+        self.messageHandler = [[_FloatMenuMessageHandler alloc] init];
+        self.messageHandler.floatMenu = self;
+
+        self.opaque = NO;
+        self.backgroundColor = [UIColor clearColor];
+        self.userInteractionEnabled = YES;
+
+        self.navigationDelegate = self;
+        self.UIDelegate = self;
+
+        self.scrollView.bounces = NO;
+        self.scrollView.scrollEnabled = NO;
+        [self.scrollView setShowsVerticalScrollIndicator:NO];
+        [self.scrollView setShowsHorizontalScrollIndicator:NO];
+
+        __weak __typeof(self) weakSelf = self;
+        self.frontTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer* t) {
+            __strong __typeof(weakSelf) strongSelf = weakSelf;
+            [strongSelf.superview bringSubviewToFront:strongSelf];
+        }];
+
+        UIPanGestureRecognizer *drag = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(dragMe:)];
+        [self addGestureRecognizer:drag];
+
+        [self _injectMainBridge];
+        [self _injectInitialJS];
+    }
+    return self;
+}
+
+- (void)dealloc {
+    WKUserContentController *userController = self.configuration.userContentController;
+    for (NSString *name in [self.actions allKeys]) {
+        [userController removeScriptMessageHandlerForName:name];
+    }
+}
+
+#pragma mark - JS Bridge injection
+
+static NSString* _bridgeSource() {
+    static NSString *source = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        source =
+        @"(function(){"
+        "if(window.__h5ggBridgeInjected)return;"
+        "window.__h5ggBridgeInjected=true;"
+
+        "window.__h5gg_native=function(m,a){"
+        "try{var r=prompt(JSON.stringify({method:m,args:a}));"
+        "return r?JSON.parse(r):null;"
+        "}catch(e){return null;}"
+        "};"
+
+        "var methods=['searchNumber','searchNearby','getValue','setValue',"
+        "'editAll','getResults','getResultsCount','clearResults','getLocalScripts',"
+        "'pickScriptFile','getRangesList','getProcList','setTargetProc',"
+        "'loadPlugin','makeTweak','require','setFloatTolerance'];"
+
+        "var old=window.h5gg;"
+        "window.h5gg={};"
+        "methods.forEach(function(m){"
+        "window.h5gg[m]=function(){"
+        "return window.__h5gg_native(m,Array.prototype.slice.call(arguments));"
+        "};"
+        "});"
+
+        "if(old&&typeof old==='object'){"
+        "Object.keys(old).forEach(function(k){"
+        "if(typeof old[k]!=='function'&&typeof window.h5gg[k]==='undefined')"
+        "window.h5gg[k]=old[k];"
+        "});"
+        "}"
+        "})();";
+    });
+    return source;
+}
+
+- (void)_injectMainBridge {
+    WKUserScript *script = [[WKUserScript alloc] initWithSource:_bridgeSource()
+                                                  injectionTime:WKUserScriptInjectionTimeAtDocumentStart
+                                               forMainFrameOnly:YES];
+    [self.configuration.userContentController addUserScript:script];
+}
+
+- (void)_injectInitialJS {
+    NSString *initialJS = [NSString stringWithUTF8String:gINITIAL_JSData];
+    if(initialJS && initialJS.length > 0) {
+        WKUserScript *script = [[WKUserScript alloc] initWithSource:initialJS
+                                                       injectionTime:WKUserScriptInjectionTimeAtDocumentEnd
+                                                    forMainFrameOnly:YES];
+        [self.configuration.userContentController addUserScript:script];
+    }
+}
+
+#pragma mark - Touch / Hit testing
+
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    return [super hitTest:point withEvent:event];
+}
+
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    if(self.touchableAll || CGRectContainsPoint(self.touchableRect, point))
+        return [super pointInside:point withEvent:event];
+    return NO;
+}
+
+#pragma mark - Drag
+
+- (void)setDragRect:(CGRect)rect {
+    self.dragableRect = rect;
+}
+
+- (void)dragMe:(UIPanGestureRecognizer *)sender {
+    CGPoint locationPoint = [sender locationInView:sender.view];
+
+    if(sender.state == UIGestureRecognizerStateBegan) {
+        self.startLocation = locationPoint;
+    }
+
+    if(sender.state == UIGestureRecognizerStateChanged) {
+        if(!CGRectContainsPoint(self.dragableRect, self.startLocation))
+            return;
+
+        float dx = locationPoint.x - self.startLocation.x;
+        float dy = locationPoint.y - self.startLocation.y;
+
+        CGPoint newcenter = CGPointMake(self.center.x + dx, self.center.y + dy);
+        float halfy = CGRectGetMidY(self.bounds);
+        newcenter.y = MAX(halfy, newcenter.y);
+
+        self.center = newcenter;
+        PGVSharedData->floatMenuRect = self.frame;
+    }
+}
+
+#pragma mark - Public API
+
+- (void)setLocation:(CGPoint*)point {
+    if(point) self.frame = CGRectMake(point->x, point->y, self.frame.size.width, self.frame.size.height);
+}
+
+- (void)setAction:(NSString*)name callback:(id)block {
+    if(!name) return;
+
+    self.actions[name] = block;
+
+    WKUserContentController *uc = self.configuration.userContentController;
+    [uc removeScriptMessageHandlerForName:name];
+    [uc addScriptMessageHandler:self.messageHandler name:name];
+
+    // Pre-register as WKUserScript so it's available on next page load
+    NSString *js = [NSString stringWithFormat:
+        @"if(typeof window.%@!='function'){window.%@=function(){return window.__h5gg_native('%@',Array.prototype.slice.call(arguments));};}",
+        name, name, name];
+    WKUserScript *us = [[WKUserScript alloc] initWithSource:js
+                                              injectionTime:WKUserScriptInjectionTimeAtDocumentStart
+                                           forMainFrameOnly:YES];
+    [uc addUserScript:us];
+
+    // Also inject immediately if page is already loaded
+    [self evaluateJavaScript:js completionHandler:nil];
+}
+
+- (NSString*)evalJS:(NSString*)code {
+    if(!code) return nil;
+    __block NSString *result = nil;
+    __block BOOL done = NO;
+    [self evaluateJavaScript:code completionHandler:^(id value, NSError *error) {
+        if(error) NSLog(@"evalJS error: %@", error);
+        if([value isKindOfClass:[NSString class]])
+            result = value;
+        else if(value)
+            result = [value description];
+        done = YES;
+    }];
+    while(!done) {
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+    }
+    return result;
+}
+
+- (NSString*)getValueByName:(NSString*)name {
+    return [self evalJS:name];
+}
+
+#pragma mark - Dialogs (native-side, used by Engine)
+
+- (void)alert:(NSString*)message {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.superview sendSubviewToBack:self];
+    });
+    [ModalShow alert:@"H5GG" message:message InWindow:self.window];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.superview bringSubviewToFront:self];
+    });
+}
+
+- (BOOL)confirm:(NSString*)message {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.superview sendSubviewToBack:self];
+    });
+    BOOL result = [ModalShow confirm:message InWindow:self.window];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.superview bringSubviewToFront:self];
+    });
+    return result;
+}
+
+- (NSString*)prompt:(NSString*)text defaultText:(NSString*)defaultText {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.superview sendSubviewToBack:self];
+    });
+    NSString* result = [ModalShow prompt:text defaultText:defaultText InWindow:self.window];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.superview bringSubviewToFront:self];
+    });
+    return result;
+}
+
+#pragma mark - WKScriptMessage handling
+
+- (void)handleScriptMessage:(WKScriptMessage *)message {
+    id callback = self.actions[message.name];
+    if(!callback) return;
+    if([callback isKindOfClass:NSClassFromString(@"NSBlock")]) {
+        [self _invokeBlock:callback withArgs:message.body ? @[message.body] : @[]];
+    }
+}
+
+#pragma mark - WKNavigationDelegate
+
+- (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(WKNavigation *)navigation {
+    NSLog(@"webView didStartProvisionalNavigation=%@", webView);
+}
+
+- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
+    NSLog(@"webView didFinishNavigation=%@", webView);
+    [self _onBridgeReady];
+}
+
+- (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+    NSLog(@"webView %@ didFailNavigation %@", webView, error);
+    NSString *scheme = [[error.userInfo[NSURLErrorFailingURLErrorKey] scheme] lowercaseString];
+    if([scheme isEqualToString:@"file"] || [scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"])
+        [TopShow alert:Localized(@"H5加载失败") message:[NSString stringWithFormat:@"%@", error]];
+}
+
+- (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+    NSLog(@"webView %@ didFailProvisionalNavigation %@", webView, error);
+}
+
+#pragma mark - WKUIDelegate (sandard JS dialogs + synchronous bridge)
+
+- (void)webView:(WKWebView *)webView runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(void))completionHandler {
+    [self alert:message];
+    completionHandler();
+}
+
+- (void)webView:(WKWebView *)webView runJavaScriptConfirmPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(BOOL))completionHandler {
+    BOOL result = [self confirm:message];
+    completionHandler(result);
+}
+
+- (void)webView:(WKWebView *)webView runJavaScriptTextInputPanelWithPrompt:(NSString *)prompt defaultText:(NSString *)defaultText initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(NSString * _Nullable))completionHandler {
+    NSData *data = [prompt dataUsingEncoding:NSUTF8StringEncoding];
+    if(!data) { completionHandler(defaultText); return; }
+
+    NSError *error = nil;
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+    if(error || ![json isKindOfClass:[NSDictionary class]]) {
+        NSString *result = [ModalShow prompt:prompt defaultText:defaultText InWindow:self.window];
+        completionHandler(result);
+        return;
+    }
+
+    NSDictionary *dict = (NSDictionary*)json;
+    NSString *method = dict[@"method"];
+    NSArray *args = dict[@"args"];
+
+    if(!method) { completionHandler(@"null"); return; }
+
+    id result = nil;
+
+    // Route h5gg API methods to h5ggEngine
+    if(self.actions[@"h5gg"]) {
+        result = [self _invokeMethod:method onObject:self.actions[@"h5gg"] withArgs:args];
+    }
+
+    // If no result yet, try as a named action block
+    if(!result) {
+        id actionBlock = self.actions[method];
+        if(actionBlock && [actionBlock isKindOfClass:NSClassFromString(@"NSBlock")]) {
+            result = [self _invokeBlock:actionBlock withArgs:args];
+        }
+    }
+
+    if(result && result != [NSNull null]) {
+        NSData *resultData = [NSJSONSerialization dataWithJSONObject:result options:0 error:nil];
+        if(resultData) {
+            completionHandler([[NSString alloc] initWithData:resultData encoding:NSUTF8StringEncoding]);
+            return;
+        }
+    }
+
+    completionHandler(@"null");
+}
+
+#pragma mark - Bridge ready logic (replaces old ts_didCreateJavaScriptContext)
+
+- (void)_onBridgeReady {
+    NSString *reloadStr = [self evalJS:@"window.h5gg_mainframe_reload||false"];
+    BOOL reload = [reloadStr isEqualToString:@"true"];
+    if(!reload) {
+        [self evalJS:@"window.h5gg_mainframe_reload=true"];
+
+        self.dragableRect = CGRectZero;
+        self.touchableAll = YES;
+        self.touchableRect = CGRectZero;
+
+        PGVSharedData->touchableAll = YES;
+        PGVSharedData->touchableRect = CGRectZero;
+
+        if(self.reloadAction) self.reloadAction();
+    }
+
+    // Ensure registered actions have bridge functions in current page
+    for (NSString *key in self.actions) {
+        if([key isEqualToString:@"h5gg"]) continue;
+        NSString *js = [NSString stringWithFormat:
+            @"if(typeof window.%@!='function'){window.%@=function(){return window.__h5gg_native('%@',Array.prototype.slice.call(arguments));};}",
+            key, key, key];
+        [self evalJS:js];
+    }
+
+    [self evalJS:[NSString stringWithFormat:@"window.h5gg_internel_version=%f;", H5GG_VERSION]];
+}
+
+#pragma mark - Dynamic invocation helpers
+
+- (id)_invokeBlock:(id)block withArgs:(NSArray*)args {
+    if(!block) return nil;
+
+    NSMethodSignature *sig = [block methodSignatureForSelector:@selector(invoke)];
+    if(!sig) return nil;
+
+    NSUInteger argCount = sig.numberOfArguments;
+    NSUInteger paramCount = argCount > 2 ? argCount - 2 : 0;
+
+    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+    [inv setTarget:block];
+    [inv setSelector:@selector(invoke)];
+
+    for (NSUInteger i = 0; i < paramCount && i < args.count; i++) {
+        const char *type = [sig getArgumentTypeAtIndex:i + 2];
+        [self _setInvocationArgument:inv atIndex:i + 2 withType:type value:args[i]];
+    }
+
+    [inv invoke];
+    return [self _extractReturnValue:inv];
+}
+
++ (NSString*)_jsExportSelectorForMethod:(NSString*)method argCount:(NSUInteger)argCount {
+    static NSDictionary<NSString*, NSString*> *map;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        map = @{
+            @"searchNumber":     @"searchNumber:param2:param3:param4:",
+            @"searchNearby":     @"searchNearby:param2:param3:",
+            @"getValue":         @"getValue:param2:",
+            @"setValue":         @"setValue:param2:param3:",
+            @"editAll":          @"editAll:param3:",
+            @"getResults":       @"getResults:param1:",
+            @"getResultsCount":  @"getResultsCount",
+            @"clearResults":     @"clearResults",
+            @"getLocalScripts":  @"getLocalScripts",
+            @"pickScriptFile":   @"pickScriptFile:withTypes:",
+            @"getRangesList":    @"getRangesList:",
+            @"getProcList":      @"getProcList:",
+            @"setTargetProc":    @"setTargetProc:",
+            @"loadPlugin":       @"loadPlugin:path:",
+            @"makeTweak":        @"makeTweak:with:",
+            @"require":          @"require:",
+            @"setFloatTolerance":@"setFloatTolerance:",
+        };
+    });
+    NSString *sel = map[method];
+    if(sel) return sel;
+    NSMutableString *ms = [method mutableCopy];
+    for(NSUInteger i = 0; i < argCount; i++) [ms appendString:@":"];
+    return ms;
+}
+
+- (id)_invokeMethod:(NSString*)methodName onObject:(id)object withArgs:(NSArray*)args {
+    if(!object || !methodName) return nil;
+
+    NSString *selName = [[self class] _jsExportSelectorForMethod:methodName argCount:args.count];
+    SEL selector = NSSelectorFromString(selName);
+    if(![object respondsToSelector:selector]) {
+        NSLog(@"h5gg bridge: no method %@ (%@) on %@", methodName, selName, object);
+        return nil;
+    }
+
+    NSMethodSignature *sig = [object methodSignatureForSelector:selector];
+    if(!sig) return nil;
+
+    NSUInteger paramCount = sig.numberOfArguments > 2 ? sig.numberOfArguments - 2 : 0;
+
+    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+    [inv setTarget:object];
+    [inv setSelector:selector];
+
+    for (NSUInteger i = 0; i < paramCount && i < args.count; i++) {
+        const char *type = [sig getArgumentTypeAtIndex:i + 2];
+        [self _setInvocationArgument:inv atIndex:i + 2 withType:type value:args[i]];
+    }
+
+    [inv invoke];
+    return [self _extractReturnValue:inv];
+}
+
+- (void)_setInvocationArgument:(NSInvocation*)inv atIndex:(NSInteger)idx withType:(const char*)type value:(id)value {
+    if(strcmp(type, @encode(id)) == 0) {
+        [inv setArgument:&value atIndex:idx];
+    } else if(strcmp(type, @encode(BOOL)) == 0) {
+        BOOL v = [value boolValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(int)) == 0) {
+        int v = [value intValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(unsigned int)) == 0) {
+        unsigned int v = [value unsignedIntValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(float)) == 0) {
+        float v = [value floatValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(double)) == 0) {
+        double v = [value doubleValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(long)) == 0) {
+        long v = [value longValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(long long)) == 0) {
+        long long v = [value longLongValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(short)) == 0) {
+        short v = [value shortValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(char)) == 0) {
+        char v = (char)[value charValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(unsigned long)) == 0) {
+        unsigned long v = [value unsignedLongValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(unsigned long long)) == 0) {
+        unsigned long long v = [value unsignedLongLongValue]; [inv setArgument:&v atIndex:idx];
+    } else if(strcmp(type, @encode(CGFloat)) == 0) {
+        CGFloat v = [value doubleValue]; [inv setArgument:&v atIndex:idx];
+    } else {
+        [inv setArgument:&value atIndex:idx];
+    }
+}
+
+- (id)_extractReturnValue:(NSInvocation*)inv {
+    const char *type = inv.methodSignature.methodReturnType;
+
+    if(strcmp(type, @encode(void)) == 0) return nil;
+
+    if(strcmp(type, @encode(id)) == 0) {
+        __unsafe_unretained id v = nil;
+        [inv getReturnValue:&v];
+        return v ?: [NSNull null];
+    }
+
+    if(strcmp(type, @encode(BOOL)) == 0) { BOOL v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(int)) == 0) { int v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(unsigned int)) == 0) { unsigned int v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(float)) == 0) { float v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(double)) == 0) { double v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(long)) == 0) { long v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(long long)) == 0) { long long v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(short)) == 0) { short v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(char)) == 0) { char v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(unsigned long)) == 0) { unsigned long v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(unsigned long long)) == 0) { unsigned long long v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(unsigned short)) == 0) { unsigned short v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(unsigned char)) == 0) { unsigned char v = 0; [inv getReturnValue:&v]; return @(v); }
+    if(strcmp(type, @encode(CGFloat)) == 0) { CGFloat v = 0; [inv getReturnValue:&v]; return @(v); }
+
+    return nil;
+}
+
+@end

@@ -1,13 +1,7 @@
 
 ARCHS = arm64 arm64e
 
-TARGET = iphone:13.7:11.4
-
-#for arm64e-ios13 we need xcode11.7  https://theos.dev/docs/arm64e-deployment
-THEOS_PLATFORM_SDK_ROOT_arm64e = /Applications/Xcode-11.7.app/Contents/Developer
-export TARGET_CXX = $(THEOS_PLATFORM_SDK_ROOT_arm64e)/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
-export TARGET_LD = $(THEOS_PLATFORM_SDK_ROOT_arm64e)/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
-export TARGET_STRIP = $(THEOS_PLATFORM_SDK_ROOT_arm64e)/Toolchains/XcodeDefault.xctoolchain/usr/bin/strip
+TARGET = iphone:16.5:15.0
 
 DEBUG=0
 STRIP=1
@@ -19,8 +13,8 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = libH5GGApp
 libH5GGApp_FILES = globalview.mm ContextHostManager.mm
-libH5GGApp_CFLAGS = -fobjc-arc -fvisibility=hidden 
-libH5GGApp_CCFLAGS = -fobjc-arc -fvisibility=hidden -std=c++11
+libH5GGApp_CFLAGS = -fobjc-arc
+libH5GGApp_CCFLAGS = -fobjc-arc -std=c++17
 
 #libH5GGApp_LDFLAGS += -weak_library libAPAppView.dylib
 

@@ -1,11 +1,3 @@
-#pragma GCC diagnostic ignored "-Wunused-function"
-#pragma GCC diagnostic ignored "-Wincomplete-implementation"
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#pragma GCC diagnostic ignored "-W#warnings"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wformat"
-#pragma GCC diagnostic ignored "-Wnullability-completeness"
-
 #import <UIKit/UIKit.h>
 #import <pthread.h>
 #include <dlfcn.h>
@@ -16,27 +8,28 @@
 #include "libAPAppView.h"
 #include "../FloatButton.h"
 #include "../makeWindow.h"
+#define INCBIN_SILENCE_BITCODE_WARNING
 #include "../incbin.h"
+
+NS_ASSUME_NONNULL_BEGIN
 
 FILE* logger = NULL;
 #define LOGGER(...) if(logger){fprintf(logger, __VA_ARGS__);fprintf(logger,"\r\n");fflush(logger);}
 
-
 bool g_dismiss_on_switchapp = true;
 bool g_dismiss_on_backtohome = true;
 
-//嵌入图标文件
 INCBIN(Icon, "../icon.png");
 
-NSString* g_pinnedBundleId = nil;
-UIImage* g_pinnedBundleIcon = nil;
+NSString* _Nullable g_pinnedBundleId = nil;
+UIImage* _Nullable g_pinnedBundleIcon = nil;
 
-GVData GVSharedData = GVDataDefault;
+GVData GVSharedData = GVDataDefaultMake();
 
-FloatButton* floatBtn;
-APAppView* appView=nil;
-UIView* hostView = nil;
-UIWindow* GlobalView=nil;
+FloatButton* _Nullable floatBtn;
+APAppView* _Nullable appView = nil;
+UIView* _Nullable hostView = nil;
+UIWindow* _Nullable GlobalView = nil;
 
 UIViewController *getViewControllerWithView(UIView *view){
     UIResponder *responder = view;
@@ -50,7 +43,7 @@ void alphaHostView(UIView* view)
 {
     if(view.opaque) {
         view.opaque = NO;
-        view.backgroundColor=[UIColor clearColor];
+        view.backgroundColor = UIColor.clearColor;
     }
     for(UIView* subview in view.subviews)
     {
@@ -64,7 +57,7 @@ void handleHostView(UIView* view, CGRect newFrame)
     NSLog(@"GlobalView=handleHostView=%@(%@) : %@",
             NSStringFromClass(view.class), vc?NSStringFromClass(vc.class):@"", NSStringFromClass(view.class));
 
-    if([NSStringFromClass(view.class) isEqualToString:@"SBHomeGrabberView"]) {
+    if ([NSStringFromClass(view.class) isEqualToString:@"SBHomeGrabberView"]) {
         //[view setHidden:YES]; //carsh
         //[view removeFromSuperview]; //no effact
         view.alpha=0; //works fine
@@ -145,16 +138,10 @@ void handleHostView(UIView* view, CGRect newFrame)
 
 void dumpview(int i, UIView* view)
 {
-   for(int j=0; j<view.subviews.count; j++)
-   {
-       UIView* subView = view.subviews[j];
-
-       NSString* tag=@"";
-       for(int a=0;a<i;a++) tag = [tag stringByAppendingString:@"--"];
-        NSLog(@"GlobalView=dumpview=%@ %d, %@:%@",tag, subView.isHidden, NSStringFromCGRect(subView.frame), NSStringFromClass(subView.class));
-       
-       //dumpview(i+1, subView);
-   }
+    for (UIView *sub in view.subviews) {
+        NSLog(@"GlobalView=dumpview=%d, %@:%@", sub.hidden,
+              NSStringFromCGRect(sub.frame), NSStringFromClass(sub.class));
+    }
 }
 
 
@@ -185,18 +172,18 @@ void dumpview(int i, UIView* view)
 
 @implementation GVController
 - (BOOL)shouldAutorotate {
-    NSString *deviceType = [UIDevice currentDevice].model;
+    NSString *deviceType = UIDevice.currentDevice.model;
     if([deviceType isEqualToString:@"iPad"]) return YES;
     return UIDevice.currentDevice.orientation==UIDeviceOrientationPortraitUpsideDown ? NO:YES;
 }
 
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
-    SpringBoard* sbapp = (SpringBoard*)[UIApplication sharedApplication];
-    return (UIInterfaceOrientationMask)(1<<sbapp.activeInterfaceOrientation);
+    SpringBoard* sbapp = (SpringBoard*)UIApplication.sharedApplication;
+    return (UIInterfaceOrientationMask)(1 << sbapp.activeInterfaceOrientation);
 }
 
--(UIInterfaceOrientation) preferredInterfaceOrientationForPresentation {
-    SpringBoard* sbapp = (SpringBoard*)[UIApplication sharedApplication];
+- (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {
+    SpringBoard* sbapp = (SpringBoard*)UIApplication.sharedApplication;
     return (UIInterfaceOrientation)sbapp.activeInterfaceOrientation;
 }
 
@@ -211,7 +198,7 @@ void dumpview(int i, UIView* view)
 }
 @end
 
-Class AXBackgrounderManager;
+Class _Nullable AXBackgrounderManager;
 @interface AXBackgrounderManagerClass : NSObject
 +(void)setForeground:(id)app WithBool:(BOOL)enable;
 +(BOOL)isForeground:(id)app;
@@ -268,7 +255,7 @@ void toggleGlobalView()
             if(!running)
             {
                 NSLog(@"GlobalView=monitor=%d", running);
-                GVSharedData = GVDataDefault;
+                GVSharedData = GVDataDefaultMake();
                 [hostView removeFromSuperview];
 
                 if (@available(iOS 13, *)) {
@@ -289,7 +276,7 @@ void toggleGlobalView()
             }
 
             if(GVSharedData.setWindowVisible) {
-                [hostView setHidden:!GVSharedData.windowVisibleState];
+                hostView.hidden = !GVSharedData.windowVisibleState;
                 GVSharedData.setWindowVisible = NO;
             }
         }
@@ -347,7 +334,7 @@ void toggleGlobalView()
     }
 
     if(hostView.superview)
-        [hostView setHidden:!hostView.isHidden];
+        hostView.hidden = !hostView.isHidden;
 }
 
 void initload()
@@ -373,7 +360,7 @@ void initload()
     //GlobalView.clipsToBounds = YES;
     //GlobalView.frame = CGRectMake(0,0, 375, 800);
     GlobalView.layer.masksToBounds = YES;
-    GlobalView.backgroundColor=[UIColor clearColor];
+    GlobalView.backgroundColor = UIColor.clearColor;
     GlobalView.windowLevel = UIWindowLevelStatusBar + 1;
     GlobalView.rootViewController = [[GVController alloc] init];
 
@@ -396,7 +383,7 @@ void initload()
             }
 
             if(hostView.isHidden) {
-                [hostView setHidden:NO];
+                hostView.hidden = NO;
                 return;
             }
 
@@ -409,11 +396,11 @@ void initload()
 
     [GlobalView addSubview:floatBtn]; 
     //[GlobalView makeKeyAndVisible];
-    [GlobalView setHidden:NO];
+    GlobalView.hidden = NO;
 
     //处理前台app变化时
     static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t){
-        SpringBoard* sbapp = (SpringBoard*)[UIApplication sharedApplication];
+        SpringBoard* sbapp = (SpringBoard*)UIApplication.sharedApplication;
 
         //NSLog(@"GlobalView=activeInterfaceOrientation=%d, front=%@", sbapp.activeInterfaceOrientation, sbapp._accessibilityFrontMostApplication);
 
@@ -447,7 +434,7 @@ void initload()
         bool running = appToHost && appToHost.processState;
         if(floatBtn.isHidden!=!running) {
             LOGGER("state change %d", running);
-            [floatBtn setHidden:!running];
+            floatBtn.hidden = !running;
         }
     }];
 }
@@ -463,7 +450,7 @@ static void* thread_running(void* arg)
         LOGGER("run in main");
         __block NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:1 repeats:YES block:^(NSTimer*t){
         LOGGER("run in timer");
-            if(UIApplication.sharedApplication && UIApplication.sharedApplication.keyWindow) {
+            if (UIApplication.sharedApplication && UIApplication.sharedApplication.keyWindow) {
                 LOGGER("run in appdone");
                 [timer invalidate];
                 initload();
@@ -483,7 +470,7 @@ static void __attribute__((constructor)) _init_()
 
     LOGGER("run in %s", NSBundle.mainBundle.bundleIdentifier.UTF8String);
 
-    if([NSBundle.mainBundle.bundleIdentifier isEqualToString:@"com.apple.springboard"])
+    if ([NSBundle.mainBundle.bundleIdentifier isEqualToString:@"com.apple.springboard"])
     {
         // NSString* infoPath = [NSString stringWithFormat:@"%s/Info.plist", dirname((char*)di.dli_fname)];
         // if(infoPath) {
@@ -517,3 +504,5 @@ static void __attribute__((constructor)) _init_()
         SetGlobalView((char*)di.dli_fname, (UInt64)&GVSharedData-(UInt64)di.dli_fbase);
     }
 }
+
+NS_ASSUME_NONNULL_END

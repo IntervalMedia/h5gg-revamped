@@ -1,0 +1,105 @@
+#import "FloatButton.h"
+
+@implementation FloatButton
+
+- (instancetype)init {
+    self = [super initWithFrame:CGRectMake(20, 25, 50, 50)];
+    if (self) {
+        self.clipsToBounds = YES;
+        self.layer.cornerRadius = self.frame.size.width / 2;
+
+        self.alpha = 0.8;
+        self.layer.zPosition = MAXFLOAT;
+        self.backgroundColor = [UIColor redColor];
+
+        self.userInteractionEnabled = YES;
+
+        self.keepFront = YES;
+        self.keepWindow = NO;
+
+        __weak __typeof(self) weakSelf = self;
+        self.frontTimer = [NSTimer scheduledTimerWithTimeInterval:0.2 repeats:YES block:^(NSTimer* t) {
+            __strong __typeof(weakSelf) strongSelf = weakSelf;
+            if(!strongSelf || strongSelf.hidden) return;
+
+            if(strongSelf.keepFront) [strongSelf.superview bringSubviewToFront:strongSelf];
+
+            if(!strongSelf.keepWindow) {
+                UIWindow *window = [UIApplication sharedApplication].keyWindow;
+                if(strongSelf.superview != window) [window addSubview:strongSelf];
+            }
+
+            CGRect newFrame = strongSelf.superview.frame;
+            static CGRect lastFrame = {0};
+            if(!CGRectEqualToRect(lastFrame, newFrame)) {
+                float newX = newFrame.size.width * strongSelf.frame.origin.x / lastFrame.size.width;
+                float newY = newFrame.size.height * strongSelf.frame.origin.y / lastFrame.size.height;
+
+                if(newX < 0) newX = 0;
+                if((newX + strongSelf.frame.size.width) > newFrame.size.width)
+                    newX = newFrame.size.width - strongSelf.frame.size.width;
+
+                if(newY < 0) newY = 0;
+                if((newY + strongSelf.frame.size.height) > newFrame.size.height)
+                    newY = newFrame.size.height - strongSelf.frame.size.height;
+
+                strongSelf.frame = CGRectMake(newX, newY, strongSelf.frame.size.width, strongSelf.frame.size.height);
+
+                lastFrame = newFrame;
+            }
+        }];
+
+        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapMe)];
+        [self addGestureRecognizer:tap];
+    }
+    return self;
+}
+
+- (void)touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event {
+    CGPoint pt = [[touches anyObject] locationInView:self];
+    self.startLocation = pt;
+    [[self superview] bringSubviewToFront:self];
+}
+
+- (void)touchesMoved:(NSSet*)touches withEvent:(UIEvent*)event {
+    CGPoint pt = [[touches anyObject] locationInView:self];
+    float dx = pt.x - self.startLocation.x;
+    float dy = pt.y - self.startLocation.y;
+    CGPoint newcenter = CGPointMake(self.center.x + dx, self.center.y + dy);
+
+    float halfx = CGRectGetMidX(self.bounds);
+    newcenter.x = MAX(halfx, newcenter.x);
+    newcenter.x = MIN(self.superview.bounds.size.width - halfx, newcenter.x);
+
+    float halfy = CGRectGetMidY(self.bounds);
+    newcenter.y = MAX(halfy, newcenter.y);
+    newcenter.y = MIN(self.superview.bounds.size.height - halfy, newcenter.y);
+
+    self.center = newcenter;
+}
+
+- (void)touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
+}
+
+- (void)touchesCancelled:(NSSet*)touches withEvent:(UIEvent*)event {
+}
+
+- (void)tapMe {
+    NSLog(@"click FloatButton!");
+    if(self.actionBlock) self.actionBlock();
+}
+
+- (void)setAction:(void (^)(void))block {
+    self.actionBlock = block;
+}
+
+- (void)setIcon:(UIImage*)image {
+    self.image = image;
+    self.backgroundColor = [UIColor clearColor];
+}
+
+- (void)setLocation:(CGPoint*)point {
+    if(point) self.frame = CGRectMake(point->x, point->y, self.frame.size.width, self.frame.size.height);
+}
+
+@end

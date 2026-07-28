@@ -1,4 +1,4 @@
-**************** H5GG JavaScript Engine Document (update on v7.5) ********************
+**************** H5GG JavaScript Engine Document (updated for v8.0, WKWebView) ********************
 
 h5gg is the engine object, which can call the following functions (similar to the lua interface of Android gg, but the parameters are somewhat different)
 
@@ -70,5 +70,9 @@ Notice:
 
 6: The numerical value of the search supports the range format, such as "50～100", such as "2.3～7.8", both searchNumber and searchNearby search are supported
 
-5: The default size of the floating window is 370 points wide and 370 points high. You can set the position, size and draggable area through the js api on the H5 page.
+7: With the WKWebView migration, all native h5gg calls are now asynchronous via the `webkit.messageHandlers` bridge. Use async/await or promise chaining for callback-based code.
+
+8: Backward compatible -- existing synchronous-style scripts are internally wrapped in promises and will continue to work.
+
+9: The default size of the floating window is 370 points wide and 370 points high. You can set the position, size and draggable area through the js api on the H5 page.
 

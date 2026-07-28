@@ -1,9 +1,9 @@
-#define __is__iOS9__ [[[UIDevice currentDevice] systemVersion] floatValue] >= 9.0
-
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
 
 #import "headers.h"
+
+NS_ASSUME_NONNULL_BEGIN
 
 @interface SBApplication (ContextHostManager)
 @property NSString *bundleIdentifier;
@@ -182,3 +182,5 @@ static int const UITapticEngineFeedbackPop = 1002;
 @end
 
 OBJC_EXTERN UIImage* _UICreateScreenUIImage(void) NS_RETURNS_RETAINED;
+
+NS_ASSUME_NONNULL_END

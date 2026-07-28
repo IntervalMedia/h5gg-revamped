@@ -211,7 +211,7 @@
 #define VM_MAKE_TAG(tag) ((tag) << 24)
 
 
-static const char *name_for_tag(int tag)
+static const char * __attribute__((unused)) name_for_tag(int tag)
 {
     switch (tag) {
 //    case VM_MEMORY_MALLOC: return "malloc";

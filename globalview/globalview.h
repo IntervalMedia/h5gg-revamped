@@ -1,10 +1,3 @@
-//
-//  globalview.h
-//  h5gg
-//
-//  Created by admin on 25/4/2022.
-//
-
 #ifndef globalview_h
 #define globalview_h
 
@@ -25,6 +18,10 @@ typedef struct {
     Byte buttonImageData[512*1024];
 } GVData;
 
-static GVData GVDataDefault = {NO, NO, NO, YES, CGRectZero, CGRectZero, NO, NO, NO, (UIInterfaceOrientation)0, NO, NO, 0};
+static inline GVData GVDataDefaultMake(void) {
+    GVData d = {0};
+    d.touchableAll = YES;
+    return d;
+}
 
 #endif /* globalview_h */
