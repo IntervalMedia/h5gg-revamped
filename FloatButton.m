@@ -1,4 +1,5 @@
 #import "FloatButton.h"
+#import <ImageIO/ImageIO.h>
 
 @implementation FloatButton
 
@@ -95,7 +96,61 @@
 
 - (void)setIcon:(UIImage*)image {
     self.image = image;
+    self.animationImages = nil;
+    [self stopAnimating];
     self.backgroundColor = [UIColor clearColor];
+}
+
+- (void)setIconWithData:(NSData*)data {
+    if(!data) return;
+    self.backgroundColor = [UIColor clearColor];
+
+    char magic[4] = {0};
+    [data getBytes:magic length:3];
+    if(magic[0] == 'G' && magic[1] == 'I' && magic[2] == 'F') {
+        [self _loadGifWithData:data];
+    } else {
+        self.image = [UIImage imageWithData:data];
+        self.animationImages = nil;
+        [self stopAnimating];
+    }
+}
+
+- (void)_loadGifWithData:(NSData*)data {
+    CGImageSourceRef src = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
+    if(!src) { self.image = [UIImage imageWithData:data]; return; }
+
+    size_t count = CGImageSourceGetCount(src);
+    if(count <= 1) {
+        self.image = [UIImage imageWithData:data];
+        CFRelease(src);
+        return;
+    }
+
+    NSMutableArray *frames = [NSMutableArray arrayWithCapacity:count];
+    NSTimeInterval dur = 0;
+
+    for(size_t i = 0; i < count; i++) {
+        CGImageRef cg = CGImageSourceCreateImageAtIndex(src, i, NULL);
+        if(cg) { [frames addObject:[UIImage imageWithCGImage:cg]]; CGImageRelease(cg); }
+
+        CFDictionaryRef props = CGImageSourceCopyPropertiesAtIndex(src, i, NULL);
+        if(props) {
+            CFDictionaryRef gif = CFDictionaryGetValue(props, kCGImagePropertyGIFDictionary);
+            if(gif) {
+                NSNumber *d = (__bridge NSNumber*)CFDictionaryGetValue(gif, kCGImagePropertyGIFDelayTime);
+                if(d) dur += d.doubleValue;
+            }
+            CFRelease(props);
+        }
+    }
+    CFRelease(src);
+
+    self.animationImages = frames;
+    self.animationDuration = dur > 0 ? dur : 1.0;
+    self.animationRepeatCount = 0;
+    self.image = frames.firstObject;
+    [self startAnimating];
 }
 
 - (void)setLocation:(CGPoint*)point {

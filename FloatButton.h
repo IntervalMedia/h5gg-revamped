@@ -14,6 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)init;
 - (void)setIcon:(UIImage*)image;
+- (void)setIconWithData:(NSData*)data;
 - (void)setAction:(void(^)(void))block;
 - (void)setLocation:(CGPoint*)point;
 

@@ -279,7 +279,7 @@ FloatMenu* initFloatMenu(UIWindow* win)
         __strong __typeof(floatBtn) strongBtn = floatBtn;
         dispatch_async(dispatch_get_main_queue(), ^{
             if(data && strongBtn) {
-                strongBtn.image = [UIImage imageWithData:data];
+                [strongBtn setIconWithData:data];
                 if(data.length<=sizeof(PGVSharedData->buttonImageData)) {
                     PGVSharedData->buttonImageSize = data.length;
                     [data getBytes:PGVSharedData->buttonImageData length:data.length];
