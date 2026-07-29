@@ -40,8 +40,7 @@ extern GVData* PGVSharedData;
 
         [userController addScriptMessageHandler:self name:@"h5gg"];
 
-        self.opaque = NO;
-        self.backgroundColor = [UIColor clearColor];
+        self.opaque = YES;
         self.userInteractionEnabled = YES;
 
         self.navigationDelegate = self;
