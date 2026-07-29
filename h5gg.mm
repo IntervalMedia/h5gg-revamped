@@ -31,6 +31,7 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 -(int)parseValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type;
 -(int)parseSearchValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type;
 -(void)threadcall:(void(^)())block;
+-(void)_freezerTick;
 @end
 
 @implementation h5ggEngine
@@ -48,6 +49,7 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         }
 
         _engine = new JJMemoryEngine(_targetport);
+        _frozenValues = [NSMutableDictionary dictionary];
     }
     return self;
 }
@@ -690,6 +692,49 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 
 -(void)clearBookmarks {
     [[NSUserDefaults standardUserDefaults] removeObjectForKey:BOOKMARKS_KEY];
+}
+
+-(BOOL)freezeValue:(NSString*)address value:(NSString*)value type:(NSString*)type {
+    if(!address || !value || !type) return NO;
+    _frozenValues[address] = @{@"address": address, @"value": value, @"type": type};
+    if(!_freezerTimer) {
+        _freezerTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *t) {
+            [self _freezerTick];
+        }];
+    }
+    return YES;
+}
+
+-(BOOL)unfreezeValue:(NSString*)address {
+    if(!address || !_frozenValues[address]) return NO;
+    [_frozenValues removeObjectForKey:address];
+    if(_frozenValues.count == 0) {
+        [_freezerTimer invalidate];
+        _freezerTimer = nil;
+    }
+    return YES;
+}
+
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getFrozenValues {
+    return [_frozenValues allValues];
+}
+
+-(void)clearFrozenValues {
+    [_frozenValues removeAllObjects];
+    [_freezerTimer invalidate];
+    _freezerTimer = nil;
+}
+
+-(void)_freezerTick {
+    for(NSDictionary* entry in [_frozenValues allValues]) {
+        UInt8 valuebuf[8];
+        int jjtype = [self parseValue:valuebuf from:entry[@"value"] byType:entry[@"type"]];
+        if(!jjtype) continue;
+        char* end = NULL;
+        UInt64 addr = strtoull([entry[@"address"] UTF8String], &end, [entry[@"address"] hasPrefix:@"0x"] ? 16 : 10);
+        if(end && *end) continue;
+        _engine->JJWriteMemory((void*)addr, valuebuf, jjtype);
+    }
 }
 
 @end

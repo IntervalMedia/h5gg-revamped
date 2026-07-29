@@ -73,6 +73,11 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)getBookmarks;
 -(void)clearBookmarks;
 
+-(BOOL)freezeValue:(NSString*)address value:(NSString*)value type:(NSString*)type;
+-(BOOL)unfreezeValue:(NSString*)address;
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getFrozenValues;
+-(void)clearFrozenValues;
+
 @end
 
 @interface h5ggEngine : NSObject <h5ggJSExport>
@@ -81,6 +86,8 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 @property BOOL firstSearchDone;
 @property pid_t targetpid;
 @property task_port_t targetport;
+@property (nonatomic, strong) NSMutableDictionary<NSString*, NSDictionary*>* frozenValues;
+@property (nonatomic, strong) NSTimer* freezerTimer;
 -(NSArray<NSString*>*)getInputHistory;
 -(void)addInputHistory:(NSString*)value;
 -(void)clearInputHistory;
@@ -88,6 +95,10 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(BOOL)removeBookmark:(NSString*)address;
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)getBookmarks;
 -(void)clearBookmarks;
+-(BOOL)freezeValue:(NSString*)address value:(NSString*)value type:(NSString*)type;
+-(BOOL)unfreezeValue:(NSString*)address;
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getFrozenValues;
+-(void)clearFrozenValues;
 @end
 
 NS_ASSUME_NONNULL_END
