@@ -41,6 +41,8 @@ Compile-time flags exposed to source:
 - `H5GG_BUILD_ROOTLESS`
 - `H5GG_BUILD_ROOTHIDE`
 
+Build outputs are collected in `packages/release-artifacts/` so CI/manual release workflows can publish all generated `.deb` files.
+
 ## Running modes
 
 1. [inject H5GG.dylib into ipa for non-jailbroken devices](/packages/)
