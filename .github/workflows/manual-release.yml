@@ -1,10 +1,30 @@
-name: Build
+name: Manual Release
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (example: v8.0.1)"
+        required: true
+        type: string
+      release_name:
+        description: Optional release title
+        required: false
+        default: ""
+        type: string
+      prerelease:
+        description: Mark release as pre-release
+        required: false
+        default: false
+        type: boolean
+      draft:
+        description: Create release as draft
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -34,12 +54,10 @@ jobs:
           echo "THEOS=$PWD/theos" >> $GITHUB_ENV
           sudo apt-get update -qq
           sudo apt-get install -y -qq curl xz-utils fakeroot clang llvm lld
-          # Download Linux toolchain
           curl -L https://github.com/kabiroberai/swift-toolchain-linux/releases/download/v2.3.0/swift-5.8-ubuntu20.04.tar.xz -o tc.tar.xz
           tar xf tc.tar.xz -C /opt
           rm tc.tar.xz
           echo "/opt/swift-5.8-ubuntu20.04/usr/bin" >> $GITHUB_PATH
-          # Download SDK
           curl -L https://github.com/theos/sdks/releases/download/latest/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
           mkdir -p $PWD/theos/sdks
           tar xf sdk.tar.xz -C $PWD/theos/sdks
@@ -48,9 +66,33 @@ jobs:
       - name: Build all jailbreak variants
         run: ./build.sh all
 
-      - name: Upload deb
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: H5GG-deb-${{ matrix.os }}
+          name: H5GG-release-${{ matrix.os }}
           path: packages/release-artifacts/*.deb
           if-no-files-found: error
+
+  publish-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: H5GG-release-*
+          merge-multiple: true
+          path: release-artifacts
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.release_name != '' && inputs.release_name || inputs.tag }}
+          prerelease: ${{ inputs.prerelease }}
+          draft: ${{ inputs.draft }}
+          files: release-artifacts/*.deb
+          fail_on_unmatched_files: true
+          generate_release_notes: true
