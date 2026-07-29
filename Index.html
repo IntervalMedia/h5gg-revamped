@@ -675,7 +675,7 @@ async function refreshLocalSrcipts()
             $("table#localjslist tbody").append("<tr><td colspan=2>正在搜索App的Documents数据目录...<br/>正在搜索App的.app程序目录...<br/>没有找到任何(*.js)或(*.html)文件!</td></td>");
         }
         
-        $("table#localjslist tbody").append('<tr><td style="border-right-style:none; color:blue">从文件管理器中选择</td><td style="border-left-style:none;width:45px"><button onclick="h5gg.pickScriptFile(onClickLoadScript)">浏览</button></td></tr>');
+        $("table#localjslist tbody").append('<tr><td style="border-right-style:none; color:blue">从文件管理器中选择</td><td style="border-left-style:none;width:45px"><button onclick="pickFileForScript()">浏览</button></td></tr>');
         
         for(var i=0; i<jsfiles.length; i++) {
             var row = '<tr><td style="border-right-style:none;font-weight:bold;color:green">'+jsfiles[i].name+'</td><td style="border-left-style:none;width:45px"><button onclick="onClickLoadScript(\''+jsfiles[i].path+'\')">加载</button></td></tr>';
@@ -695,6 +695,11 @@ function onShowLoadScript(show)
         $("#maskview").hide();
         $("#popup_loadscripts").hide();
     }
+}
+
+async function pickFileForScript() {
+    var path = await h5gg.pickScriptFile(["public.data"]);
+    if(path) onClickLoadScript(path);
 }
 
 function onClickLoadScript(url, type)
@@ -916,14 +921,10 @@ async function onClickMakeTweak()
 {
     console.log('FUNC onClickMakeTweak');
     alert("制作自己专属的dylib\n\n第一步: 选择悬浮按钮图标文件");
-    var icon = await new Promise(function(resolve) {
-        h5gg.pickScriptFile(function(icon) { resolve(icon); }, ["public.image"]);
-    });
+    var icon = await h5gg.pickScriptFile(["public.image"]);
     
     alert("第二步: 选择需要自动加载的html文件");
-    var html = await new Promise(function(resolve) {
-        h5gg.pickScriptFile(function(html) { resolve(html); }, ["public.html"]);
-    });
+    var html = await h5gg.pickScriptFile(["public.html"]);
     
     alert(await h5gg.makeTweak(icon, html));
 }

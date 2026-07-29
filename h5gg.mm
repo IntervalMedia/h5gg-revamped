@@ -572,16 +572,15 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 }
 
 -(void)pickScriptFile:(JSValue*)callback withTypes:(nullable JSValue*)types {
-    NSLog(@"pickScriptFile=%@ %@", types, callback);
-
-    NSArray* _types = types.isUndefined ? @[@"public.executable", @"public.html"] : types.toArray;
-
-    NSThread* webThread = NSThread.currentThread;
+    floatH5.hasPendingCallback = YES;
+    NSArray* _types = types.isUndefined ? @[@"public.data"] : types.toArray;
 
     [TopShow filePicker:_types callback:^(NSString* path) {
-        [self performSelector:@selector(threadcall:) onThread:webThread withObject:^{
-            [callback callWithArguments:@[path ?: NSNull.null]];
-        } waitUntilDone:NO];
+        if(floatH5.pendingCallId) {
+            NSString *escaped = path ? [[path stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"] stringByReplacingOccurrencesOfString:@"'" withString:@"\\'"] : @"null";
+            NSString *js = [NSString stringWithFormat:@"window.__h5gg_onResult(%@,null,'%@')", floatH5.pendingCallId, escaped];
+            [floatH5 evaluateJavaScript:js completionHandler:nil];
+        }
     }];
 }
 

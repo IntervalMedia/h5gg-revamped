@@ -14,6 +14,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) BOOL usingCustomDialog;
 @property (nonatomic, copy, nullable) void(^reloadAction)(void);
 @property (nullable, nonatomic, strong) NSString* rawHTML;
+@property (nullable, nonatomic, strong) NSNumber* pendingCallId;
+@property (nonatomic) BOOL hasPendingCallback;
 
 - (void)setLocation:(CGPoint*)point;
 - (void)setAction:(NSString*)name callback:(nullable id)block;

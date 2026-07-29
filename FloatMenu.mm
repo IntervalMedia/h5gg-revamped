@@ -322,7 +322,11 @@ static NSString* _bridgeSource() {
     NSString *methodName = body[@"method"];
     NSArray *args = body[@"args"];
 
+    self.pendingCallId = callId;
+    self.hasPendingCallback = NO;
     id result = [self _dispatchMethod:methodName args:args];
+
+    if(self.hasPendingCallback) return;
 
     NSError *err = nil;
     NSData *json = result ? [NSJSONSerialization dataWithJSONObject:result options:0 error:&err] : nil;

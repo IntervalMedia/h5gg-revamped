@@ -675,7 +675,7 @@ async function refreshLocalSrcipts()
             $("table#localjslist tbody").append("<tr><td colspan=2>Searching App's Documents Directory...<br/>Searching .app Bundle Directory...<br/>No (*.js) or (*.html) files found!</td></td>");
         }
         
-        $("table#localjslist tbody").append('<tr><td style="border-right-style:none; color:blue">Browser on File App</td><td style="border-left-style:none;width:45px"><button onclick="h5gg.pickScriptFile(onClickLoadScript)">Load</button></td></tr>');
+        $("table#localjslist tbody").append('<tr><td style="border-right-style:none; color:blue">Browser on File App</td><td style="border-left-style:none;width:45px"><button onclick="pickFileForScript()">Load</button></td></tr>');
         
         for(var i=0; i<jsfiles.length; i++) {
             var row = '<tr><td style="border-right-style:none;font-weight:bold;color:green">'+jsfiles[i].name+'</td><td style="border-left-style:none;width:45px"><button onclick="onClickLoadScript(\''+jsfiles[i].path+'\')">Load</button></td></tr>';
@@ -695,6 +695,11 @@ function onShowLoadScript(show)
         $("#maskview").hide();
         $("#popup_loadscripts").hide();
     }
+}
+
+async function pickFileForScript() {
+    var path = await h5gg.pickScriptFile(["public.data"]);
+    if(path) onClickLoadScript(path);
 }
 
 function onClickLoadScript(url, type)
@@ -916,14 +921,10 @@ async function onClickMakeTweak()
 {
     console.log('FUNC onClickMakeTweak');
     alert("Make your custom dylib\n\nStep 1: Select a picture file for float button");
-    var icon = await new Promise(function(resolve) {
-        h5gg.pickScriptFile(function(icon) { resolve(icon); }, ["public.image"]);
-    });
+    var icon = await h5gg.pickScriptFile(["public.image"]);
     
     alert("Step 2: Select a html file that needs to load automatically");
-    var html = await new Promise(function(resolve) {
-        h5gg.pickScriptFile(function(html) { resolve(html); }, ["public.html"]);
-    });
+    var html = await h5gg.pickScriptFile(["public.html"]);
     
     alert(await h5gg.makeTweak(icon, html));
 }
