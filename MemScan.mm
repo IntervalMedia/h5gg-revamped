@@ -152,6 +152,7 @@ void JJMemoryEngine::unloadRegion(void* buffer, uint64_t size, bool remapped) {
 }
 
 void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type, vector<result_region*>* outResults) {
+    NSLog(@"ScanRegion ENTER %llx-%llx size=%llx type=%d", base, base+size, size, type);
     int len = JJ_Search_Type_Len[type];
 
     result_region* newRegion = nullptr;
@@ -189,11 +190,12 @@ void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, v
 }
 
 void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
+    NSLog(@"FirstScan ENTER %llx-%llx type=%d", range.start, range.end, type);
 
     size_t stack_size = pthread_get_stacksize_np(pthread_self());
     size_t stack_addr = (size_t)pthread_get_stackaddr_np(pthread_self());
     size_t stack_end = stack_addr + stack_size;
-    NSLog(@"stack=%p %zu => %p", (void*)stack_addr, stack_size, (void*)stack_end);
+    NSLog(@"FirstScan stack=%p %zu => %p", (void*)stack_addr, stack_size, (void*)stack_end);
 
     vm_size_t region_size = 0;
     vm_address_t region_base = range.start;
@@ -210,12 +212,12 @@ void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
                                                 &depth, (vm_region_info_t)&info, &info_cnt);
 
         if(kr != KERN_SUCCESS) {
-            NSLog(@"mach_vm_region failed on %p for %d,%s", (void*)region_base, kr, mach_error_string(kr));
+            NSLog(@"FirstScan mach_vm_region failed on %p for %d,%s", (void*)region_base, kr, mach_error_string(kr));
             break;
         }
 
         const char* tag = name_for_tag(info.user_tag);
-        NSLog(@"found region %p %lx [%d/%d], %x, %s", (void*)region_base, (unsigned long)region_size, info.is_submap, depth, info.protection, tag);
+        NSLog(@"FirstScan region %p %lx [%d/%d], %x, %s", (void*)region_base, (unsigned long)region_size, info.is_submap, depth, info.protection, tag);
 
         if(info.is_submap) {
             region_size = 0;
@@ -228,18 +230,20 @@ void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
         if(this->task == mach_task_self()) {
             if((stack_addr >= (uint64_t)region_base && stack_addr < region_end)
                || (stack_end > (uint64_t)region_base && stack_addr <= region_end)) {
-                NSLog(@"skip stack region!");
+                NSLog(@"FirstScan skip stack region!");
                 continue;
             }
         }
 
         if(!(info.protection & VM_PROT_WRITE)) {
-            NSLog(@"skip readonly region!");
+            NSLog(@"FirstScan skip readonly region!");
             continue;
         }
 
         this->regions[region_base] = region_size;
     }
+    
+    NSLog(@"FirstScan regions enumerated, count=%zu", this->regions.size());
 
     for(auto& [base, size] : this->regions) {
         if(base < range.start) continue;
