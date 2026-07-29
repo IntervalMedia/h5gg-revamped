@@ -33,11 +33,12 @@ jobs:
         run: |
           echo "THEOS=$PWD/theos" >> $GITHUB_ENV
           sudo apt-get update -qq
-          sudo apt-get install -y -qq curl xz-utils fakeroot
+          sudo apt-get install -y -qq curl xz-utils fakeroot clang llvm lld
           # Download Linux toolchain
-          curl -L https://github.com/theos/toolchain/releases/download/1.0.0/linux-iphone-1.0.0.tar.xz -o tc.tar.xz
-          tar xf tc.tar.xz -C $PWD/theos
+          curl -L https://github.com/kabiroberai/swift-toolchain-linux/releases/download/v2.3.0/swift-5.8-ubuntu20.04.tar.xz -o tc.tar.xz
+          tar xf tc.tar.xz -C /opt
           rm tc.tar.xz
+          echo "/opt/swift-5.8-ubuntu20.04/usr/bin" >> $GITHUB_PATH
           # Download SDK
           curl -L https://github.com/theos/sdks/releases/download/latest/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
           mkdir -p $PWD/theos/sdks
