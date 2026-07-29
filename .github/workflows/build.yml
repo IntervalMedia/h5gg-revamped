@@ -45,8 +45,8 @@ jobs:
           tar xf sdk.tar.xz -C $PWD/theos/sdks
           rm sdk.tar.xz
 
-      - name: Build
-        run: make package FINALPACKAGE=1
+      - name: Build all jailbreak variants
+        run: ./build.sh all
 
       - name: Upload deb
         uses: actions/upload-artifact@v4

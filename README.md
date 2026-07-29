@@ -26,6 +26,21 @@ iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but
 - one-click dylib generation
 - [h5frida](/examples-h5frida) plugin for C/C++/ObjC hooking
 
+## Build (Theos)
+
+- Minimum SDK target is iOS 15.0 (`TARGET = iphone:16.5:15.0`).
+- Build all jailbreak variants with compile-time flags:
+  - `./build.sh all`
+- Build a single variant:
+  - `./build.sh normal`
+  - `./build.sh rootless`
+  - `./build.sh roothide`
+
+Compile-time flags exposed to source:
+- `H5GG_BUILD_NORMAL`
+- `H5GG_BUILD_ROOTLESS`
+- `H5GG_BUILD_ROOTHIDE`
+
 ## Running modes
 
 1. [inject H5GG.dylib into ipa for non-jailbroken devices](/packages/)
