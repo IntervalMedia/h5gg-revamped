@@ -332,20 +332,10 @@ FloatMenu* initFloatMenu(UIWindow* win)
     };
     
     
-    /* 三种加载方式 */
-    
-    NSString* h5file = [[NSBundle mainBundle] pathForResource:@"H5Menu" ofType:@"html"];
-    
-    if([[NSFileManager defaultManager] fileExistsAtPath:h5file]) {
-        //第一优先级: 从文件加载H5
-        [floatH5 loadRequest:[[NSURLRequest alloc] initWithURL:[NSURL URLWithString:h5file]]];
-    } else {
-        //第二优先级: 从dylib加载H5
-        NSString* h5gghtml = [getLLCode() isEqualToString:@"zh"] ? [NSString stringWithUTF8String:gMenuData] : [NSString stringWithUTF8String:gMenuEnData];
-        NSString* jquery = [NSString stringWithUTF8String:gH5GG_JQUERY_FILEData];
-        h5gghtml = [h5gghtml stringByReplacingOccurrencesOfString:@"var h5gg_jquery_stub;" withString:jquery];
-        [floatH5 loadHTMLString:h5gghtml baseURL:[NSURL URLWithString:@"Index"]];
-    }
+    // Store load info - actual loading happens after view is added to window
+    floatH5.rawHTML = [getLLCode() isEqualToString:@"zh"] ? [NSString stringWithUTF8String:gMenuData] : [NSString stringWithUTF8String:gMenuEnData];
+    NSString* jquery = [NSString stringWithUTF8String:gH5GG_JQUERY_FILEData];
+    floatH5.rawHTML = [floatH5.rawHTML stringByReplacingOccurrencesOfString:@"var h5gg_jquery_stub;" withString:jquery];
     
     return floatH5;
 }
@@ -374,6 +364,14 @@ void showFloatWindowContinue(bool show)
         
         //添加H5悬浮菜单到窗口上
         [floatWindow addSubview:floatH5];
+        
+        // Load HTML after view is in window hierarchy (WKWebView needs this)
+        NSString* h5file = [[NSBundle mainBundle] pathForResource:@"H5Menu" ofType:@"html"];
+        if([[NSFileManager defaultManager] fileExistsAtPath:h5file]) {
+            [floatH5 loadRequest:[[NSURLRequest alloc] initWithURL:[NSURL URLWithString:h5file]]];
+        } else if(floatH5.rawHTML) {
+            [floatH5 loadHTMLString:floatH5.rawHTML baseURL:[NSURL URLWithString:@"Index"]];
+        }
     }
     
     if(show)

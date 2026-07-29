@@ -13,6 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) CGPoint startLocation;
 @property (nonatomic) BOOL usingCustomDialog;
 @property (nonatomic, copy, nullable) void(^reloadAction)(void);
+@property (nullable, nonatomic, strong) NSString* rawHTML;
 
 - (void)setLocation:(CGPoint*)point;
 - (void)setAction:(NSString*)name callback:(nullable id)block;
