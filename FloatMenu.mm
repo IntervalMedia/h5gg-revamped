@@ -103,7 +103,7 @@ static NSString* _bridgeSource() {
         "'addBookmark','removeBookmark','getBookmarks','clearBookmarks',"
         "'freezeValue','unfreezeValue','getFrozenValues','clearFrozenValues',"
         "'searchHex','getSearchHistory','addSearchHistory','clearSearchHistory',"
-        "'dumpMemory','readPointer','findPointers','readBytes','saveScript','loadScript','deleteScript','listScripts'"
+        "'dumpMemory','readPointer','findPointers','readBytes','appendLog','saveScript','loadScript','deleteScript','listScripts'"
         "];"
         "window.h5gg={};"
         "methods.forEach(function(m){"
@@ -409,6 +409,7 @@ static NSString* _bridgeSource() {
             @"dumpMemory":         @"dumpMemory:end:filename:",
             @"readPointer":        @"readPointer:",
             @"findPointers":      @"findPointers:rangeStart:rangeEnd:",
+            @"appendLog":         @"appendLog:",
              @"readBytes":          @"readBytes:length:",
              @"saveScript":         @"saveScript:content:",
              @"loadScript":         @"loadScript:",

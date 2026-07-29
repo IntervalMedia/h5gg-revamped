@@ -837,6 +837,19 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     return [data writeToFile:path atomically:YES];
 }
 
+-(void)appendLog:(NSString*)message {
+    if(!message) return;
+    NSString *path = [NSString stringWithFormat:@"%@/Documents/h5gg.log", NSHomeDirectory()];
+    NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:path];
+    if(!fh) {
+        [message writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    } else {
+        [fh seekToEndOfFile];
+        [fh writeData:[[message stringByAppendingString:@"\n"] dataUsingEncoding:NSUTF8StringEncoding]];
+        [fh closeFile];
+    }
+}
+
 -(NSString*)readPointer:(NSString*)address {
     char* end = NULL;
     UInt64 addr = strtoull([address UTF8String], &end, [address hasPrefix:@"0x"] ? 16 : 10);
