@@ -360,25 +360,14 @@ void showFloatWindowContinue(bool show)
         NSLog(@"FloatWindow=size=%@, %@, %@", NSStringFromCGRect(floatWindow.frame), NSStringFromCGRect(UIScreen.mainScreen.bounds), NSStringFromCGRect(UIScreen.mainScreen.nativeBounds));
         
         
-        // DEBUG: add a visible label to confirm window is on screen
-        UILabel* dbg = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 350, 40)];
-        dbg.text = @"H5GG";
-        dbg.textColor = [UIColor redColor];
-        dbg.backgroundColor = [UIColor whiteColor];
-        dbg.font = [UIFont boldSystemFontOfSize:18];
-        [floatWindow addSubview:dbg];
-        
         floatH5 = initFloatMenu(floatWindow);
         
         //添加H5悬浮菜单到窗口上
         [floatWindow addSubview:floatH5];
         
-        // Test with our actual HTML (without jQuery injection)
-        NSString* raw = [getLLCode() isEqualToString:@"zh"] ? [NSString stringWithUTF8String:gMenuData] : [NSString stringWithUTF8String:gMenuEnData];
-        if(raw) {
-            [floatH5 loadHTMLString:raw baseURL:[NSURL URLWithString:@"https://localhost/"]];
-        } else {
-            [floatH5 loadHTMLString:@"<html><body style='background:red;color:white;font-size:30px'><div>HTML is NIL</div></body></html>" baseURL:nil];
+        // Load HTML after view is in window hierarchy (WKWebView needs this)
+        if(floatH5.rawHTML) {
+            [floatH5 loadHTMLString:floatH5.rawHTML baseURL:[NSURL URLWithString:@"https://localhost/"]];
         }
     }
     
