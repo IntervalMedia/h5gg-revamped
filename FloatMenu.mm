@@ -58,6 +58,8 @@ extern GVData* PGVSharedData;
             [strongSelf.superview bringSubviewToFront:strongSelf];
         }];
 
+        self.dragableRect = frame;
+
         UIPanGestureRecognizer *drag = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(dragMe:)];
         [self addGestureRecognizer:drag];
 
@@ -294,7 +296,6 @@ static NSString* _bridgeSource() {
     if(!reload) {
         [self evalJS:@"window.h5gg_mainframe_reload=true"];
 
-        self.dragableRect = CGRectZero;
         self.touchableAll = YES;
         self.touchableRect = CGRectZero;
 
