@@ -6,12 +6,11 @@ UIWindow* makeWindow(NSString* clazz) {
         UIWindowScene* theScene = nil;
         for (UIWindowScene* windowScene in [UIApplication sharedApplication].connectedScenes) {
             NSLog(@"windowScene=%@ %@ state=%ld", windowScene, windowScene.windows, (long)windowScene.activationState);
-            if(!theScene && windowScene.activationState == UISceneActivationStateForegroundInactive)
-                theScene = windowScene;
             if (windowScene.activationState == UISceneActivationStateForegroundActive) {
                 theScene = windowScene;
                 break;
             }
+            if(!theScene) theScene = windowScene;
         }
         w = [[NSClassFromString(clazz) alloc] initWithWindowScene:theScene];
     } else {
