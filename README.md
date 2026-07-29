@@ -2,7 +2,7 @@
 
 Fully revamped and actively maintained. Complete rewrite of the original H5GG codebase after years of inactivity. All code modernized for current iOS versions.
 
-**Join the [Discord](https://discord.gg/CnwCJC5jak)**
+**Join the [Discord](https://discord.gg/CnwCJC5jak)** -- please introduce yourself when you join!
 
 iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but with custom HTML interfaces and a dylib plugin system.
 
