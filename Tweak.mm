@@ -61,26 +61,6 @@ INCTXT(MenuEn, "Index-en.html");
 
 INCTXT(H5GG_JQUERY_FILE, "jquery.min.js");
 
-//嵌入定制图标和H5模板(占位符) - loaded from stub files, replaced by makeDYLIB()
-static NSData* _h5ggIconStub(void) {
-    static NSData *d;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        d = [NSData dataWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"H5ICON_STUB_FILE" ofType:nil]];
-        if(!d) d = [NSMutableData dataWithLength:524288];
-    });
-    return d;
-}
-static NSData* _h5ggMenuStub(void) {
-    static NSData *d;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        d = [NSData dataWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"H5MENU_STUB_FILE" ofType:nil]];
-        if(!d) d = [NSMutableData dataWithLength:2097152];
-    });
-    return d;
-}
-
 //定义悬浮按钮和悬浮菜单全局变量, 防止被自动释放
 UIWindow* floatWindow=NULL;
 FloatButton* floatBtn=NULL;
@@ -162,15 +142,8 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
     PGVSharedData->enable = YES;
     
     
-    NSData *iconStubData = _h5ggIconStub();
-    NSString* iconstub = [[NSString alloc] initWithData:iconStubData encoding:NSUTF8StringEncoding];
-    if(iconstub.hash!=0x1fdd7fff7d401bd2 && iconStubData.length<=sizeof(PGVSharedData->buttonImageData)) {
-        PGVSharedData->buttonImageSize = iconStubData.length;
-        [iconStubData getBytes:PGVSharedData->buttonImageData length:iconStubData.length];
-    } else {
-        PGVSharedData->buttonImageSize = gIconSize;
-        memcpy(PGVSharedData->buttonImageData, gIconData, gIconSize);
-    }
+    PGVSharedData->buttonImageSize = gIconSize;
+    memcpy(PGVSharedData->buttonImageData, gIconData, gIconSize);
     
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, screenLockStateChanged, NotificationDisplayStatus, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 
@@ -359,29 +332,15 @@ FloatMenu* initFloatMenu(UIWindow* win)
     };
     
     
-    /* 三种加载方式任选其一 */
-
-    NSData *menuStubData = _h5ggMenuStub();
-    NSString* htmlstub = menuStubData ? [[NSString alloc] initWithData:menuStubData encoding:NSUTF8StringEncoding] : nil;
-    NSLog(@"html stub hash=%lu", (unsigned long)[htmlstub hash]);
+    /* 三种加载方式 */
     
-    //ipa的.app目录中的H5文件名
     NSString* h5file = [[NSBundle mainBundle] pathForResource:@"H5Menu" ofType:@"html"];
     
-    if(htmlstub && [htmlstub hash] != 0xc25ce928da0ca2de) {
-        //第一优先级: 从网址加载H5
-        if([[htmlstub lowercaseString] hasPrefix:@"http"])
-            [floatH5 loadRequest:[[NSURLRequest alloc] initWithURL:[NSURL URLWithString:htmlstub]]];
-        else {
-            NSString* jquery = [NSString stringWithUTF8String:gH5GG_JQUERY_FILEData];
-            htmlstub = [htmlstub stringByReplacingOccurrencesOfString:@"var h5gg_jquery_stub;" withString:jquery];
-            [floatH5 loadHTMLString:htmlstub baseURL:[NSURL URLWithString:@"Index"]];
-        }
-    } else if([[NSFileManager defaultManager] fileExistsAtPath:h5file]) {
-        //第二优先级: 从文件加载H5
+    if([[NSFileManager defaultManager] fileExistsAtPath:h5file]) {
+        //第一优先级: 从文件加载H5
         [floatH5 loadRequest:[[NSURLRequest alloc] initWithURL:[NSURL URLWithString:h5file]]];
     } else {
-        //第三优先级: 从dylib加载H5
+        //第二优先级: 从dylib加载H5
         NSString* h5gghtml = [getLLCode() isEqualToString:@"zh"] ? [NSString stringWithUTF8String:gMenuData] : [NSString stringWithUTF8String:gMenuEnData];
         NSString* jquery = [NSString stringWithUTF8String:gH5GG_JQUERY_FILEData];
         h5gghtml = [h5gghtml stringByReplacingOccurrencesOfString:@"var h5gg_jquery_stub;" withString:jquery];
@@ -489,24 +448,8 @@ void initFloatButton(void (^callback)(void))
     if(g_testapp_runmode)
         floatBtn.center = CGPointMake(150, 60);
     
-    UIImage* iconImage=nil;
-    
-    NSData *iconStubData = _h5ggIconStub();
-    NSString* iconstub = iconStubData ? [[NSString alloc] initWithData:iconStubData encoding:NSUTF8StringEncoding] : nil;
-    NSLog(@"icon stub hash=%lu", (unsigned long)[iconstub hash]);
-    
-    //ipa的.app目录中的图标文件名
-    NSString* iconfile = [[NSBundle mainBundle] pathForResource:@"H5Icon" ofType:@"png"];
-    
-    if(iconstub && [iconstub hash] != 0x1fdd7fff7d401bd2) {
-        //第一优先级:
-        NSData* iconData = _h5ggIconStub();
-        iconImage = [[UIImage alloc] initWithData:iconData];
-    } else if([[NSFileManager defaultManager] fileExistsAtPath:iconfile]) {
-        //第二优先级: 从文件加载图标
-        iconImage = [UIImage imageNamed:iconfile];
-    } else {
-        //第三优先级: 从dylib加载图标
+    UIImage* iconImage = [UIImage imageNamed:@"H5Icon.png"];
+    if(!iconImage) {
         NSData* iconData = [[NSData alloc] initWithBytes:gIconData length:gIconSize];
         iconImage = [[UIImage alloc] initWithData:iconData];
     }
@@ -531,11 +474,6 @@ void initload()
     NSString* app_package = [[NSBundle mainBundle] bundleIdentifier];
     if(app_package.hash==0xa8f1ac9df8696cea || app_package.hash==0xa8f1aca37f747aea)
         return; //UIWebView冲突
-    
-    NSString* htmlstub = [[NSString alloc] initWithData:_h5ggMenuStub() encoding:NSUTF8StringEncoding];
-    if(app_package.hash==0xccca3dc699edf771 && [htmlstub hash]==0xc25ce928da0ca2de) {
-        [TopShow alert:@"风险提示" message:@"建议卸载通用版, 使用跨进程版."];
-    }
     
     // Always create the floating button so the user has something to tap
     initFloatButton(^(void) {
