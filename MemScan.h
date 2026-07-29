@@ -111,6 +111,7 @@ public:
     void SetFloatTolerance(float d);
 
     void JJScanMemory(AddrRange range, void* target, int type);
+    void JJScanHexMemory(AddrRange range, const char* hexStr);
     void JJNearBySearch(size_t range, void *target, int type);
     bool JJReadMemory(void* buf, uint64_t addr, int type);
     bool JJWriteMemory(void* address, void *target, int type);

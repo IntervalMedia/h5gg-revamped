@@ -1031,6 +1031,232 @@ function toggleTheme() {
     }
 }
 
+async function loadSearchResults() {
+    $("table#resultList tr").remove();
+    $("#listdiv").get(0).scroll(0,0);
+    $("table#resultList").attr("currentCount", 0);
+    var count = h5gg.getResultsCount();
+    $("#results_count").text("Results Count: "+count);
+    $("#results_count").show();
+    loadResults(0, 100);
+}
+
+async function openHistoryPanel() {
+    var list = await h5gg.getSearchHistory();
+    var html = '<div id="histOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'histOverlay\')">';
+    html += '<div style="position:absolute;top:10%;left:5%;width:90%;height:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center">';
+    html += '<span>Search History ('+list.length+')</span>';
+    html += '<span><button onclick="clearHistory()" style="font-size:11px;padding:2px 6px">Clear</button> <span onclick="closeOverlay(\'histOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
+    html += '</div>';
+    html += '<div class="scrollbar" style="flex:1;overflow-y:auto;padding:4px">';
+    if(list.length==0) html += '<div style="padding:12px;text-align:center;color:var(--text-color,#888)">No history</div>';
+    for(var i=0;i<list.length;i++) {
+        var h = list[i];
+        html += '<div onclick="reRunSearch('+i+')" style="padding:6px 8px;border-bottom:1px solid var(--border-color,#eee);cursor:pointer">';
+        html += '<div style="font-size:12px"><b>'+h.value+'</b> ['+h.type+'] <span style="color:#888">'+h.count+' results</span></div>';
+        html += '<div style="font-size:10px;color:var(--text-color,#888)">'+h.time+'</div>';
+        html += '</div>';
+    }
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeOverlay(id) {
+    var el = document.getElementById(id);
+    if(el) el.remove();
+}
+
+async function reRunSearch(idx) {
+    var list = await h5gg.getSearchHistory();
+    if(idx < list.length) {
+        var h = list[idx];
+        var valInput = document.querySelector('input[name="svalue"]') || document.querySelector('input[placeholder*="value"]');
+        if(valInput) valInput.value = h.value;
+    }
+    closeOverlay('histOverlay');
+}
+
+async function clearHistory() {
+    await h5gg.clearSearchHistory();
+    closeOverlay('histOverlay');
+    openHistoryPanel();
+}
+
+async function openScriptEditor() {
+    var list = await h5gg.listScripts();
+    var html = '<div id="scriptOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'scriptOverlay\')">';
+    html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
+    html += '<span>Script Editor</span>';
+    html += '<span><button onclick="saveCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Save</button> <span onclick="closeOverlay(\'scriptOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
+    html += '</div>';
+    html += '<div style="display:flex;flex:1;overflow:hidden">';
+    html += '<div class="scrollbar" style="width:100px;border-right:1px solid var(--border-color,#ccc);overflow-y:auto;flex-shrink:0;padding:2px">';
+    html += '<button onclick="newScript()" style="width:100%;font-size:11px;margin:2px 0">+ New</button>';
+    for(var i=0;i<list.length;i++) {
+        html += '<div onclick="loadScript(\''+list[i]+'\')" style="padding:4px;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border-color,#eee);word-break:break-all">'+list[i]+'</div>';
+    }
+    html += '</div>';
+    html += '<div style="flex:1;display:flex;flex-direction:column;padding:4px">';
+    html += '<input id="scriptFileName" value="untitled.js" style="width:100%;margin-bottom:4px;padding:4px;font-size:12px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
+    html += '<textarea id="scriptEditor" style="flex:1;width:100%;font-family:monospace;font-size:11px;padding:4px;resize:none;background:var(--input-bg,transparent);color:var(--text-color,#000);border:1px solid var(--border-color,#ccc);border-radius:3px">// Write your script here</textarea>';
+    html += '</div></div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function loadScript(name) {
+    var content = await h5gg.loadScript(name);
+    var input = document.getElementById('scriptFileName');
+    var editor = document.getElementById('scriptEditor');
+    if(input) input.value = name;
+    if(editor && content) editor.value = content;
+}
+
+async function saveCurrentScript() {
+    var input = document.getElementById('scriptFileName');
+    var editor = document.getElementById('scriptEditor');
+    if(!input || !editor) return;
+    var name = input.value.trim();
+    var content = editor.value;
+    if(!name) return alert('Enter a file name');
+    var ok = await h5gg.saveScript(name, content);
+    if(ok) alert('Saved');
+}
+
+function newScript() {
+    var input = document.getElementById('scriptFileName');
+    var editor = document.getElementById('scriptEditor');
+    if(input) input.value = 'untitled.js';
+    if(editor) editor.value = '// Write your script here';
+}
+
+function openOffsetCalc() {
+    var html = '<div id="calcOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'calcOverlay\')">';
+    html += '<div style="position:absolute;top:25%;left:10%;width:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
+    html += '<span>Offset Calculator</span>';
+    html += '<span onclick="closeOverlay(\'calcOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+    html += '</div>';
+    html += '<div style="padding:12px">';
+    html += '<div style="margin:6px 0"><label>Base Address:</label><br><input id="calcBase" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
+    html += '<div style="margin:6px 0"><label>Offset:</label><br><input id="calcOffset" type="text" placeholder="0x... or decimal" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
+    html += '<div style="margin:6px 0"><label>Result:</label><br><input id="calcResult" type="text" readonly style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;color:#3393EF"></div>';
+    html += '<button onclick="doCalc()" style="width:100%;margin:6px 0">Calculate</button>';
+    html += '<button onclick="copyCalcResult()" style="width:100%;margin:6px 0">Copy to Clipboard</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function doCalc() {
+    var base = document.getElementById('calcBase').value.trim();
+    var off = document.getElementById('calcOffset').value.trim();
+    if(!base || !off) return;
+    var baseNum = Number(base.startsWith('0x') ? BigInt(base) : parseInt(base));
+    var offNum = Number(off.startsWith('0x') ? BigInt(off) : parseInt(off));
+    var baseHex = base.startsWith('0x') ? base.substring(2) : Number(base).toString(16);
+    var offHex = off.startsWith('0x') ? off.substring(2) : Number(off).toString(16);
+    var result = (parseInt(baseHex, 16) + parseInt(offHex, 16)).toString(16);
+    document.getElementById('calcResult').value = '0x' + result.toUpperCase();
+}
+
+function copyCalcResult() {
+    var r = document.getElementById('calcResult');
+    if(r && r.value) {
+        prompt('Copy:', r.value);
+    }
+}
+
+var gPointerChain = [];
+
+async function openPointerChain() {
+    gPointerChain = [];
+    var html = '<div id="ptrOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'ptrOverlay\')">';
+    html += '<div style="position:absolute;top:15%;left:5%;width:90%;height:70%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center">';
+    html += '<span>Pointer Chain</span>';
+    html += '<span onclick="closeOverlay(\'ptrOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+    html += '</div>';
+    html += '<div style="padding:8px;border-bottom:1px solid var(--border-color,#eee)">';
+    html += '<input id="ptrBase" type="text" placeholder="Base address (0x...)" style="width:100%;padding:4px;margin:4px 0;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
+    html += '<div style="display:flex;gap:4px">';
+    html += '<input id="ptrOffset" type="text" placeholder="Offset" style="flex:1;padding:4px;margin:4px 0;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
+    html += '<button onclick="addPtrStep()" style="padding:4px 8px;margin:4px 0">Add + Read</button>';
+    html += '</div></div>';
+    html += '<div id="ptrChainDisplay" class="scrollbar" style="flex:1;overflow-y:auto;padding:8px;font-family:monospace;font-size:11px">';
+    html += '<div style="color:var(--text-color,#888)">Enter a base address, add offset, then the pointer value at that address is read and becomes the next base.</div>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function addPtrStep() {
+    if(gPointerChain.length == 0) {
+        var base = document.getElementById('ptrBase').value.trim();
+        if(!base) return;
+        gPointerChain.push(base);
+    }
+    
+    var off = document.getElementById('ptrOffset').value.trim();
+    if(!off) return;
+    
+    var currentAddr = gPointerChain[gPointerChain.length - 1];
+    var offNum = off.startsWith('0x') ? parseInt(off.substring(2), 16) : parseInt(off);
+    var targetAddr = (parseInt(currentAddr.startsWith('0x') ? currentAddr.substring(2) : currentAddr, 16) + offNum).toString(16);
+    targetAddr = '0x' + targetAddr.toUpperCase();
+    
+    var value = await h5gg.readPointer(targetAddr);
+    
+    var display = document.getElementById('ptrChainDisplay');
+    if(display) {
+        var line = document.createElement('div');
+        line.style.padding = '4px';
+        line.style.borderBottom = '1px solid var(--border-color,#eee)';
+        line.innerHTML = '['+gPointerChain.length+'] <span style="color:#3393EF">'+targetAddr+'</span> + '+off+' = <b>'+value+'</b>';
+        display.appendChild(line);
+    }
+    
+    gPointerChain.push(value);
+    document.getElementById('ptrOffset').value = '';
+    document.getElementById('ptrOffset').focus();
+}
+
+async function doHexSearch() {
+    var hex = document.getElementById('hexInput').value.trim();
+    if(!hex) return;
+    await h5gg.searchHex(hex, '0x0', '0xFFFFFFFF00000000');
+    await loadSearchResults();
+    await h5gg.addSearchHistory(hex, 'Hex', await h5gg.getResultsCount());
+}
+
+async function openDumpPanel() {
+    var html = '<div id="dumpOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'dumpOverlay\')">';
+    html += '<div style="position:absolute;top:25%;left:10%;width:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
+    html += '<span>Dump Memory</span>';
+    html += '<span onclick="closeOverlay(\'dumpOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+    html += '</div>';
+    html += '<div style="padding:12px">';
+    html += '<div style="margin:6px 0"><label>Start Address:</label><br><input id="dumpStart" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
+    html += '<div style="margin:6px 0"><label>End Address:</label><br><input id="dumpEnd" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
+    html += '<div style="margin:6px 0"><label>File Name:</label><br><input id="dumpName" type="text" value="dump.bin" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
+    html += '<button onclick="doDump()" style="width:100%;margin:6px 0">Dump</button>';
+    html += '<div id="dumpStatus" style="font-size:11px;color:#888"></div>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function doDump() {
+    var start = document.getElementById('dumpStart').value.trim();
+    var end = document.getElementById('dumpEnd').value.trim();
+    var name = document.getElementById('dumpName').value.trim();
+    if(!start || !end || !name) return;
+    var status = document.getElementById('dumpStatus');
+    if(status) status.textContent = 'Dumping...';
+    var ok = await h5gg.dumpMemory(start, end, name);
+    if(status) status.textContent = ok ? 'Saved to Documents/'+name : 'Dump failed';
+    if(ok) setTimeout(function(){ closeOverlay('dumpOverlay'); }, 1500);
+}
+
 </script>
 
 </head>
@@ -1069,9 +1295,21 @@ MemEnd:<input id="range_max" style="width:80px;padding-left:0"  value="0x2000000
 <button onclick="openBookmarksPanel()">&nbsp;Bookmarks&nbsp;</button>
 <button onclick="openFreezePanel()">&nbsp;Freeze&nbsp;</button>
 <br/>
+<button onclick="openScriptEditor()">Scripts</button>
+<button onclick="openOffsetCalc()">Calc</button>
+<button onclick="openPointerChain()">Ptr</button>
+<button onclick="openDumpPanel()">Dump</button>
+<button onclick="openHistoryPanel()">Hist</button>
+<br/>
 NearbyRange:<input id="nearby_range" style="width:55px"  value="0x100"/>
 <br/>
 FloatTolerance:<input id="float_tolerance" style="width:50px" value="0.0"/>
+<br/>
+<div style="display:flex;align-items:center;padding:2px 4px;margin-top:2px">
+    <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#3393EF">Hex</span>
+    <input id="hexInput" type="text" placeholder="90 00 E0 AF" style="flex:1;height:26px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
+    <button onclick="doHexSearch()" style="height:26px;font-size:11px;padding:2px 6px;margin-left:4px">Search</button>
+</div>
 <br/>
 <hr class="control-separator"/>
 <p id="results_count" style="display:none">Results Count:<span>0</span></p>

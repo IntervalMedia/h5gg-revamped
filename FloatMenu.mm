@@ -101,7 +101,9 @@ static NSString* _bridgeSource() {
         "'require','setFloatTolerance','searchChange',"
         "'getInputHistory','addInputHistory','clearInputHistory',"
         "'addBookmark','removeBookmark','getBookmarks','clearBookmarks',"
-        "'freezeValue','unfreezeValue','getFrozenValues','clearFrozenValues'"
+        "'freezeValue','unfreezeValue','getFrozenValues','clearFrozenValues',"
+        "'searchHex','getSearchHistory','addSearchHistory','clearSearchHistory',"
+        "'dumpMemory','readPointer','saveScript','loadScript','deleteScript','listScripts'"
         "];"
         "window.h5gg={};"
         "methods.forEach(function(m){"
@@ -399,6 +401,16 @@ static NSString* _bridgeSource() {
             @"unfreezeValue":      @"unfreezeValue:",
             @"getFrozenValues":    @"getFrozenValues",
             @"clearFrozenValues":  @"clearFrozenValues",
+            @"searchHex":          @"searchHex:memoryFrom:memoryTo:",
+            @"getSearchHistory":   @"getSearchHistory",
+            @"addSearchHistory":   @"addSearchHistory:type:count:",
+            @"clearSearchHistory": @"clearSearchHistory",
+            @"dumpMemory":         @"dumpMemory:end:filename:",
+            @"readPointer":        @"readPointer:",
+            @"saveScript":         @"saveScript:content:",
+            @"loadScript":         @"loadScript:",
+            @"deleteScript":       @"deleteScript:",
+            @"listScripts":        @"listScripts",
         };
     });
     NSString *sel = map[method];

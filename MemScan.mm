@@ -1,6 +1,8 @@
 #include "MemScan.h"
 #include <pthread.h>
 #include <Foundation/Foundation.h>
+#include <cctype>
+#include <cstdlib>
 
 const int JJ_Search_Type_Len[] = {0, 8, 8, 8, 4, 4, 4, 2, 2, 1, 1};
 
@@ -240,9 +242,17 @@ void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
         this->regions[region_base] = region_size;
     }
 
-    int i = 0;
+    vector<pair<uint64_t, uint64_t>> regionsToScan;
     for(auto& [base, size] : this->regions) {
-        NSLog(@"handle region[%d/%zu] %p %llx [%zu]", i++, this->regions.size(),
+        if(base < range.start) continue;
+        if(base > range.end) break;
+        uint64_t region_end = min(base + size, range.end);
+        regionsToScan.push_back({max(base, range.start), region_end - max(base, range.start)});
+    }
+
+    int i = 0;
+    for(auto& [base, size] : regionsToScan) {
+        NSLog(@"handle region[%d/%zu] %p %llx [%zu]", i++, regionsToScan.size(),
               (void*)base, (unsigned long long)size, this->result->count);
         ScanRegion(range, base, size, target, type);
     }
@@ -319,6 +329,56 @@ void JJMemoryEngine::JJScanMemory(AddrRange range, void* target, int type) {
         this->firstScanDone = true;
     }
 
+    saveSnapshot();
+}
+
+void JJMemoryEngine::JJScanHexMemory(AddrRange range, const char* hexStr) {
+    vector<uint8_t> pattern;
+    while(*hexStr) {
+        while(*hexStr && isspace(*hexStr)) hexStr++;
+        if(!*hexStr) break;
+        char buf[3] = {hexStr[0], hexStr[1], 0};
+        if(strlen(buf) < 2) break;
+        pattern.push_back((uint8_t)strtoul(buf, NULL, 16));
+        hexStr += 2;
+    }
+    if(pattern.empty()) return;
+
+    for(auto& [base, size] : this->regions) {
+        if(base < range.start) continue;
+        if(base > range.end) break;
+
+        uint64_t region_end = min(base + size, range.end);
+        uint64_t region_base = max(base, range.start);
+        uint64_t region_size = region_end - region_base;
+        if(region_size < pattern.size()) continue;
+
+        bool remapped = false;
+        uint64_t loadSize = region_size;
+        void* buffer = loadRegion(region_base, &loadSize, &remapped);
+        if(!buffer) continue;
+
+        uint8_t* bytes = (uint8_t*)buffer;
+        uint64_t scanSize = min((uint64_t)loadSize, region_size);
+
+        for(uint64_t off = 0; off <= scanSize - pattern.size(); off++) {
+            bool match = true;
+            for(size_t i = 0; i < pattern.size(); i++) {
+                if(bytes[off + i] != pattern[i]) { match = false; break; }
+            }
+            if(match) {
+                auto* rr = new result_region(region_base, pattern.size());
+                rr->slides.push_back((uint32_t)(off));
+                rr->types.push_back(JJ_Search_Type_UByte);
+                result->regions.push_back(rr);
+                result->count++;
+            }
+        }
+
+        unloadRegion(buffer, loadSize, remapped);
+    }
+
+    firstScanDone = true;
     saveSnapshot();
 }
 

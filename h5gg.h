@@ -78,6 +78,26 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)getFrozenValues;
 -(void)clearFrozenValues;
 
+// Hex search
+-(void)searchHex:(NSString*)hex memoryFrom:(NSString*)memoryFrom memoryTo:(NSString*)memoryTo;
+
+// Search history
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getSearchHistory;
+-(void)addSearchHistory:(NSString*)value type:(NSString*)type count:(int)count;
+-(void)clearSearchHistory;
+
+// Dump memory
+-(BOOL)dumpMemory:(NSString*)start end:(NSString*)end filename:(NSString*)filename;
+
+// Pointer chain
+-(NSString*)readPointer:(NSString*)address;
+
+// Script editor
+-(BOOL)saveScript:(NSString*)name content:(NSString*)content;
+-(NSString*)loadScript:(NSString*)name;
+-(BOOL)deleteScript:(NSString*)name;
+-(NSArray<NSString*>*)listScripts;
+
 @end
 
 @interface h5ggEngine : NSObject <h5ggJSExport>
@@ -99,6 +119,16 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(BOOL)unfreezeValue:(NSString*)address;
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)getFrozenValues;
 -(void)clearFrozenValues;
+-(void)searchHex:(NSString*)hex memoryFrom:(NSString*)memoryFrom memoryTo:(NSString*)memoryTo;
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getSearchHistory;
+-(void)addSearchHistory:(NSString*)value type:(NSString*)type count:(int)count;
+-(void)clearSearchHistory;
+-(BOOL)dumpMemory:(NSString*)start end:(NSString*)end filename:(NSString*)filename;
+-(NSString*)readPointer:(NSString*)address;
+-(BOOL)saveScript:(NSString*)name content:(NSString*)content;
+-(NSString*)loadScript:(NSString*)name;
+-(BOOL)deleteScript:(NSString*)name;
+-(NSArray<NSString*>*)listScripts;
 @end
 
 NS_ASSUME_NONNULL_END

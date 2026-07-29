@@ -397,6 +397,7 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         [floatH5 alert:Localized(@"错误:内存不足!")];
     }
 
+    [self addSearchHistory:value type:type count:(int)_engine->getResultsCount()];
     _firstSearchDone = YES;
     _lastSearchType = type;
 }
@@ -735,6 +736,152 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         if(end && *end) continue;
         _engine->JJWriteMemory((void*)addr, valuebuf, jjtype);
     }
+}
+
+#define SEARCH_HISTORY_KEY @"H5GGSearchHistory"
+#define MAX_SEARCH_HISTORY 50
+
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getSearchHistory {
+    return [[NSUserDefaults standardUserDefaults] arrayForKey:SEARCH_HISTORY_KEY] ?: @[];
+}
+
+-(void)addSearchHistory:(NSString*)value type:(NSString*)type count:(int)count {
+    if(!value) return;
+    NSMutableArray *history = [[[NSUserDefaults standardUserDefaults] arrayForKey:SEARCH_HISTORY_KEY] mutableCopy];
+    if(!history) history = [NSMutableArray array];
+
+    NSDateFormatter *fmt = [[NSDateFormatter alloc] init];
+    fmt.dateFormat = @"HH:mm:ss";
+
+    [history insertObject:@{
+        @"value": value,
+        @"type": type ?: @"",
+        @"count": @(count),
+        @"time": [fmt stringFromDate:[NSDate date]]
+    } atIndex:0];
+
+    if(history.count > MAX_SEARCH_HISTORY)
+        [history removeObjectsInRange:NSMakeRange(MAX_SEARCH_HISTORY, history.count - MAX_SEARCH_HISTORY)];
+
+    [[NSUserDefaults standardUserDefaults] setObject:history forKey:SEARCH_HISTORY_KEY];
+}
+
+-(void)clearSearchHistory {
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:SEARCH_HISTORY_KEY];
+}
+
+-(void)searchHex:(NSString*)hex memoryFrom:(NSString*)memoryFrom memoryTo:(NSString*)memoryTo {
+    if(!hex || !memoryFrom || !memoryTo) {
+        [floatH5 alert:Localized(@"十六进制搜索:参数有误")];
+        return;
+    }
+
+    if(![memoryFrom hasPrefix:@"0x"] || ![memoryTo hasPrefix:@"0x"]) {
+        [floatH5 alert:Localized(@"搜索范围需以0x开头十六进制数")];
+        return;
+    }
+
+    char* end = NULL;
+    AddrRange range = {
+        strtoull([memoryFrom UTF8String], &end, 16),
+        strtoull([memoryTo UTF8String], &end, 16)
+    };
+
+    if(!range.end) {
+        [floatH5 alert:Localized(@"内存搜索范围格式错误")];
+        return;
+    }
+
+    if(_firstSearchDone && _engine->getResultsCount() == 0) {
+        [floatH5 alert:Localized(@"改善搜索失败: 当前列表为空")];
+        return;
+    }
+
+    if(!_firstSearchDone) {
+        _engine->JJScanHexMemory(range, [hex UTF8String]);
+    } else {
+        _engine = new JJMemoryEngine(_targetport);
+        _engine->JJScanHexMemory(range, [hex UTF8String]);
+    }
+
+    _firstSearchDone = YES;
+    _lastSearchType = @"Hex";
+}
+
+-(BOOL)dumpMemory:(NSString*)start end:(NSString*)end filename:(NSString*)filename {
+    char* endPtr = NULL;
+    UInt64 addr = strtoull([start UTF8String], &endPtr, [start hasPrefix:@"0x"] ? 16 : 10);
+    if(endPtr && *endPtr) return NO;
+    UInt64 endAddr = strtoull([end UTF8String], &endPtr, [end hasPrefix:@"0x"] ? 16 : 10);
+    if(endPtr && *endPtr) return NO;
+    if(addr >= endAddr) return NO;
+
+    size_t size = (size_t)(endAddr - addr);
+    NSMutableData *data = [NSMutableData dataWithLength:size];
+
+    if(!_engine->JJReadMemory([data mutableBytes], addr, (int)size)) {
+        uint8_t* buf = (uint8_t*)[data mutableBytes];
+        size_t totalRead = 0;
+        while(totalRead < size) {
+            size_t chunk = MIN(size - totalRead, (size_t)4096);
+            if(!_engine->JJReadMemory(buf + totalRead, addr + totalRead, (int)chunk))
+                break;
+            totalRead += chunk;
+        }
+        if(totalRead == 0) return NO;
+        [data setLength:totalRead];
+    }
+
+    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
+    NSString *path = [NSString stringWithFormat:@"%@/%@", docDir, filename];
+    return [data writeToFile:path atomically:YES];
+}
+
+-(NSString*)readPointer:(NSString*)address {
+    char* end = NULL;
+    UInt64 addr = strtoull([address UTF8String], &end, [address hasPrefix:@"0x"] ? 16 : 10);
+    if(end && *end) return @"";
+
+    UInt8 val[8] = {0};
+    if(!_engine->JJReadMemory(val, addr, JJ_Search_Type_ULong))
+        return @"";
+
+    UInt64 ptr = *(UInt64*)val;
+    if(!ptr) return @"";
+
+    return [NSString stringWithFormat:@"0x%llX", ptr];
+}
+
+-(BOOL)saveScript:(NSString*)name content:(NSString*)content {
+    if(!name || !content) return NO;
+    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
+    NSString *path = [NSString stringWithFormat:@"%@/%@", docDir, name];
+    if(![name hasSuffix:@".js"]) path = [path stringByAppendingPathExtension:@"js"];
+    return [[content dataUsingEncoding:NSUTF8StringEncoding] writeToFile:path atomically:YES];
+}
+
+-(NSString*)loadScript:(NSString*)name {
+    if(!name) return nil;
+    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
+    NSString *path = [NSString stringWithFormat:@"%@/%@", docDir, name];
+    return [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+}
+
+-(BOOL)deleteScript:(NSString*)name {
+    if(!name) return NO;
+    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
+    NSString *path = [NSString stringWithFormat:@"%@/%@", docDir, name];
+    return [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
+}
+
+-(NSArray<NSString*>*)listScripts {
+    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
+    NSArray *files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:docDir error:nil];
+    NSMutableArray *scripts = [NSMutableArray array];
+    for(NSString *f in files) {
+        if([f hasSuffix:@".js"]) [scripts addObject:f];
+    }
+    return scripts;
 }
 
 @end
