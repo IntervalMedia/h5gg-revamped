@@ -133,8 +133,6 @@ void* JJMemoryEngine::loadRegion(uint64_t base, uint64_t* psize, bool* remapped)
                                     this->task, base, false, &cur_prot, &max_prot, VM_INHERIT_NONE);
         if(kr != KERN_SUCCESS) {
             NSLog(@"read mem failed! %p %zu, %d %s", (void*)base, size, kr, mach_error_string(kr));
-            if(kr == KERN_NO_SPACE)
-                throw bad_alloc();
         } else {
             *remapped = true;
         }
