@@ -362,13 +362,13 @@ FloatMenu* initFloatMenu(UIWindow* win)
     /* 三种加载方式任选其一 */
 
     NSData *menuStubData = _h5ggMenuStub();
-    NSString* htmlstub = [[NSString alloc] initWithData:menuStubData encoding:NSUTF8StringEncoding];
+    NSString* htmlstub = menuStubData ? [[NSString alloc] initWithData:menuStubData encoding:NSUTF8StringEncoding] : nil;
     NSLog(@"html stub hash=%lu", (unsigned long)[htmlstub hash]);
     
     //ipa的.app目录中的H5文件名
     NSString* h5file = [[NSBundle mainBundle] pathForResource:@"H5Menu" ofType:@"html"];
     
-    if([htmlstub hash] != 0xc25ce928da0ca2de) {
+    if(htmlstub && [htmlstub hash] != 0xc25ce928da0ca2de) {
         //第一优先级: 从网址加载H5
         if([[htmlstub lowercaseString] hasPrefix:@"http"])
             [floatH5 loadRequest:[[NSURLRequest alloc] initWithURL:[NSURL URLWithString:htmlstub]]];
@@ -491,13 +491,14 @@ void initFloatButton(void (^callback)(void))
     
     UIImage* iconImage=nil;
     
-    NSString* iconstub = [[NSString alloc] initWithData:_h5ggIconStub() encoding:NSUTF8StringEncoding];
+    NSData *iconStubData = _h5ggIconStub();
+    NSString* iconstub = iconStubData ? [[NSString alloc] initWithData:iconStubData encoding:NSUTF8StringEncoding] : nil;
     NSLog(@"icon stub hash=%lu", (unsigned long)[iconstub hash]);
     
     //ipa的.app目录中的图标文件名
     NSString* iconfile = [[NSBundle mainBundle] pathForResource:@"H5Icon" ofType:@"png"];
     
-    if([iconstub hash] != 0x1fdd7fff7d401bd2) {
+    if(iconstub && [iconstub hash] != 0x1fdd7fff7d401bd2) {
         //第一优先级:
         NSData* iconData = _h5ggIconStub();
         iconImage = [[UIImage alloc] initWithData:iconData];
