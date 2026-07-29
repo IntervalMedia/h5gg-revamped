@@ -373,8 +373,13 @@ void showFloatWindowContinue(bool show)
         //添加H5悬浮菜单到窗口上
         [floatWindow addSubview:floatH5];
         
-        // DEBUG: test with minimal HTML first
-        [floatH5 loadHTMLString:@"<html><body style='background:#00ff00;display:flex;align-items:center;justify-content:center;font-size:24px;color:black'><div>TEST OK</div></body></html>" baseURL:nil];
+        // Test with our actual HTML (without jQuery injection)
+        NSString* raw = [getLLCode() isEqualToString:@"zh"] ? [NSString stringWithUTF8String:gMenuData] : [NSString stringWithUTF8String:gMenuEnData];
+        if(raw) {
+            [floatH5 loadHTMLString:raw baseURL:[NSURL URLWithString:@"https://localhost/"]];
+        } else {
+            [floatH5 loadHTMLString:@"<html><body style='background:red;color:white;font-size:30px'><div>HTML is NIL</div></body></html>" baseURL:nil];
+        }
     }
     
     if(show)
