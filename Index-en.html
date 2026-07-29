@@ -781,62 +781,52 @@ function onClickClearResults()
 {
     $("input#datavalue").val("");
     $("#results_count").hide();
-    $("table#resultList tr").remove();
-    $("table#resultList").attr("currentCount", 0);
+    gAllResults = [];
+    gCurrentCount = 0;
+    renderResults([]);
     if(typeof h5gg!='undefined') h5gg.clearResults();
 }
 
 function loadResults(from, count)
 {
-    var maxCount = count;
-    var skipCount = from;
-    
-    var results = h5gg.getResults(maxCount, skipCount);
-    
-    //alert("count"+count+":"+results.length+":"+results[0].address);
+    var results = h5gg.getResults(count, from);
     
     for(var i=0; i<results.length; i++)
     {
         if(results[i].type=='F32' || results[i].type=='F64')
             results[i].value = '('+results[i].value+')';
-        var row = '<tr address="'+results[i].address+'" datatype="'+results[i].type+'" datavalue="'+results[i].value+'"><td data-addr="'+results[i].address+'">'+(from+i+1)+'. '+results[i].address+' <span onclick="event.stopPropagation();freezeResult(\''+results[i].address+'\',\''+results[i].value+'\',\''+results[i].type+'\')" style="cursor:pointer;font-size:14px;margin-right:4px">&#10052;</span><span onclick="event.stopPropagation();saveBookmark(\''+results[i].address+'\',\''+results[i].type+'\')" style="cursor:pointer;font-size:14px;color:var(--text-color,#888)">&#9733;</span><span class="frozen-badge">&#10052;</span><br/><font>'+results[i].value+'</font></td></tr>';
-        
-        $("table#resultList tbody").append(row);
+    }
+    if(from == 0) {
+        gAllResults = results;
+        cacheResults(gAllResults);
+    } else {
+        gAllResults = gAllResults.concat(results);
+        renderResults(gAllResults);
     }
 }
 
 function onClickRefreshResults(clean)
 {
-   $("table#resultList tr").remove();
-   
    if(clean) {
        $("#listdiv").get(0).scroll(0,0);
-       $("table#resultList").attr("currentCount", 0);
+       gCurrentCount = 0;
    }
 
     var count = h5gg.getResultsCount();
     $("#results_count").text("Results Count: "+count);
     $("#results_count").show();
     
-    var currentCount = Number($("table#resultList").attr("currentCount"));
-    if(isNaN(currentCount) || currentCount==0) {
-        currentCount = 100;
-        $("table#resultList").attr("currentCount", 100);
+    if(gCurrentCount == 0) {
+        gCurrentCount = 100;
     }
     
-    loadResults(0, currentCount);
+    loadResults(0, gCurrentCount);
 }
 
 function loadMoreResults() {
-    console.log("load more data!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"+Math.random());
-    
-    //当前显示数量
-    var currentCount = Number($("table#resultList").attr("currentCount"));
-    
-    //每次增加显示100条
-    $("table#resultList").attr("currentCount", currentCount+100);
-    
-    loadResults(currentCount, 100);
+    var from = gCurrentCount;
+    gCurrentCount += 100;
+    loadResults(from, 100);
 }
 
 function showMoreResults(div)
@@ -1032,9 +1022,8 @@ function toggleTheme() {
 }
 
 async function loadSearchResults() {
-    $("table#resultList tr").remove();
-    $("#listdiv").get(0).scroll(0,0);
-    $("table#resultList").attr("currentCount", 0);
+    gAllResults = [];
+    gCurrentCount = 0;
     var count = h5gg.getResultsCount();
     $("#results_count").text("Results Count: "+count);
     $("#results_count").show();
@@ -1168,6 +1157,55 @@ function copyCalcResult() {
 }
 
 var gPointerChain = [];
+var gAllResults = [];
+var gCurrentCount = 0;
+
+function cacheResults(results) {
+    gAllResults = results || [];
+    document.getElementById('filterInput').value = '';
+    document.getElementById('filterCount').textContent = '';
+}
+
+function filterResults() {
+    var query = document.getElementById('filterInput').value.trim().toLowerCase();
+    var display = document.getElementById('listdiv');
+    if(!display) return;
+    var filtered = gAllResults;
+    if(query) {
+        filtered = gAllResults.filter(function(r) {
+            return r.value.toLowerCase().indexOf(query) >= 0 || r.address.toLowerCase().indexOf(query) >= 0;
+        });
+    }
+    document.getElementById('filterCount').textContent = filtered.length + '/' + gAllResults.length;
+    renderResults(filtered);
+}
+
+function renderResults(results) {
+    var display = document.getElementById('listdiv');
+    if(!display) return;
+    var html = '';
+    for(var i = 0; i < results.length; i++) {
+        var r = results[i];
+        html += '<div data-addr="'+r.address+'" onclick="openMemoryEditor(\''+r.address+'\',\''+r.type+'\')" style="cursor:pointer;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
+        html += '<div style="font-size:10px;color:var(--text-color,#888)">'+r.address+' ['+r.type+']</div>';
+        html += '<div class="result-value" style="font-size:12px;font-weight:bold;color:#3393EF">'+r.value+'</div>';
+        html += '<span onclick="event.stopPropagation();saveBookmark(\''+r.address+'\',\''+r.type+'\')" style="cursor:pointer;font-size:14px;margin-right:4px">\u2606</span>';
+        html += '<span onclick="event.stopPropagation();freezeResult(\''+r.address+'\',\''+r.value+'\',\''+r.type+'\')" style="cursor:pointer;font-size:14px">\u2744</span>';
+        html += '</div>';
+    }
+    if(results.length == 0) html += '<div style="padding:12px;text-align:center;color:#888">No results</div>';
+    display.innerHTML = html;
+}
+
+function openMemoryEditor(address, type) {
+    var datavalue = typeof h5gg != 'undefined' ? h5gg.getValue(address, h5ggType(type)) : '';
+    showPopView("&nbsp;&nbsp;Edit&nbsp;&nbsp;", function(type, value) {
+        if(!h5gg.setValue(address, value, h5ggType(type))) {
+            alert("The modification failed, the address may be invalid!");
+        }
+        onClickRefreshResults();
+    }, type, datavalue);
+}
 
 async function openPointerChain() {
     gPointerChain = [];
@@ -1257,6 +1295,73 @@ async function doDump() {
     if(ok) setTimeout(function(){ closeOverlay('dumpOverlay'); }, 1500);
 }
 
+async function openMemoryEditor(addr, type) {
+    var typeSize = {'U8':1,'I8':1,'U16':2,'I16':2,'U32':4,'I32':4,'U64':8,'I64':8,'F32':4,'F64':8};
+    var bytes = typeSize[type] || 4;
+    var vals = [];
+    for(var i = 0; i < bytes; i++) {
+        var v = await h5gg.getValue(Number(addr) + i + '', 'U8');
+        vals.push(('0' + Number(v).toString(16)).slice(-2));
+    }
+    var hex = vals.join(' ').toUpperCase();
+    var curVal = await h5gg.getValue(addr, type);
+    var html = '<div id="memEditorOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'memEditorOverlay\')">';
+    html += '<div style="position:absolute;top:20%;left:8%;width:84%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
+    html += '<span>Memory Editor</span>';
+    html += '<span onclick="closeOverlay(\'memEditorOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+    html += '</div>';
+    html += '<div style="padding:12px;font-size:12px">';
+    html += '<div style="margin:4px 0"><b>Address:</b> <span style="color:#3393EF">' + addr + '</span></div>';
+    html += '<div style="margin:4px 0"><b>Type:</b> ' + type + ' <b>Value:</b> <span style="color:#3393EF">' + curVal + '</span></div>';
+    html += '<div style="margin:4px 0"><b>Hex:</b> <span style="font-family:monospace;font-size:11px">' + hex + '</span></div>';
+    html += '<div style="margin:8px 0"><b>Edit Hex:</b></div>';
+    html += '<input id="memEditorInput" type="text" value="' + hex + '" style="width:100%;font-family:monospace;font-size:12px;padding:6px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin:4px 0">';
+    html += '<div style="font-size:10px;color:#888;margin:4px 0">Edit hex bytes separated by spaces. Example: 90 00 E0 AF</div>';
+    html += '<button onclick="writeMemoryEditor(\'' + addr + '\',\'' + type + '\',\'' + bytes + '\')" style="width:100%;margin:6px 0;height:32px">Write</button>';
+    html += '<div id="memEditorStatus" style="font-size:11px;color:#888;text-align:center"></div>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function writeMemoryEditor(addr, type, bytes) {
+    var input = document.getElementById('memEditorInput');
+    if(!input) return;
+    var hexStr = input.value.trim();
+    var parts = hexStr.split(/\s+/);
+    var status = document.getElementById('memEditorStatus');
+    if(!status) return;
+    for(var i = 0; i < parts.length; i++) {
+        if(!/^[0-9a-fA-F]{2}$/.test(parts[i])) {
+            status.textContent = 'Invalid hex at position ' + (i+1);
+            status.style.color = 'red';
+            return;
+        }
+    }
+    var success = 0;
+    for(var i = 0; i < parts.length; i++) {
+        var val = parseInt(parts[i], 16);
+        var ok = await h5gg.setValue(Number(addr) + i + '', val + '', 'U8');
+        if(ok) success++;
+    }
+    if(success == parts.length) {
+        status.textContent = 'Written ' + success + ' bytes successfully';
+        status.style.color = 'green';
+    } else {
+        status.textContent = 'Wrote ' + success + '/' + parts.length + ' bytes';
+        status.style.color = 'orange';
+    }
+    if(success > 0) {
+        var newVal = await h5gg.getValue(addr, type);
+        var rows = document.querySelectorAll('[data-addr="' + addr + '"]');
+        if(rows.length > 0) {
+            var row = rows[0];
+            var valEl = row.querySelector('.result-value');
+            if(valEl) valEl.textContent = newVal;
+        }
+    }
+}
+
 </script>
 
 </head>
@@ -1309,6 +1414,11 @@ FloatTolerance:<input id="float_tolerance" style="width:50px" value="0.0"/>
     <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#3393EF">Hex</span>
     <input id="hexInput" type="text" placeholder="90 00 E0 AF" style="flex:1;height:26px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
     <button onclick="doHexSearch()" style="height:26px;font-size:11px;padding:2px 6px;margin-left:4px">Search</button>
+</div>
+<div style="display:flex;align-items:center;padding:2px 4px;margin-top:2px">
+    <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#888">Filter</span>
+    <input id="filterInput" type="text" placeholder="filter results..." style="flex:1;height:24px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px" oninput="filterResults()">
+    <span id="filterCount" style="font-size:10px;color:#888;margin-left:4px;min-width:20px"></span>
 </div>
 <br/>
 <hr class="control-separator"/>
