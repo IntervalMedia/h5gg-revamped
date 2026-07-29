@@ -241,33 +241,21 @@ void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
         this->regions[region_base] = region_size;
     }
 
-    vector<pair<uint64_t, uint64_t>> regionsToScan;
     for(auto& [base, size] : this->regions) {
         if(base < range.start) continue;
         if(base > range.end) break;
         uint64_t region_end = min(base + size, range.end);
-        regionsToScan.push_back({max(base, range.start), region_end - max(base, range.start)});
-    }
-
-    if(regionsToScan.size() >= 3) {
-        __block vector<vector<result_region*>> threadResults(regionsToScan.size());
-        dispatch_apply(regionsToScan.size(), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-            ScanRegion(range, regionsToScan[idx].first, regionsToScan[idx].second, target, type, &threadResults[idx]);
-        });
-        for(auto& tr : threadResults) {
-            for(auto* rr : tr) {
-                this->result->regions.push_back(rr);
-                this->result->count += rr->slides.size();
-            }
+        vector<result_region*> localResult;
+        @try {
+            ScanRegion(range, max(base, range.start), region_end - max(base, range.start), target, type, &localResult);
+        } @catch(NSException *e) {
+            NSLog(@"ScanRegion exception: %@", e);
+        } @catch(...) {
+            NSLog(@"ScanRegion unknown exception");
         }
-    } else {
-        for(auto& [base, size] : regionsToScan) {
-            vector<result_region*> localResult;
-            ScanRegion(range, base, size, target, type, &localResult);
-            for(auto* rr : localResult) {
-                this->result->regions.push_back(rr);
-                this->result->count += rr->slides.size();
-            }
+        for(auto* rr : localResult) {
+            this->result->regions.push_back(rr);
+            this->result->count += rr->slides.size();
         }
     }
 
@@ -289,44 +277,12 @@ void JJMemoryEngine::ScanAgain(AddrRange range, void* target, int type) {
 
     vector<result_region*> newRegions(activeIndices.size(), nullptr);
 
-    if(activeIndices.size() >= 3) {
-        __block vector<result_region*>* pNewRegions = &newRegions;
-        __block vector<int>* pActive = &activeIndices;
-        dispatch_apply(activeIndices.size(), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
-            int i = (*pActive)[idx];
-            result_region* region = this->result->regions[i];
-            result_region* newRegion = nullptr;
+    for(size_t idx = 0; idx < activeIndices.size(); idx++) {
+        int i = activeIndices[idx];
+        result_region* region = this->result->regions[i];
+        result_region* newRegion = nullptr;
 
-            bool remapped = false;
-            uint64_t mapsize = region->region_size;
-            void* buffer = this->loadRegion(region->region_base, &mapsize, &remapped);
-
-            if(buffer) {
-                for(int j = 0; j < region->slides.size(); j++) {
-                    uint64_t address = region->region_base + region->slides[j];
-                    void* pvalue = (void*)((uint64_t)buffer + region->slides[j]);
-
-                    if(address >= range.start && address < range.end &&
-                       this->ScanData((uint64_t)pvalue, len, target, type)) {
-                        if(!newRegion)
-                            newRegion = new result_region(region->region_base, region->region_size);
-                        newRegion->slides.push_back(region->slides[j]);
-                    }
-                }
-            } else {
-                NSLog(@"read mem failed! [%d] %p %zx", i, (void*)region->region_base, region->region_size);
-            }
-
-            this->unloadRegion(buffer, mapsize, remapped);
-            if(newRegion) newRegion->slides.shrink_to_fit();
-            (*pNewRegions)[idx] = newRegion;
-        });
-    } else {
-        for(size_t idx = 0; idx < activeIndices.size(); idx++) {
-            int i = activeIndices[idx];
-            result_region* region = this->result->regions[i];
-            result_region* newRegion = nullptr;
-
+        @try {
             bool remapped = false;
             uint64_t mapsize = region->region_size;
             void* buffer = loadRegion(region->region_base, &mapsize, &remapped);
@@ -349,8 +305,12 @@ void JJMemoryEngine::ScanAgain(AddrRange range, void* target, int type) {
 
             unloadRegion(buffer, mapsize, remapped);
             if(newRegion) newRegion->slides.shrink_to_fit();
-            newRegions[idx] = newRegion;
+        } @catch(NSException *e) {
+            NSLog(@"ScanAgain exception: %@", e);
+        } @catch(...) {
+            NSLog(@"ScanAgain unknown exception");
         }
+        newRegions[idx] = newRegion;
     }
 
     size_t newCount = 0;
