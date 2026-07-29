@@ -441,25 +441,17 @@ table.datatype {
 </style>
 
 <script>
-// Override console.log to write to Documents/h5gg.log
+// Override console.log to write to Documents/h5gg.log immediately
 (function() {
     var origLog = console.log;
-    var batch = [];
-    var timer = null;
     console.log = function() {
-        var msg = Array.prototype.slice.call(arguments).join(' ');
         origLog.apply(console, arguments);
-        batch.push(msg);
-        if(!timer) {
-            timer = setTimeout(function() {
-                timer = null;
-                var flush = batch.join('\n');
-                batch = [];
-                if(typeof h5gg != 'undefined' && h5gg.appendLog) {
-                    h5gg.appendLog('[HH5GG] ' + new Date().toLocaleTimeString() + ' ' + flush);
-                }
-            }, 500);
-        }
+        try {
+            var msg = Array.prototype.slice.call(arguments).join(' ');
+            if(typeof h5gg != 'undefined' && h5gg.appendLog) {
+                h5gg.appendLog('[HH5GG] ' + new Date().toLocaleTimeString() + ' ' + msg);
+            }
+        } catch(e) {}
     };
 })();
 
@@ -672,6 +664,7 @@ function refreshProcList(procs)
 
 async function refreshLocalSrcipts()
 {
+    console.log('FUNC refreshLocalSrcipts');
     $("table#localjslist tr").remove();
     
     var jsfiles = await h5gg.getLocalScripts();
@@ -811,6 +804,7 @@ function onClickClearResults()
 
 async function loadResults(from, count)
 {
+    console.log('FUNC loadResults');
     var results = await h5gg.getResults(count, from);
     
     for(var i=0; i<results.length; i++)
@@ -829,6 +823,7 @@ async function loadResults(from, count)
 
 async function onClickRefreshResults(clean)
 {
+    console.log('FUNC onClickRefreshResults');
    if(clean) {
        $("#listdiv").get(0).scroll(0,0);
        gCurrentCount = 0;
@@ -846,6 +841,7 @@ async function onClickRefreshResults(clean)
 }
 
 async function loadMoreResults() {
+    console.log('FUNC loadMoreResults');
     var from = gCurrentCount;
     gCurrentCount += 100;
     await loadResults(from, 100);
@@ -853,6 +849,7 @@ async function loadMoreResults() {
 
 async function showMoreResults(div)
 {
+    console.log('FUNC showMoreResults');
     var lh = div.scrollHeight - div.scrollTop;
     console.log(div.clientHeight+","+div.offsetHeight +" : " +div.scrollTop+","+div.scrollHeight + " : " + lh);
     
@@ -864,6 +861,7 @@ async function showMoreResults(div)
 
 function onClickEditAll()
 {
+    console.log('FUNC onClickEditAll');
     /*
     if($("table#resultList tr").length==0) {
         alert("没有可修改的数据");
@@ -882,6 +880,7 @@ function onClickEditAll()
 
 function onClickSearchNumber()
 {
+    console.log('FUNC onClickSearchNumber');
     showPopView("Search Number", async function(type, value) {
         
         await h5gg.setFloatTolerance($("#float_tolerance").val());
@@ -896,6 +895,7 @@ function onClickSearchNumber()
 
 function onClickSearchNearby()
 {
+    console.log('FUNC onClickSearchNearby');
     /*
     if($("table#resultList tr").length==0) {
         alert("没有可继续搜索的数据");
@@ -914,6 +914,7 @@ function onClickSearchNearby()
     
 async function onClickMakeTweak()
 {
+    console.log('FUNC onClickMakeTweak');
     alert("Make your custom dylib\n\nStep 1: Select a picture file for float button");
     var icon = await new Promise(function(resolve) {
         h5gg.pickScriptFile(function(icon) { resolve(icon); }, ["public.image"]);
@@ -929,6 +930,7 @@ async function onClickMakeTweak()
 
 // Bookmarks panel
 async function openBookmarksPanel() {
+    console.log('FUNC openBookmarksPanel');
     var list = await h5gg.getBookmarks();
     var html = '<div id="bmOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeBookmarksPanel()">';
     html += '<div style="position:absolute;top:10%;left:5%;width:90%;height:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
@@ -987,6 +989,7 @@ async function freezeResult(addr, val, type) {
 }
 
 async function openFreezePanel() {
+    console.log('FUNC openFreezePanel');
     var list = await h5gg.getFrozenValues();
     var html = '<div id="fzOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeFreezePanel()">';
     html += '<div style="position:absolute;top:10%;left:5%;width:90%;height:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
@@ -1051,6 +1054,7 @@ async function loadSearchResults() {
 }
 
 async function openHistoryPanel() {
+    console.log('FUNC openHistoryPanel');
     var list = await h5gg.getSearchHistory();
     var html = '<div id="histOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'histOverlay\')">';
     html += '<div style="position:absolute;top:10%;left:5%;width:90%;height:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
@@ -1094,6 +1098,7 @@ async function clearHistory() {
 }
 
 async function openScriptEditor() {
+    console.log('FUNC openScriptEditor');
     var list = await h5gg.listScripts();
     var html = '<div id="scriptOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'scriptOverlay\')">';
     html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
@@ -1124,6 +1129,7 @@ async function loadScript(name) {
 }
 
 async function saveCurrentScript() {
+    console.log('FUNC saveCurrentScript');
     var input = document.getElementById('scriptFileName');
     var editor = document.getElementById('scriptEditor');
     if(!input || !editor) return;
@@ -1142,6 +1148,7 @@ function newScript() {
 }
 
 function openOffsetCalc() {
+    console.log('FUNC openOffsetCalc');
     var html = '<div id="calcOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'calcOverlay\')">';
     html += '<div style="position:absolute;top:25%;left:10%;width:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
     html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
@@ -1159,6 +1166,7 @@ function openOffsetCalc() {
 }
 
 function doCalc() {
+    console.log('FUNC doCalc');
     var base = document.getElementById('calcBase').value.trim();
     var off = document.getElementById('calcOffset').value.trim();
     if(!base || !off) return;
@@ -1188,6 +1196,7 @@ function cacheResults(results) {
 }
 
 function filterResults() {
+    console.log('FUNC filterResults');
     var query = document.getElementById('filterInput').value.trim().toLowerCase();
     var display = document.getElementById('listdiv');
     if(!display) return;
@@ -1219,6 +1228,7 @@ function renderResults(results) {
 }
 
 async function openMemoryEditor(address, type) {
+    console.log('FUNC openMemoryEditor');
     var datavalue = typeof h5gg != 'undefined' ? await h5gg.getValue(address, h5ggType(type)) : '';
     showPopView("&nbsp;&nbsp;Edit&nbsp;&nbsp;", async function(type, value) {
         if(!await h5gg.setValue(address, value, h5ggType(type))) {
@@ -1229,6 +1239,7 @@ async function openMemoryEditor(address, type) {
 }
 
 async function openPointerChain() {
+    console.log('FUNC openPointerChain');
     gPointerChain = [];
     var html = '<div id="ptrOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'ptrOverlay\')">';
     html += '<div style="position:absolute;top:15%;left:5%;width:90%;height:70%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
@@ -1249,6 +1260,7 @@ async function openPointerChain() {
 }
 
 async function addPtrStep() {
+    console.log('FUNC addPtrStep');
     if(gPointerChain.length == 0) {
         var base = document.getElementById('ptrBase').value.trim();
         if(!base) return;
@@ -1280,6 +1292,7 @@ async function addPtrStep() {
 }
 
 async function doHexSearch() {
+    console.log('FUNC doHexSearch');
     var hex = document.getElementById('hexInput').value.trim();
     if(!hex) return;
     await h5gg.searchHex(hex, '0x0', '0xFFFFFFFF00000000');
@@ -1288,6 +1301,7 @@ async function doHexSearch() {
 }
 
 async function openDumpPanel() {
+    console.log('FUNC openDumpPanel');
     var html = '<div id="dumpOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'dumpOverlay\')">';
     html += '<div style="position:absolute;top:25%;left:10%;width:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
     html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
@@ -1305,6 +1319,7 @@ async function openDumpPanel() {
 }
 
 async function doDump() {
+    console.log('FUNC doDump');
     var start = document.getElementById('dumpStart').value.trim();
     var end = document.getElementById('dumpEnd').value.trim();
     var name = document.getElementById('dumpName').value.trim();
@@ -1346,6 +1361,7 @@ async function openMemoryEditor(addr, type) {
 }
 
 async function writeMemoryEditor(addr, type, bytes) {
+    console.log('FUNC writeMemoryEditor');
     var input = document.getElementById('memEditorInput');
     if(!input) return;
     var hexStr = input.value.trim();
@@ -1384,6 +1400,7 @@ async function writeMemoryEditor(addr, type, bytes) {
 }
 
 function sortResults(mode) {
+    console.log('FUNC sortResults');
     if(!gAllResults || gAllResults.length == 0) return;
     gAllResults.sort(function(a, b) {
         var aAddr = parseInt(a.address, 16);
@@ -1416,6 +1433,7 @@ function showToast(msg) {
 }
 
 function applyTolerance() {
+    console.log('FUNC applyTolerance');
     var val = document.getElementById('tolInput').value.trim();
     if(val === '') return;
     h5gg.setFloatTolerance(val);
@@ -1493,6 +1511,7 @@ function runScript(code, filename) {
 }
 
 async function checkAutorun() {
+    console.log('FUNC checkAutorun');
     var name = localStorage.getItem('h5gg_autorun');
     if(!name) return;
     var content = await h5gg.loadScript(name);
@@ -1536,6 +1555,7 @@ function saveSettings() {
 var gViewerAddr = '0x0';
 
 function openMemoryViewer() {
+    console.log('FUNC openMemoryViewer');
     var html = '<div id="viewerOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'viewerOverlay\')">';
     html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
     html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
@@ -1576,6 +1596,7 @@ async function viewerGo() {
 }
 
 async function viewerRefresh() {
+    console.log('FUNC viewerRefresh');
     var dump = document.getElementById('viewerDump');
     if(!dump || !gViewerAddr) return;
 
