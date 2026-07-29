@@ -98,7 +98,7 @@
     self.image = image;
     self.animationImages = nil;
     [self stopAnimating];
-    self.backgroundColor = [UIColor clearColor];
+    if(image) self.backgroundColor = [UIColor clearColor];
 }
 
 - (void)setIconWithData:(NSData*)data {

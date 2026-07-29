@@ -537,27 +537,26 @@ void initload()
         [TopShow alert:@"风险提示" message:@"建议卸载通用版, 使用跨进程版."];
     }
     
+    // Always create the floating button so the user has something to tap
+    initFloatButton(^(void) {
+        if(PGVSharedData->customButtonAction) {
+            [floatH5 evalJS:@"if(window.h5gg_onButtonClick)h5gg_onButtonClick();"];
+        } else {
+            bool show = floatWindow ? floatWindow.isHidden : YES;
+            NSLog(@"ButtonShowWindow=%d", show);
+            showFloatWindow(show);
+        }
+    });
+    
     if(g_standalone_runmode) {
-        showFloatWindow(true); //直接加载悬浮按钮和悬浮窗口
+        // In standalone mode, also trigger menu directly
+        showFloatWindow(true);
         
         if(NSBundle.mainBundle.infoDictionary[@"UIRequiresFullScreen"])
         {
             if(!PGVSharedData->enable)
                 [TopShow alert:Localized(@"悬浮模块加载失败") message:Localized(@"请检查你的越狱基板是否安装并启用, 也可能被其他插件禁用或干扰!")];
         }
-        
-    } else {
-        //三方app中第一次点击图标时再加载H5菜单,防止部分APP不兼容H5导致闪退卡死
-         initFloatButton(^(void) {
-             if(PGVSharedData->customButtonAction) {
-                 [floatH5 evalJS:@"if(window.h5gg_onButtonClick)h5gg_onButtonClick();"];
-             } else {
-                 bool show = floatWindow ? floatWindow.isHidden : YES;
-                 NSLog(@"ButtonShowWindow=%d", show);
-                 showFloatWindow(show);
-             }
-         });
-        
     }
 }
 
