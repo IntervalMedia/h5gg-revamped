@@ -128,6 +128,26 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     _engine = new JJMemoryEngine(_targetport);
 }
 
+-(void)searchChange:(NSString*)type {
+    int changeType = 0;
+    if([type isEqualToString:@"Unchanged"]) changeType = JJ_Change_Unchanged;
+    else if([type isEqualToString:@"Changed"]) changeType = JJ_Change_Changed;
+    else if([type isEqualToString:@"Increased"]) changeType = JJ_Change_Increased;
+    else if([type isEqualToString:@"Decreased"]) changeType = JJ_Change_Decreased;
+    else {
+        [floatH5 alert:Localized(@"无效的变更类型, 请使用: Unchanged/Changed/Increased/Decreased")];
+        return;
+    }
+
+    if(self.engine->getResultsCount() == 0) {
+        [floatH5 alert:Localized(@"当前列表为空, 请先执行搜索")];
+        return;
+    }
+
+    self.engine->JJRefineByChange(changeType);
+    self.firstSearchDone = YES;
+}
+
 -(long)getResultsCount {
     return _engine->getResultsCount();
 }
@@ -630,6 +650,46 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 
 -(void)clearInputHistory {
     [[NSUserDefaults standardUserDefaults] removeObjectForKey:HISTORY_KEY];
+}
+
+#define BOOKMARKS_KEY @"H5GGBookmarks"
+
+-(BOOL)addBookmark:(NSString*)address name:(NSString*)name type:(NSString*)type {
+    if(!address || !name || !type) return NO;
+    NSMutableArray *bookmarks = [[[NSUserDefaults standardUserDefaults] arrayForKey:BOOKMARKS_KEY] mutableCopy];
+    if(!bookmarks) bookmarks = [NSMutableArray array];
+
+    for(NSDictionary *b in bookmarks) {
+        if([b[@"address"] isEqualToString:address]) return NO;
+    }
+
+    [bookmarks addObject:@{@"address": address, @"name": name, @"type": type}];
+    [[NSUserDefaults standardUserDefaults] setObject:bookmarks forKey:BOOKMARKS_KEY];
+    return YES;
+}
+
+-(BOOL)removeBookmark:(NSString*)address {
+    if(!address) return NO;
+    NSMutableArray *bookmarks = [[[NSUserDefaults standardUserDefaults] arrayForKey:BOOKMARKS_KEY] mutableCopy];
+    if(!bookmarks) return NO;
+
+    NSInteger idx = -1;
+    for(NSInteger i = 0; i < bookmarks.count; i++) {
+        if([bookmarks[i][@"address"] isEqualToString:address]) { idx = i; break; }
+    }
+    if(idx < 0) return NO;
+
+    [bookmarks removeObjectAtIndex:idx];
+    [[NSUserDefaults standardUserDefaults] setObject:bookmarks forKey:BOOKMARKS_KEY];
+    return YES;
+}
+
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getBookmarks {
+    return [[NSUserDefaults standardUserDefaults] arrayForKey:BOOKMARKS_KEY] ?: @[];
+}
+
+-(void)clearBookmarks {
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:BOOKMARKS_KEY];
 }
 
 @end

@@ -795,7 +795,7 @@ function loadResults(from, count)
     {
         if(results[i].type=='F32' || results[i].type=='F64')
             results[i].value = '('+results[i].value+')';
-        var row = '<tr address="'+results[i].address+'" datatype="'+results[i].type+'" datavalue="'+results[i].value+'"><td>'+(from+i+1)+'. '+results[i].address+'<br/><font>'+results[i].value+'</font></td></tr>';
+        var row = '<tr address="'+results[i].address+'" datatype="'+results[i].type+'" datavalue="'+results[i].value+'"><td>'+(from+i+1)+'. '+results[i].address+' <span onclick="event.stopPropagation();saveBookmark(\''+results[i].address+'\',\''+results[i].type+'\')" style="cursor:pointer;font-size:14px;color:var(--text-color,#888)">&#9733;</span><br/><font>'+results[i].value+'</font></td></tr>';
         
         $("table#resultList tbody").append(row);
     }
@@ -913,6 +913,59 @@ function onClickMakeTweak()
     }, ["public.image"]);
 }
 
+// Bookmarks panel
+async function openBookmarksPanel() {
+    var list = await h5gg.getBookmarks();
+    var html = '<div id="bmOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeBookmarksPanel()">';
+    html += '<div style="position:absolute;top:10%;left:5%;width:90%;height:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center">';
+    html += '<span>书签 ('+list.length+')</span>';
+    html += '<span><button onclick="clearAllBookmarks()" style="font-size:11px;padding:2px 6px">清空</button> <span onclick="closeBookmarksPanel()" style="cursor:pointer;font-size:18px">&times;</span></span>';
+    html += '</div>';
+    html += '<div class="scrollbar" style="flex:1;overflow-y:auto;padding:4px">';
+    if(list.length==0) html += '<div style="padding:12px;text-align:center;color:var(--text-color,#888)">暂无书签</div>';
+    for(var i=0;i<list.length;i++) {
+        var b = list[i];
+        html += '<div style="display:flex;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
+        html += '<div style="flex:1;cursor:pointer" onclick="useBookmark('+i+')">';
+        html += '<div style="font-size:12px;font-weight:bold">'+b.name+'</div>';
+        html += '<div style="font-size:10px;color:var(--text-color,#888)">'+b.address+'  ['+b.type+']</div>';
+        html += '</div>';
+        html += '<button onclick="deleteBookmark('+i+')" style="font-size:16px;color:red;background:none;border:none;padding:4px">&times;</button>';
+        html += '</div>';
+    }
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeBookmarksPanel() {
+    var el = document.getElementById('bmOverlay');
+    if(el) el.remove();
+}
+
+function useBookmark(idx) {
+    closeBookmarksPanel();
+}
+
+async function deleteBookmark(idx) {
+    var list = await h5gg.getBookmarks();
+    if(idx < list.length) await h5gg.removeBookmark(list[idx].address);
+    closeBookmarksPanel();
+    openBookmarksPanel();
+}
+
+async function clearAllBookmarks() {
+    await h5gg.clearBookmarks();
+    closeBookmarksPanel();
+    openBookmarksPanel();
+}
+
+async function saveBookmark(addr, type) {
+    var name = prompt('书签名:');
+    if(!name) return;
+    await h5gg.addBookmark(addr, name, type);
+}
+
 function toggleTheme() {
     var html = document.documentElement;
     if(html.classList.contains('dark')) {
@@ -963,6 +1016,7 @@ function toggleTheme() {
 <br/>
 <button onclick="onShowLoadScript(true)">加载脚本</button>
 <button onclick="onClickMakeTweak()">制作插件</button>
+<button onclick="openBookmarksPanel()">书签</button>
 <br/>
 邻近范围:<input id="nearby_range" style="width:78px"  value="0x100"/>
 <br/>

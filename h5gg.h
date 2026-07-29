@@ -45,10 +45,17 @@ JSExportAs(getResults, -(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)g
 -(long)getResultsCount;
 -(void)clearResults;
 
+JSExportAs(searchChange, -(void)searchChange:(NSString*)type);
+
 -(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getLocalScripts;
 JSExportAs(pickScriptFile, -(void)pickScriptFile:(JSValue*)callback withTypes:(nullable JSValue*)types);
 
 -(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getRangesList:(nullable JSValue*)filter;
+
+JSExportAs(addBookmark, -(BOOL)addBookmark:(NSString*)address name:(NSString*)name type:(NSString*)type);
+JSExportAs(removeBookmark, -(BOOL)removeBookmark:(NSString*)address);
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getBookmarks;
+-(void)clearBookmarks;
 
 -(nullable JSValue*)getProcList:(nullable JSValue*)filter;
 -(BOOL)setTargetProc:(pid_t)pid;
@@ -61,6 +68,11 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(void)addInputHistory:(NSString*)value;
 -(void)clearInputHistory;
 
+-(BOOL)addBookmark:(NSString*)address name:(NSString*)name type:(NSString*)type;
+-(BOOL)removeBookmark:(NSString*)address;
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getBookmarks;
+-(void)clearBookmarks;
+
 @end
 
 @interface h5ggEngine : NSObject <h5ggJSExport>
@@ -72,6 +84,10 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(NSArray<NSString*>*)getInputHistory;
 -(void)addInputHistory:(NSString*)value;
 -(void)clearInputHistory;
+-(BOOL)addBookmark:(NSString*)address name:(NSString*)name type:(NSString*)type;
+-(BOOL)removeBookmark:(NSString*)address;
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)getBookmarks;
+-(void)clearBookmarks;
 @end
 
 NS_ASSUME_NONNULL_END

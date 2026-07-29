@@ -54,6 +54,13 @@ enum JJ_Search_Type
 
 extern const int JJ_Search_Type_Len[];
 
+enum JJ_Change_Type {
+    JJ_Change_Unchanged = 1,
+    JJ_Change_Changed,
+    JJ_Change_Increased,
+    JJ_Change_Decreased,
+};
+
 struct result_region {
     uint64_t region_base;
     size_t region_size;
@@ -95,6 +102,8 @@ class JJMemoryEngine
     void FirstScan(AddrRange range, void* target, int type);
     void ScanAgain(AddrRange range, void* target, int type);
 
+    void saveSnapshot();
+
 public:
     JJMemoryEngine(mach_port_t task);
     ~JJMemoryEngine();
@@ -110,6 +119,9 @@ public:
     size_t getResultsCount();
     vector<void*> getResults(size_t count, size_t skip = 0);
     map<void*, int8_t> getResultsAndTypes(int count, int skip = 0);
+
+    void JJRefineByChange(int changeType);
+    map<uint64_t, pair<uint8_t, uint64_t>> snapshot;
 };
 
 #endif /* JJ_Header_h */

@@ -318,6 +318,154 @@ void JJMemoryEngine::JJScanMemory(AddrRange range, void* target, int type) {
         FirstScan(range, target, type);
         this->firstScanDone = true;
     }
+
+    saveSnapshot();
+}
+
+void JJMemoryEngine::saveSnapshot() {
+    snapshot.clear();
+    for(auto* region : this->result->regions) {
+        bool hasTypes = region->types.size() > 0;
+        for(int j = 0; j < region->slides.size(); j++) {
+            uint64_t address = region->region_base + region->slides[j];
+            uint8_t type = hasTypes ? region->types[j] : this->lastNumberType;
+            int len = JJ_Search_Type_Len[type];
+            uint64_t value = 0;
+            if(readMemory(&value, address, len)) {
+                snapshot[address] = {type, value};
+            }
+        }
+    }
+}
+
+void JJMemoryEngine::JJRefineByChange(int changeType) {
+    size_t newCount = 0;
+
+    for(int i = 0; i < this->result->regions.size(); i++) {
+        result_region* region = this->result->regions[i];
+
+        result_region* newRegion = nullptr;
+        bool hasTypes = region->types.size() > 0;
+
+        bool remapped = false;
+        uint64_t mapsize = region->region_size;
+        void* buffer = loadRegion(region->region_base, &mapsize, &remapped);
+
+        if(buffer) {
+            for(int j = 0; j < region->slides.size(); j++) {
+                uint64_t address = region->region_base + region->slides[j];
+                uint8_t type = hasTypes ? region->types[j] : this->lastNumberType;
+                int len = JJ_Search_Type_Len[type];
+
+                auto it = snapshot.find(address);
+                if(it == snapshot.end()) continue;
+
+                uint64_t snapValue = it->second.second;
+                uint8_t snapType = it->second.first;
+
+                uint64_t curValue = 0;
+                if(!readMemory(&curValue, address, len)) continue;
+
+                bool sameBits = (memcmp(&curValue, &snapValue, min((size_t)len, sizeof(uint64_t))) == 0);
+                bool keep = false;
+
+                switch(changeType) {
+                    case JJ_Change_Unchanged:
+                        keep = sameBits;
+                        break;
+                    case JJ_Change_Changed:
+                        keep = !sameBits;
+                        break;
+                    case JJ_Change_Increased:
+                    case JJ_Change_Decreased:
+                        if(!sameBits && snapType == type) {
+                            switch(type) {
+                                case JJ_Search_Type_SByte: {
+                                    int8_t c = (int8_t)curValue, s = (int8_t)snapValue;
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_UByte: {
+                                    uint8_t c = (uint8_t)curValue, s = (uint8_t)snapValue;
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_SShort: {
+                                    int16_t c = (int16_t)curValue, s = (int16_t)snapValue;
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_UShort: {
+                                    uint16_t c = (uint16_t)curValue, s = (uint16_t)snapValue;
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_SInt: {
+                                    int32_t c = (int32_t)curValue, s = (int32_t)snapValue;
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_UInt: {
+                                    uint32_t c = (uint32_t)curValue, s = (uint32_t)snapValue;
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_SLong: {
+                                    int64_t c = (int64_t)curValue, s = (int64_t)snapValue;
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_ULong: {
+                                    uint64_t c = curValue, s = snapValue;
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_Float: {
+                                    float c, s;
+                                    memcpy(&c, &curValue, sizeof(float));
+                                    memcpy(&s, &snapValue, sizeof(float));
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                                case JJ_Search_Type_Double: {
+                                    double c, s;
+                                    memcpy(&c, &curValue, sizeof(double));
+                                    memcpy(&s, &snapValue, sizeof(double));
+                                    keep = (changeType == JJ_Change_Increased) ? (c > s) : (c < s);
+                                    break;
+                                }
+                            }
+                        }
+                        break;
+                }
+
+                if(keep) {
+                    if(!newRegion)
+                        newRegion = new result_region(region->region_base, region->region_size);
+                    newRegion->slides.push_back(region->slides[j]);
+                    if(hasTypes) newRegion->types.push_back(region->types[j]);
+                    newCount++;
+                }
+            }
+        }
+
+        unloadRegion(buffer, mapsize, remapped);
+
+        delete this->result->regions[i];
+        this->result->regions[i] = newRegion;
+        if(newRegion) {
+            newRegion->slides.shrink_to_fit();
+            if(newRegion->types.size()) newRegion->types.shrink_to_fit();
+        }
+    }
+
+    this->result->regions.erase(
+        remove(this->result->regions.begin(), this->result->regions.end(), (result_region*)nullptr),
+        this->result->regions.end());
+    this->result->regions.shrink_to_fit();
+    this->result->count = newCount;
+
+    saveSnapshot();
 }
 
 void JJMemoryEngine::JJNearBySearch(size_t range, void *target, int type) {
