@@ -360,6 +360,14 @@ void showFloatWindowContinue(bool show)
         NSLog(@"FloatWindow=size=%@, %@, %@", NSStringFromCGRect(floatWindow.frame), NSStringFromCGRect(UIScreen.mainScreen.bounds), NSStringFromCGRect(UIScreen.mainScreen.nativeBounds));
         
         
+        // DEBUG: add a visible label to confirm window is on screen
+        UILabel* dbg = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 350, 40)];
+        dbg.text = @"H5GG";
+        dbg.textColor = [UIColor redColor];
+        dbg.backgroundColor = [UIColor whiteColor];
+        dbg.font = [UIFont boldSystemFontOfSize:18];
+        [floatWindow addSubview:dbg];
+        
         floatH5 = initFloatMenu(floatWindow);
         
         //添加H5悬浮菜单到窗口上
