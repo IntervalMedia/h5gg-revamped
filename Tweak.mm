@@ -373,13 +373,8 @@ void showFloatWindowContinue(bool show)
         //添加H5悬浮菜单到窗口上
         [floatWindow addSubview:floatH5];
         
-        // Load HTML after view is in window hierarchy (WKWebView needs this)
-        NSString* h5file = [[NSBundle mainBundle] pathForResource:@"H5Menu" ofType:@"html"];
-        if([[NSFileManager defaultManager] fileExistsAtPath:h5file]) {
-            [floatH5 loadRequest:[[NSURLRequest alloc] initWithURL:[NSURL URLWithString:h5file]]];
-        } else if(floatH5.rawHTML) {
-            [floatH5 loadHTMLString:floatH5.rawHTML baseURL:[NSURL URLWithString:@"Index"]];
-        }
+        // DEBUG: test with minimal HTML first
+        [floatH5 loadHTMLString:@"<html><body style='background:#00ff00;display:flex;align-items:center;justify-content:center;font-size:24px;color:black'><div>TEST OK</div></body></html>" baseURL:nil];
     }
     
     if(show)
