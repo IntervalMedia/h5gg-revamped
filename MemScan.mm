@@ -151,7 +151,7 @@ void JJMemoryEngine::unloadRegion(void* buffer, uint64_t size, bool remapped) {
     }
 }
 
-void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type) {
+void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type, vector<result_region*>* outResults) {
     int len = JJ_Search_Type_Len[type];
 
     result_region* newRegion = nullptr;
@@ -174,7 +174,6 @@ void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, v
                 newRegion = new result_region(base, size);
 
             newRegion->slides.push_back(slide);
-            this->result->count++;
 
             pcurdata = pfound + len;
             left_size = (uint64_t)buffer + size - pcurdata;
@@ -183,7 +182,7 @@ void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, v
 
     if(newRegion) {
         newRegion->slides.shrink_to_fit();
-        this->result->regions.push_back(newRegion);
+        outResults->push_back(newRegion);
     }
 
     unloadRegion(buffer, size, remapped);
@@ -250,65 +249,121 @@ void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
         regionsToScan.push_back({max(base, range.start), region_end - max(base, range.start)});
     }
 
-    int i = 0;
-    for(auto& [base, size] : regionsToScan) {
-        NSLog(@"handle region[%d/%zu] %p %llx [%zu]", i++, regionsToScan.size(),
-              (void*)base, (unsigned long long)size, this->result->count);
-        ScanRegion(range, base, size, target, type);
+    if(regionsToScan.size() >= 3) {
+        __block vector<vector<result_region*>> threadResults(regionsToScan.size());
+        dispatch_apply(regionsToScan.size(), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
+            ScanRegion(range, regionsToScan[idx].first, regionsToScan[idx].second, target, type, &threadResults[idx]);
+        });
+        for(auto& tr : threadResults) {
+            for(auto* rr : tr) {
+                this->result->regions.push_back(rr);
+                this->result->count += rr->slides.size();
+            }
+        }
+    } else {
+        for(auto& [base, size] : regionsToScan) {
+            vector<result_region*> localResult;
+            ScanRegion(range, base, size, target, type, &localResult);
+            for(auto* rr : localResult) {
+                this->result->regions.push_back(rr);
+                this->result->count += rr->slides.size();
+            }
+        }
     }
 
     this->result->regions.shrink_to_fit();
+    firstScanDone = true;
+    saveSnapshot();
 }
 
 void JJMemoryEngine::ScanAgain(AddrRange range, void* target, int type) {
     int len = JJ_Search_Type_Len[type];
 
-    size_t newCount = 0;
-
+    vector<int> activeIndices;
     for(int i = 0; i < this->result->regions.size(); i++) {
         result_region* region = this->result->regions[i];
-
-        NSLog(@"handle region [%d/%zu]%zu %p %zx", i, this->result->regions.size(), region->slides.size(),
-              (void*)region->region_base, region->region_size);
-
         if((region->region_base + region->region_size) < range.start || region->region_base > range.end)
             continue;
+        activeIndices.push_back(i);
+    }
 
-        result_region* newRegion = nullptr;
+    vector<result_region*> newRegions(activeIndices.size(), nullptr);
 
-        bool remapped = false;
-        uint64_t mapsize = region->region_size;
-        void* buffer = loadRegion(region->region_base, &mapsize, &remapped);
+    if(activeIndices.size() >= 3) {
+        __block vector<result_region*>* pNewRegions = &newRegions;
+        __block vector<int>* pActive = &activeIndices;
+        dispatch_apply(activeIndices.size(), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^(size_t idx) {
+            int i = (*pActive)[idx];
+            result_region* region = this->result->regions[i];
+            result_region* newRegion = nullptr;
 
-        if(buffer) {
-            for(int j = 0; j < region->slides.size(); j++) {
-                uint64_t address = region->region_base + region->slides[j];
-                void* pvalue = (void*)((uint64_t)buffer + region->slides[j]);
+            bool remapped = false;
+            uint64_t mapsize = region->region_size;
+            void* buffer = this->loadRegion(region->region_base, &mapsize, &remapped);
 
-                if(address >= range.start && address < range.end &&
-                   ScanData((uint64_t)pvalue, len, target, type)) {
-                    if(!newRegion)
-                        newRegion = new result_region(region->region_base, region->region_size);
+            if(buffer) {
+                for(int j = 0; j < region->slides.size(); j++) {
+                    uint64_t address = region->region_base + region->slides[j];
+                    void* pvalue = (void*)((uint64_t)buffer + region->slides[j]);
 
-                    newRegion->slides.push_back(region->slides[j]);
-                    newCount++;
+                    if(address >= range.start && address < range.end &&
+                       this->ScanData((uint64_t)pvalue, len, target, type)) {
+                        if(!newRegion)
+                            newRegion = new result_region(region->region_base, region->region_size);
+                        newRegion->slides.push_back(region->slides[j]);
+                    }
                 }
+            } else {
+                NSLog(@"read mem failed! [%d] %p %zx", i, (void*)region->region_base, region->region_size);
             }
-        } else {
-            NSLog(@"read mem failed! [%d] %p %zx", i, (void*)region->region_base, region->region_size);
+
+            this->unloadRegion(buffer, mapsize, remapped);
+            if(newRegion) newRegion->slides.shrink_to_fit();
+            (*pNewRegions)[idx] = newRegion;
+        });
+    } else {
+        for(size_t idx = 0; idx < activeIndices.size(); idx++) {
+            int i = activeIndices[idx];
+            result_region* region = this->result->regions[i];
+            result_region* newRegion = nullptr;
+
+            bool remapped = false;
+            uint64_t mapsize = region->region_size;
+            void* buffer = loadRegion(region->region_base, &mapsize, &remapped);
+
+            if(buffer) {
+                for(int j = 0; j < region->slides.size(); j++) {
+                    uint64_t address = region->region_base + region->slides[j];
+                    void* pvalue = (void*)((uint64_t)buffer + region->slides[j]);
+
+                    if(address >= range.start && address < range.end &&
+                       ScanData((uint64_t)pvalue, len, target, type)) {
+                        if(!newRegion)
+                            newRegion = new result_region(region->region_base, region->region_size);
+                        newRegion->slides.push_back(region->slides[j]);
+                    }
+                }
+            } else {
+                NSLog(@"read mem failed! [%d] %p %zx", i, (void*)region->region_base, region->region_size);
+            }
+
+            unloadRegion(buffer, mapsize, remapped);
+            if(newRegion) newRegion->slides.shrink_to_fit();
+            newRegions[idx] = newRegion;
         }
+    }
 
-        unloadRegion(buffer, mapsize, remapped);
-
+    size_t newCount = 0;
+    for(size_t idx = 0; idx < activeIndices.size(); idx++) {
+        int i = activeIndices[idx];
         delete this->result->regions[i];
-        this->result->regions[i] = newRegion;
-        if(newRegion) newRegion->slides.shrink_to_fit();
+        this->result->regions[i] = newRegions[idx];
+        if(newRegions[idx]) newCount += newRegions[idx]->slides.size();
     }
 
     this->result->regions.erase(
         remove(this->result->regions.begin(), this->result->regions.end(), (result_region*)nullptr),
         this->result->regions.end());
-
     this->result->regions.shrink_to_fit();
     this->result->count = newCount;
 }
@@ -794,4 +849,61 @@ map<void*, int8_t> JJMemoryEngine::getResultsAndTypes(int count, int skip) {
         }
     }
     return results;
+}
+
+size_t JJMemoryEngine::JJFilterResults(const char* valueStr, int type, int mode) {
+    UInt8 targetBuf[8] = {0};
+    size_t len = JJ_Search_Type_Len[type];
+
+    if(type >= JJ_Search_Type_Float) {
+        float f = strtof(valueStr, nullptr);
+        memcpy(targetBuf, &f, sizeof(float));
+    } else if(type >= JJ_Search_Type_Double) {
+        double d = strtod(valueStr, nullptr);
+        memcpy(targetBuf, &d, sizeof(double));
+    } else if(type == JJ_Search_Type_SLong || type == JJ_Search_Type_ULong) {
+        long long v = strtoll(valueStr, nullptr, 0);
+        memcpy(targetBuf, &v, sizeof(long long));
+    } else {
+        long v = strtol(valueStr, nullptr, 0);
+        memcpy(targetBuf, &v, min(sizeof(long), len));
+    }
+
+    size_t kept = 0;
+    for(auto* region : result->regions) {
+        vector<uint32_t> newSlides;
+        vector<int8_t> newTypes;
+        for(size_t i = 0; i < region->slides.size(); i++) {
+            uint64_t addr = region->region_base + region->slides[i];
+            UInt8 buf[8] = {0};
+            if(!readMemory(buf, addr, len)) continue;
+
+            bool match = false;
+            if(mode == 0) match = (memcmp(buf, targetBuf, len) == 0);
+            else if(mode == 2) {
+                if(type == JJ_Search_Type_SByte) match = *(int8_t*)buf > *(int8_t*)targetBuf;
+                else if(type == JJ_Search_Type_SShort) match = *(int16_t*)buf > *(int16_t*)targetBuf;
+                else if(type == JJ_Search_Type_SInt) match = *(int32_t*)buf > *(int32_t*)targetBuf;
+                else if(type == JJ_Search_Type_SLong) match = *(int64_t*)buf > *(int64_t*)targetBuf;
+                else match = false;
+            }
+            else if(mode == 3) {
+                if(type == JJ_Search_Type_SByte) match = *(int8_t*)buf < *(int8_t*)targetBuf;
+                else if(type == JJ_Search_Type_SShort) match = *(int16_t*)buf < *(int16_t*)targetBuf;
+                else if(type == JJ_Search_Type_SInt) match = *(int32_t*)buf < *(int32_t*)targetBuf;
+                else if(type == JJ_Search_Type_SLong) match = *(int64_t*)buf < *(int64_t*)targetBuf;
+                else match = false;
+            }
+
+            if(match) {
+                newSlides.push_back(region->slides[i]);
+                newTypes.push_back(region->types[i]);
+            }
+        }
+        region->slides = std::move(newSlides);
+        region->types = std::move(newTypes);
+        kept += region->slides.size();
+    }
+
+    return kept;
 }

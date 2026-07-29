@@ -1,0 +1,35 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Checkout Theos
+        uses: actions/checkout@v4
+        with:
+          repository: theos/theos
+          path: theos
+          ref: master
+      
+      - name: Setup Theos
+        run: |
+          ln -s $PWD/theos $THEOS
+          echo "THEOS=$PWD/theos" >> $GITHUB_ENV
+          brew install ldid xz
+      
+      - name: Build
+        run: make package FINALPACKAGE=1
+      
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: H5GG-deb
+          path: packages/*.deb

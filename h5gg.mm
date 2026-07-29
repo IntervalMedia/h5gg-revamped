@@ -852,6 +852,30 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     return [NSString stringWithFormat:@"0x%llX", ptr];
 }
 
+-(NSString*)readBytes:(NSString*)address length:(int)length {
+    char* end = NULL;
+    UInt64 addr = strtoull([address UTF8String], &end, [address hasPrefix:@"0x"] ? 16 : 10);
+    if(end && *end) return @"";
+    if(length <= 0 || length > 4096) length = 256;
+
+    NSMutableString *hex = [NSMutableString string];
+    UInt8 buf[4096];
+    size_t readLen = min((size_t)length, sizeof(buf));
+
+    for(size_t i = 0; i < readLen; i += 8) {
+        size_t chunk = min((size_t)8, readLen - i);
+        if(!_engine->JJReadMemory(buf + i, addr + i, (int)chunk)) break;
+    }
+
+    for(int i = 0; i < (int)readLen; i++) {
+        if(i > 0 && i % 16 == 0) [hex appendString:@"\n"];
+        else if(i > 0 && i % 8 == 0) [hex appendString:@" "];
+        [hex appendFormat:@"%02X ", buf[i]];
+    }
+
+    return hex;
+}
+
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)findPointers:(NSString*)address rangeStart:(NSString*)rangeStart rangeEnd:(NSString*)rangeEnd {
     char* end = NULL;
     UInt64 addr = strtoull([address UTF8String], &end, [address hasPrefix:@"0x"] ? 16 : 10);
@@ -903,6 +927,17 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         if([f hasSuffix:@".js"]) [scripts addObject:f];
     }
     return scripts;
+}
+
+-(int)searchFilter:(NSString*)value type:(NSString*)type mode:(int)mode {
+    if(!value || !type) return 0;
+    if(_engine->getResultsCount() == 0) {
+        [floatH5 alert:Localized(@"当前列表为空")];
+        return 0;
+    }
+    int jjtype = [self ggtype2jjtype:type];
+    if(!jjtype) return 0;
+    return (int)_engine->JJFilterResults([value UTF8String], jjtype, mode);
 }
 
 @end

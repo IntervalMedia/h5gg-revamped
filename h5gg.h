@@ -101,6 +101,11 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(BOOL)deleteScript:(NSString*)name;
 -(NSArray<NSString*>*)listScripts;
 
+-(int)searchFilter:(NSString*)value type:(NSString*)type mode:(int)mode;
+
+// Read raw bytes
+-(NSString*)readBytes:(NSString*)address length:(int)length;
+
 @end
 
 @interface h5ggEngine : NSObject <h5ggJSExport>
@@ -133,6 +138,8 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(NSString*)loadScript:(NSString*)name;
 -(BOOL)deleteScript:(NSString*)name;
 -(NSArray<NSString*>*)listScripts;
+-(NSString*)readBytes:(NSString*)address length:(int)length;
+-(int)searchFilter:(NSString*)value type:(NSString*)type mode:(int)mode;
 @end
 
 NS_ASSUME_NONNULL_END

@@ -1080,7 +1080,7 @@ async function openScriptEditor() {
     html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
     html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
     html += '<span>Script Editor</span>';
-    html += '<span><button onclick="saveCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Save</button> <span onclick="closeOverlay(\'scriptOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
+    html += '<span><button onclick="runScript(document.getElementById('scriptEditor').value, document.getElementById('scriptFileName').value)" style="font-size:11px;padding:2px 6px;margin-right:4px">Run</button><button onclick="saveCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Save</button> <span onclick="closeOverlay(\'scriptOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
     html += '</div>';
     html += '<div style="display:flex;flex:1;overflow:hidden">';
     html += '<div class="scrollbar" style="width:100px;border-right:1px solid var(--border-color,#ccc);overflow-y:auto;flex-shrink:0;padding:2px">';
@@ -1423,18 +1423,57 @@ function setAutorun() {
     localStorage.setItem('h5gg_autorun', sel ? sel.value : '');
 }
 
+function runScript(code, filename) {
+    try {
+        var sandbox = {
+            console: console,
+            setTimeout: setTimeout,
+            clearTimeout: clearTimeout,
+            setInterval: setInterval,
+            clearInterval: clearInterval,
+            alert: alert,
+            confirm: confirm,
+            prompt: prompt,
+            h5gg: window.h5gg,
+            Number: Number,
+            String: String,
+            Boolean: Boolean,
+            Array: Array,
+            Object: Object,
+            Math: Math,
+            JSON: JSON,
+            parseInt: parseInt,
+            parseFloat: parseFloat,
+            isNaN: isNaN,
+            Date: Date,
+            RegExp: RegExp,
+            Error: Error,
+            Promise: Promise,
+        };
+        
+        var argNames = Object.keys(sandbox);
+        var argValues = argNames.map(function(k) { return sandbox[k]; });
+        var fn = new Function(argNames.join(','), code);
+        var result = fn.apply(null, argValues);
+        
+        if(result && typeof result.then === 'function') {
+            result.catch(function(e) { showToast('Script error: ' + e.message); });
+        }
+        
+        showToast('Script ran: ' + (filename || 'unnamed'));
+        return true;
+    } catch(e) {
+        showToast('Script error: ' + e.message);
+        console.error('Script error in', filename, ':', e);
+        return false;
+    }
+}
+
 async function checkAutorun() {
     var name = localStorage.getItem('h5gg_autorun');
     if(!name) return;
     var content = await h5gg.loadScript(name);
-    if(content) {
-        try {
-            eval(content);
-            showToast('Auto-run: ' + name);
-        } catch(e) {
-            showToast('Error in ' + name);
-        }
-    }
+    if(content) runScript(content, name);
 }
 
 function openSettings() {
@@ -1469,6 +1508,78 @@ function saveSettings() {
     localStorage.setItem('h5gg_searchType', type);
     document.getElementById('settingsStatus').textContent = 'Settings saved';
     setTimeout(function() { closeOverlay('settingsOverlay'); }, 1000);
+}
+
+var gViewerAddr = '0x0';
+
+function openMemoryViewer() {
+    var html = '<div id="viewerOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'viewerOverlay\')">';
+    html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
+    html += '<span>Memory Viewer</span>';
+    html += '<span onclick="closeOverlay(\'viewerOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+    html += '</div>';
+
+    html += '<div style="display:flex;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee);align-items:center;flex-shrink:0">';
+    html += '<span style="font-size:12px;margin-right:4px">Address:</span>';
+    html += '<input id="viewerAddr" type="text" value="'+gViewerAddr+'" style="flex:1;padding:4px;font-family:monospace;font-size:12px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
+    html += '<button onclick="viewerGo()" style="margin-left:4px;padding:4px 8px;font-size:12px">Go</button>';
+    html += '</div>';
+
+    html += '<div style="display:flex;padding:2px 8px;border-bottom:1px solid var(--border-color,#eee);flex-shrink:0">';
+    html += '<button onclick="viewerPage(-1)" style="flex:1;font-size:11px;padding:4px;margin:2px">-Page</button>';
+    html += '<button onclick="viewerStep(-16)" style="flex:1;font-size:11px;padding:4px;margin:2px">-16</button>';
+    html += '<button onclick="viewerStep(-1)" style="flex:1;font-size:11px;padding:4px;margin:2px">-1</button>';
+    html += '<button onclick="viewerStep(1)" style="flex:1;font-size:11px;padding:4px;margin:2px">+1</button>';
+    html += '<button onclick="viewerStep(16)" style="flex:1;font-size:11px;padding:4px;margin:2px">+16</button>';
+    html += '<button onclick="viewerPage(1)" style="flex:1;font-size:11px;padding:4px;margin:2px">+Page</button>';
+    html += '</div>';
+
+    html += '<div id="viewerDump" class="scrollbar" style="flex:1;overflow-y:auto;padding:8px;font-family:monospace;font-size:10px;line-height:1.6;white-space:pre"></div>';
+
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    viewerGo();
+}
+
+async function viewerGo() {
+    var input = document.getElementById('viewerAddr');
+    if(!input) return;
+    gViewerAddr = input.value.trim();
+    if(!gViewerAddr.startsWith('0x')) gViewerAddr = '0x' + parseInt(gViewerAddr).toString(16);
+    input.value = gViewerAddr;
+    await viewerRefresh();
+}
+
+async function viewerRefresh() {
+    var dump = document.getElementById('viewerDump');
+    if(!dump || !gViewerAddr) return;
+
+    var addr = parseInt(gViewerAddr, 16);
+    var hex = await h5gg.readBytes(gViewerAddr, 256);
+    if(!hex) { dump.textContent = 'Failed to read memory'; return; }
+
+    var lines = hex.split('\n');
+    var out = '';
+    for(var i = 0; i < lines.length; i++) {
+        var offset = (addr + i * 16).toString(16).toUpperCase().padStart(8, '0');
+        out += offset + '  ' + lines[i] + '\n';
+    }
+    dump.textContent = out;
+}
+
+function viewerStep(delta) {
+    var addr = parseInt(gViewerAddr, 16);
+    addr += delta;
+    gViewerAddr = '0x' + addr.toString(16).toUpperCase();
+    var input = document.getElementById('viewerAddr');
+    if(input) input.value = gViewerAddr;
+    viewerRefresh();
+}
+
+function viewerPage(dir) {
+    viewerStep(dir * 256);
 }
 </script>
 
@@ -1513,6 +1624,7 @@ MemEnd:<input id="range_max" style="width:80px;padding-left:0"  value="0x2000000
 <button onclick="openPointerChain()">Ptr</button>
 <button onclick="openDumpPanel()">Dump</button>
 <button onclick="openHistoryPanel()">Hist</button>
+<button onclick="openMemoryViewer()">Viewer</button>
 <br/>
 <div style="display:flex;align-items:center;padding:2px 0">
     <select id="autorunSelect" onchange="setAutorun()" style="flex:1;font-size:10px;margin:2px 4px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">

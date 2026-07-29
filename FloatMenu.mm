@@ -98,12 +98,12 @@ static NSString* _bridgeSource() {
         "'editAll','getResults','getResultsCount','clearResults',"
         "'getLocalScripts','pickScriptFile','getRangesList',"
         "'getProcList','setTargetProc','loadPlugin','makeTweak',"
-        "'require','setFloatTolerance','searchChange',"
+        "'require','setFloatTolerance','searchChange','searchFilter',"
         "'getInputHistory','addInputHistory','clearInputHistory',"
         "'addBookmark','removeBookmark','getBookmarks','clearBookmarks',"
         "'freezeValue','unfreezeValue','getFrozenValues','clearFrozenValues',"
         "'searchHex','getSearchHistory','addSearchHistory','clearSearchHistory',"
-        "'dumpMemory','readPointer','findPointers','saveScript','loadScript','deleteScript','listScripts'"
+        "'dumpMemory','readPointer','findPointers','readBytes','saveScript','loadScript','deleteScript','listScripts'"
         "];"
         "window.h5gg={};"
         "methods.forEach(function(m){"
@@ -390,6 +390,7 @@ static NSString* _bridgeSource() {
             @"require":          @"require:",
             @"setFloatTolerance":@"setFloatTolerance:",
             @"searchChange":      @"searchChange:",
+@"searchFilter":      @"searchFilter:type:mode:",
             @"getInputHistory":    @"getInputHistory",
             @"addInputHistory":    @"addInputHistory:",
             @"clearInputHistory":  @"clearInputHistory",
@@ -408,10 +409,11 @@ static NSString* _bridgeSource() {
             @"dumpMemory":         @"dumpMemory:end:filename:",
             @"readPointer":        @"readPointer:",
             @"findPointers":      @"findPointers:rangeStart:rangeEnd:",
-            @"saveScript":         @"saveScript:content:",
-            @"loadScript":         @"loadScript:",
-            @"deleteScript":       @"deleteScript:",
-            @"listScripts":        @"listScripts",
+             @"readBytes":          @"readBytes:length:",
+             @"saveScript":         @"saveScript:content:",
+             @"loadScript":         @"loadScript:",
+             @"deleteScript":       @"deleteScript:",
+             @"listScripts":        @"listScripts",
         };
     });
     NSString *sel = map[method];

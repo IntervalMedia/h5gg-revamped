@@ -98,13 +98,13 @@ class JJMemoryEngine
     void* loadRegion(uint64_t base, uint64_t* psize, bool* remapped);
     void unloadRegion(void* buffer, uint64_t size, bool remapped);
 
-    void ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type);
+    void ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type, vector<result_region*>* outResults);
     void FirstScan(AddrRange range, void* target, int type);
     void ScanAgain(AddrRange range, void* target, int type);
-
     void saveSnapshot();
 
 public:
+    size_t JJFilterResults(const char* valueStr, int type, int mode);
     JJMemoryEngine(mach_port_t task);
     ~JJMemoryEngine();
 
