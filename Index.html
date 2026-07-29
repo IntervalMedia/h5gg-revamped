@@ -545,9 +545,9 @@ document.addEventListener("DOMContentLoaded", function(){
             setWindowRect(x,y,width,height);
         });
 
-        var checkprocs = function()
+        var checkprocs = async function()
         {
-            var procs = h5gg.getProcList();
+            var procs = await h5gg.getProcList();
             if(procs)  //不为空(null)说明是具有跨进程权限
             {
                 refreshProcList(procs);
@@ -560,13 +560,13 @@ document.addEventListener("DOMContentLoaded", function(){
                     $("#procname").text('');
                 }
                 
-                setInterval(function(){
+                setInterval(async function(){
                     if($("#popup_proclist").is(":visible"))
-                        refreshProcList(h5gg.getProcList());
+                        refreshProcList(await h5gg.getProcList());
 
                     if($("#procname").attr('pid'))
                     {
-                        var procs = h5gg.getProcList();
+                        var procs = await h5gg.getProcList();
                         var alive = false;
                         for(var i=0; i<procs.length; i++) {
                             if(procs[i].pid == $("#procname").attr('pid')) {
@@ -597,7 +597,7 @@ document.addEventListener("DOMContentLoaded", function(){
     } //end of h5gg check
     
     //点击结果列表里面的地址时弹出修改窗口, 要在listdiv刷新html之后绑定
-    $("table#resultList").on('click','tr', function()
+    $("table#resultList").on('click','tr', async function()
     {
         $("table#resultList tr").removeClass("hilight");
         $(this).addClass("hilight");
@@ -608,15 +608,15 @@ document.addEventListener("DOMContentLoaded", function(){
         
         //读取该地址最新数据
         if(typeof h5gg!='undefined')
-            datavalue = h5gg.getValue(address, h5ggType(datatype));
+            datavalue = await h5gg.getValue(address, h5ggType(datatype));
         
-        showPopView("修改", function(type, value){
+        showPopView("修改", async function(type, value){
             
-            if(!h5gg.setValue(address, value, h5ggType(type))) {
+            if(!await h5gg.setValue(address, value, h5ggType(type))) {
                 alert("修改失败,可能地址已失效!");
             }
             
-            onClickRefreshResults();
+            await onClickRefreshResults();
             
         }, datatype, datavalue);
     });
@@ -630,9 +630,9 @@ function refreshProcList(procs)
         var proc = procs[i];
         var btn = $("<button>"+proc.name+"</button>");
         btn.attr("pid", proc.pid);
-        btn.click(function()
+        btn.click(async function()
         {
-            if(!h5gg.setTargetProc($(this).attr('pid'))) {
+            if(!await h5gg.setTargetProc($(this).attr('pid'))) {
                 alert("无法选定该目标");
                 return;
             }
@@ -649,11 +649,11 @@ function refreshProcList(procs)
     }
 }
 
-function refreshLocalSrcipts()
+async function refreshLocalSrcipts()
 {
     $("table#localjslist tr").remove();
     
-    var jsfiles = h5gg.getLocalScripts();
+    var jsfiles = await h5gg.getLocalScripts();
 
     setTimeout(function(){
         
@@ -788,9 +788,9 @@ function onClickClearResults()
     if(typeof h5gg!='undefined') h5gg.clearResults();
 }
 
-function loadResults(from, count)
+async function loadResults(from, count)
 {
-    var results = h5gg.getResults(count, from);
+    var results = await h5gg.getResults(count, from);
     
     for(var i=0; i<results.length; i++)
     {
@@ -806,14 +806,14 @@ function loadResults(from, count)
     }
 }
 
-function onClickRefreshResults(clean)
+async function onClickRefreshResults(clean)
 {
    if(clean) {
        $("#listdiv").get(0).scroll(0,0);
        gCurrentCount = 0;
    }
 
-    var count = h5gg.getResultsCount();
+    var count = await h5gg.getResultsCount();
     $("#results_count").text("共找到"+count+"条结果");
     $("#results_count").show();
     
@@ -824,20 +824,20 @@ function onClickRefreshResults(clean)
     loadResults(0, gCurrentCount);
 }
 
-function loadMoreResults() {
+async function loadMoreResults() {
     var from = gCurrentCount;
     gCurrentCount += 100;
-    loadResults(from, 100);
+    await loadResults(from, 100);
 }
 
-function showMoreResults(div)
+async function showMoreResults(div)
 {
     var lh = div.scrollHeight - div.scrollTop;
     console.log(div.clientHeight+","+div.offsetHeight +" : " +div.scrollTop+","+div.scrollHeight + " : " + lh);
     
     if(lh <= div.clientHeight) {
         console.log("trigger bottom!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        loadMoreResults();
+        await loadMoreResults();
     }
 }
 
@@ -849,11 +849,11 @@ function onClickEditAll()
         return;
     }*/
     
-    showPopView("修改全部", function(type, value){
+    showPopView("修改全部", async function(type, value){
 
-        var count = h5gg.editAll(value, h5ggType(type));
+        var count = await h5gg.editAll(value, h5ggType(type));
         
-        onClickRefreshResults();
+        await onClickRefreshResults();
         
         alert("成功修改"+count+"个数据");
     });
@@ -861,15 +861,15 @@ function onClickEditAll()
 
 function onClickSearchNumber()
 {
-    showPopView("搜索数值", function(type, value) {
+    showPopView("搜索数值", async function(type, value) {
         
-        h5gg.setFloatTolerance($("#float_tolerance").val());
+        await h5gg.setFloatTolerance($("#float_tolerance").val());
         
         var memoryFrom = $("input#range_min").val();
         var memoryTo = $("input#range_max").val();
-        h5gg.searchNumber(value, h5ggType(type), memoryFrom, memoryTo);
-        
-        onClickRefreshResults(true);
+        await h5gg.searchNumber(value, h5ggType(type), memoryFrom, memoryTo);
+        await h5gg.addSearchHistory(value, h5ggType(type), await h5gg.getResultsCount());
+        await onClickRefreshResults(true);
     });
 }
 
@@ -881,31 +881,29 @@ function onClickSearchNearby()
         return;
     }*/
     
-    showPopView("搜索附近数值", function(type, value){
+    showPopView("搜索附近数值", async function(type, value){
         
-        h5gg.setFloatTolerance($("#float_tolerance").val());
+        await h5gg.setFloatTolerance($("#float_tolerance").val());
         
         var nearbyRange = $("input#nearby_range").val();
-        h5gg.searchNearby(value, h5ggType(type), nearbyRange);
-        
-        onClickRefreshResults(true);
+        await h5gg.searchNearby(value, h5ggType(type), nearbyRange);
+        await onClickRefreshResults(true);
     });
 }
     
-function onClickMakeTweak()
+async function onClickMakeTweak()
 {
     alert("制作自己专属的dylib\n\n第一步: 选择悬浮按钮图标文件");
-    h5gg.pickScriptFile(function(icon){
-        
-        alert("第二步: 选择需要自动加载的html文件");
-        
-        h5gg.pickScriptFile(function(html) {
-            
-            alert(h5gg.makeTweak(icon, html));
-            
-        }, ["public.html"]);
-        
-    }, ["public.image"]);
+    var icon = await new Promise(function(resolve) {
+        h5gg.pickScriptFile(function(icon) { resolve(icon); }, ["public.image"]);
+    });
+    
+    alert("第二步: 选择需要自动加载的html文件");
+    var html = await new Promise(function(resolve) {
+        h5gg.pickScriptFile(function(html) { resolve(html); }, ["public.html"]);
+    });
+    
+    alert(await h5gg.makeTweak(icon, html));
 }
 
 // Bookmarks panel
@@ -1025,10 +1023,10 @@ function toggleTheme() {
 async function loadSearchResults() {
     gAllResults = [];
     gCurrentCount = 0;
-    var count = h5gg.getResultsCount();
+    var count = await h5gg.getResultsCount();
     $("#results_count").text("共找到"+count+"条结果");
     $("#results_count").show();
-    loadResults(0, 100);
+    await loadResults(0, 100);
 }
 
 async function openHistoryPanel() {
@@ -1199,13 +1197,13 @@ function renderResults(results) {
     display.innerHTML = html;
 }
 
-function openMemoryEditor(address, type) {
-    var datavalue = typeof h5gg != 'undefined' ? h5gg.getValue(address, h5ggType(type)) : '';
-    showPopView("修改", function(type, value) {
-        if(!h5gg.setValue(address, value, h5ggType(type))) {
+async function openMemoryEditor(address, type) {
+    var datavalue = typeof h5gg != 'undefined' ? await h5gg.getValue(address, h5ggType(type)) : '';
+    showPopView("修改", async function(type, value) {
+        if(!await h5gg.setValue(address, value, h5ggType(type))) {
             alert("修改失败,可能地址已失效!");
         }
-        onClickRefreshResults();
+        await onClickRefreshResults();
     }, type, datavalue);
 }
 
@@ -1573,17 +1571,17 @@ async function viewerRefresh() {
     dump.textContent = out;
 }
 
-function viewerStep(delta) {
+async function viewerStep(delta) {
     var addr = parseInt(gViewerAddr, 16);
     addr += delta;
     gViewerAddr = '0x' + addr.toString(16).toUpperCase();
     var input = document.getElementById('viewerAddr');
     if(input) input.value = gViewerAddr;
-    viewerRefresh();
+    await viewerRefresh();
 }
 
-function viewerPage(dir) {
-    viewerStep(dir * 256);
+async function viewerPage(dir) {
+    await viewerStep(dir * 256);
 }
 </script>
 
