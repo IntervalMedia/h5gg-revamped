@@ -722,6 +722,37 @@ int JJMemoryEngine::JJWriteAll(void *target, int type) {
     return count;
 }
 
+vector<pair<uint64_t, uint64_t>> JJMemoryEngine::JJFindPointers(uint64_t targetAddr, AddrRange range) {
+    vector<pair<uint64_t, uint64_t>> results;
+
+    for(auto& [base, size] : this->regions) {
+        if(base < range.start || base > range.end) continue;
+
+        uint64_t region_end = min(base + size, range.end);
+        uint64_t region_base = max(base, range.start);
+        uint64_t region_size = region_end - region_base;
+        if(region_size < 8) continue;
+
+        bool remapped = false;
+        uint64_t loadSize = 0;
+        void* buffer = loadRegion(region_base, &loadSize, &remapped);
+        if(!buffer) continue;
+
+        uint64_t* ptrs = (uint64_t*)buffer;
+        uint64_t scanSize = min((uint64_t)loadSize, region_size) / 8;
+
+        for(uint64_t i = 0; i < scanSize; i++) {
+            if(ptrs[i] == targetAddr) {
+                results.push_back({region_base + i * 8, ptrs[i]});
+            }
+        }
+
+        unloadRegion(buffer, loadSize, remapped);
+    }
+
+    return results;
+}
+
 size_t JJMemoryEngine::getResultsCount() {
     return this->result->count;
 }

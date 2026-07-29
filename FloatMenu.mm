@@ -103,7 +103,7 @@ static NSString* _bridgeSource() {
         "'addBookmark','removeBookmark','getBookmarks','clearBookmarks',"
         "'freezeValue','unfreezeValue','getFrozenValues','clearFrozenValues',"
         "'searchHex','getSearchHistory','addSearchHistory','clearSearchHistory',"
-        "'dumpMemory','readPointer','saveScript','loadScript','deleteScript','listScripts'"
+        "'dumpMemory','readPointer','findPointers','saveScript','loadScript','deleteScript','listScripts'"
         "];"
         "window.h5gg={};"
         "methods.forEach(function(m){"
@@ -407,6 +407,7 @@ static NSString* _bridgeSource() {
             @"clearSearchHistory": @"clearSearchHistory",
             @"dumpMemory":         @"dumpMemory:end:filename:",
             @"readPointer":        @"readPointer:",
+            @"findPointers":      @"findPointers:rangeStart:rangeEnd:",
             @"saveScript":         @"saveScript:content:",
             @"loadScript":         @"loadScript:",
             @"deleteScript":       @"deleteScript:",

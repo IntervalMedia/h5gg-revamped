@@ -852,6 +852,27 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     return [NSString stringWithFormat:@"0x%llX", ptr];
 }
 
+-(NSArray<NSDictionary<NSString*,NSString*>*>*)findPointers:(NSString*)address rangeStart:(NSString*)rangeStart rangeEnd:(NSString*)rangeEnd {
+    char* end = NULL;
+    UInt64 addr = strtoull([address UTF8String], &end, [address hasPrefix:@"0x"] ? 16 : 10);
+    if(end && *end) return @[];
+
+    UInt64 start = strtoull([rangeStart UTF8String], &end, 16);
+    UInt64 endAddr = strtoull([rangeEnd UTF8String], &end, 16);
+
+    AddrRange range = {start, endAddr};
+    auto ptrs = _engine->JJFindPointers(addr, range);
+
+    NSMutableArray *result = [NSMutableArray array];
+    for(auto& p : ptrs) {
+        [result addObject:@{
+            @"address": [NSString stringWithFormat:@"0x%llX", p.first],
+            @"value": [NSString stringWithFormat:@"0x%llX", p.second],
+        }];
+    }
+    return result;
+}
+
 -(BOOL)saveScript:(NSString*)name content:(NSString*)content {
     if(!name || !content) return NO;
     NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];

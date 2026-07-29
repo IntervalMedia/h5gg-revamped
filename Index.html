@@ -592,6 +592,7 @@ document.addEventListener("DOMContentLoaded", function(){
         
         checkprocs();
         //setInterval(checkprocs, 1500);
+        checkAutorun();
     
     } //end of h5gg check
     
@@ -1054,6 +1055,7 @@ async function openHistoryPanel() {
 function closeOverlay(id) {
     var el = document.getElementById(id);
     if(el) el.remove();
+    if(id == 'scriptOverlay') loadAutorunList();
 }
 
 async function reRunSearch(idx) {
@@ -1362,6 +1364,112 @@ async function writeMemoryEditor(addr, type, bytes) {
     }
 }
 
+function sortResults(mode) {
+    if(!gAllResults || gAllResults.length == 0) return;
+    gAllResults.sort(function(a, b) {
+        var aAddr = parseInt(a.address, 16);
+        var bAddr = parseInt(b.address, 16);
+        if(mode == 'addr') return aAddr - bAddr;
+        if(mode == 'addrD') return bAddr - aAddr;
+        var aVal = parseFloat(a.value);
+        var bVal = parseFloat(b.value);
+        if(isNaN(aVal)) aVal = 0;
+        if(isNaN(bVal)) bVal = 0;
+        if(mode == 'val') return aVal - bVal;
+        if(mode == 'valD') return bVal - aVal;
+        return 0;
+    });
+    filterResults();
+}
+
+function showToast(msg) {
+    var el = document.getElementById('toastMsg');
+    if(!el) {
+        el = document.createElement('div');
+        el.id = 'toastMsg';
+        el.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:8px 16px;border-radius:20px;font-size:12px;z-index:999999;transition:opacity 0.3s';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(function() { el.style.opacity = '0'; }, 2000);
+}
+
+function applyTolerance() {
+    var val = document.getElementById('tolInput').value.trim();
+    if(val === '') return;
+    h5gg.setFloatTolerance(val);
+    showToast('容差设置为 ' + val);
+}
+
+async function loadAutorunList() {
+    var sel = document.getElementById('autorunSelect');
+    if(!sel) return;
+    var saved = localStorage.getItem('h5gg_autorun') || '';
+    var list = await h5gg.listScripts();
+    sel.innerHTML = '<option value="">-- 自动运行 --</option>';
+    for(var i=0;i<list.length;i++) {
+        var opt = document.createElement('option');
+        opt.value = list[i];
+        opt.textContent = list[i];
+        if(list[i] == saved) opt.selected = true;
+        sel.appendChild(opt);
+    }
+}
+
+function setAutorun() {
+    var sel = document.getElementById('autorunSelect');
+    localStorage.setItem('h5gg_autorun', sel ? sel.value : '');
+}
+
+async function checkAutorun() {
+    var name = localStorage.getItem('h5gg_autorun');
+    if(!name) return;
+    var content = await h5gg.loadScript(name);
+    if(content) {
+        try {
+            eval(content);
+            showToast('自动运行: ' + name);
+        } catch(e) {
+            showToast('运行错误: ' + name);
+        }
+    }
+}
+
+function openSettings() {
+    var html = '<div id="settingsOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'settingsOverlay\')">';
+    html += '<div style="position:absolute;top:20%;left:8%;width:84%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
+    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
+    html += '<span>设置</span>';
+    html += '<span onclick="closeOverlay(\'settingsOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+    html += '</div>';
+    html += '<div style="padding:12px;font-size:12px">';
+    html += '<div style="margin:8px 0"><label>默认搜索起始:</label><br><input id="setRangeStart" type="text" value="'+ (localStorage.getItem('h5gg_rangeStart') || '0x0') +'" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
+    html += '<div style="margin:8px 0"><label>默认搜索结束:</label><br><input id="setRangeEnd" type="text" value="'+ (localStorage.getItem('h5gg_rangeEnd') || '0xFFFFFFFF00000000') +'" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
+    html += '<div style="margin:8px 0"><label>默认搜索类型:</label><br><select id="setSearchType" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
+    var types = ['I8','U8','I16','U16','I32','U32','I64','U64','F32','F64'];
+    var savedType = localStorage.getItem('h5gg_searchType') || 'I32';
+    for(var i=0;i<types.length;i++) {
+        html += '<option value="'+types[i]+'"'+(types[i]==savedType?' selected':'')+'>'+types[i]+'</option>';
+    }
+    html += '</select></div>';
+    html += '<button onclick="saveSettings()" style="width:100%;margin:12px 0;height:32px">保存设置</button>';
+    html += '<div id="settingsStatus" style="font-size:11px;color:#888;text-align:center"></div>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function saveSettings() {
+    var start = document.getElementById('setRangeStart').value.trim();
+    var end = document.getElementById('setRangeEnd').value.trim();
+    var type = document.getElementById('setSearchType').value;
+    if(start) localStorage.setItem('h5gg_rangeStart', start);
+    if(end) localStorage.setItem('h5gg_rangeEnd', end);
+    localStorage.setItem('h5gg_searchType', type);
+    document.getElementById('settingsStatus').textContent = '设置已保存';
+    setTimeout(function() { closeOverlay('settingsOverlay'); }, 1000);
+}
 </script>
 
 </head>
@@ -1406,6 +1514,12 @@ async function writeMemoryEditor(addr, type, bytes) {
 <button onclick="openDumpPanel()">导出</button>
 <button onclick="openHistoryPanel()">历史</button>
 <br/>
+<div style="display:flex;align-items:center;padding:2px 0">
+    <select id="autorunSelect" onchange="setAutorun()" style="flex:1;font-size:10px;margin:2px 4px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
+        <option value="">-- 自动运行 --</option>
+    </select>
+    <button onclick="openSettings()" style="height:24px;font-size:11px;padding:2px 6px">设置</button>
+</div>
 邻近范围:<input id="nearby_range" style="width:78px"  value="0x100"/>
 <br/>
 浮点误差:<input id="float_tolerance" style="width:78px" value="0.0"/>
@@ -1415,6 +1529,11 @@ async function writeMemoryEditor(addr, type, bytes) {
     <input id="hexInput" type="text" placeholder="90 00 E0 AF" style="flex:1;height:26px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
     <button onclick="doHexSearch()" style="height:26px;font-size:11px;padding:2px 6px;margin-left:4px">Search</button>
 </div>
+<div style="display:flex;align-items:center;padding:2px 4px">
+    <span style="font-size:11px;margin-right:4px;color:#888">容差</span>
+    <input id="tolInput" type="text" value="0" placeholder="0.0" style="width:50px;height:24px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin-right:4px">
+    <button onclick="applyTolerance()" style="height:24px;font-size:11px;padding:2px 6px">设置</button>
+</div>
 <div style="display:flex;align-items:center;padding:2px 4px;margin-top:2px">
     <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#888">Filter</span>
     <input id="filterInput" type="text" placeholder="filter results..." style="flex:1;height:24px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px" oninput="filterResults()">
@@ -1423,6 +1542,10 @@ async function writeMemoryEditor(addr, type, bytes) {
 <br/>
 <hr class="control-separator"/>
 <p id="results_count" style="display:none">共找到<span>0</span>条结果</p>
+<button onclick="sortResults('addr')" style="font-size:10px;padding:1px 4px;margin:0 2px">Addr</button>
+<button onclick="sortResults('addrD')" style="font-size:10px;padding:1px 4px;margin:0 2px">Addr↓</button>
+<button onclick="sortResults('val')" style="font-size:10px;padding:1px 4px;margin:0 2px">Val</button>
+<button onclick="sortResults('valD')" style="font-size:10px;padding:1px 4px;margin:0 2px">Val↓</button>
 </div>
 </td>
 <td style="vertical-align:top;">
