@@ -1,8 +1,8 @@
-ARCHS = arm64
+ARCHS = arm64 arm64e
 
-TARGET = iphone:16.5:15.0
+TARGET = iphone:clang:15.6:15.6
 
-THEOS_DEVICE_IP = iphoneX.local
+# THEOS_DEVICE_IP = iphoneX.local
 
 THEOS_PLATFORM_DEB_COMPRESSION_TYPE = gzip
 
@@ -20,7 +20,7 @@ endif
 TWEAK_NAME = H5GG
 
 H5GG_FILES = Tweak.mm h5gg.mm MemScan.mm crossproc.mm FloatMenu.mm FloatButton.m FloatWindow.m TopShow.m ModalShow.m makeDYLIB.mm makeWindow.m ldid-master/ldid.cpp ldid-master/lookup2.c
-H5GG_COMMON_FLAGS = -DH5GG_BUILD_NORMAL=0 -DH5GG_BUILD_ROOTLESS=0 -DH5GG_BUILD_ROOTHIDE=0
+H5GG_COMMON_FLAGS =
 ifeq ($(JB_VARIANT),normal)
 H5GG_COMMON_FLAGS += -DH5GG_BUILD_NORMAL=1
 else ifeq ($(JB_VARIANT),rootless)
@@ -31,8 +31,14 @@ else
 $(error Unsupported jailbreak build variant '$(JB_VARIANT)'. Use normal, rootless or roothide.)
 endif
 
-H5GG_CFLAGS = -fobjc-arc -Wno-deprecated-declarations $(H5GG_COMMON_FLAGS)
-H5GG_CCFLAGS = -fobjc-arc -std=c++17 -Wno-deprecated-declarations $(H5GG_COMMON_FLAGS)
+H5GG_CFLAGS = -fobjc-arc -Wno-deprecated-declarations
+H5GG_CCFLAGS = -fobjc-arc -std=c++17 -Wno-deprecated-declarations
+H5GG_ADDITIONAL_CCFLAGS = $(H5GG_COMMON_FLAGS)
+
+ifneq ($(filter rootless roothide,$(JB_VARIANT)),)
+H5GG_LDFLAGS += -L$(THEOS)/vendor/lib -L$(THEOS)/vendor/lib/iphone/rootless
+endif
+
 H5GG_LOGOS_DEFAULT_GENERATOR = internal
 
 include $(THEOS_MAKE_PATH)/tweak.mk

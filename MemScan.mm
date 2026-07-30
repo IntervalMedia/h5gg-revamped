@@ -25,12 +25,10 @@ JJMemoryEngine::~JJMemoryEngine() {
 }
 
 void JJMemoryEngine::freeResults() {
-    if(result->count != 0) {
-        for(auto* region : result->regions) {
-            region->slides.clear();
-            region->slides.shrink_to_fit();
-            delete region;
-        }
+    for(auto* region : result->regions) {
+        region->slides.clear();
+        region->slides.shrink_to_fit();
+        delete region;
     }
     result->regions.clear();
     result->regions.shrink_to_fit();
@@ -751,7 +749,7 @@ vector<pair<uint64_t, uint64_t>> JJMemoryEngine::JJFindPointers(uint64_t targetA
         if(region_size < 8) continue;
 
         bool remapped = false;
-        uint64_t loadSize = 0;
+        uint64_t loadSize = region_size;
         void* buffer = loadRegion(region_base, &loadSize, &remapped);
         if(!buffer) continue;
 

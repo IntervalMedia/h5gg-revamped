@@ -82,7 +82,7 @@ SBApplication *applicationForID(NSString *applicationID) {
     return [(SBApplication *)sbapplication mainScene];
 }
 
-- (FBWindowContextHostManager *)contextManagerForApplication:(id)sbapplication {
+- (id)contextManagerForApplication:(id)sbapplication {
     return [[self FBSceneForApplication:sbapplication] hostManager];
 }
 
@@ -93,7 +93,7 @@ SBApplication *applicationForID(NSString *applicationID) {
 - (void)stopHostingForBundleID:(NSString *)bundleID {
     SBApplication *appToHost = [[NSClassFromString(@"SBApplicationController") sharedInstance] applicationWithBundleIdentifier:bundleID];
     [self disableBackgroundingForApplication:appToHost];
-    FBWindowContextHostManager *contextManager = [self contextManagerForApplication:appToHost];
+    id contextManager = [self contextManagerForApplication:appToHost];
     [contextManager disableHostingForRequester:bundleID];
 }
 

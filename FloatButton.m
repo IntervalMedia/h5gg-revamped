@@ -3,6 +3,21 @@
 
 @implementation FloatButton
 
+static UIWindow * _Nullable GVForegroundWindow(void) {
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (![scene isKindOfClass:[UIWindowScene class]]) continue;
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            if (windowScene.activationState != UISceneActivationStateForegroundActive) continue;
+            for (UIWindow *window in windowScene.windows) {
+                if (window.isKeyWindow) return window;
+            }
+            if (windowScene.windows.count > 0) return windowScene.windows.firstObject;
+        }
+    }
+    return nil;
+}
+
 - (instancetype)init {
     self = [super initWithFrame:CGRectMake(20, 25, 50, 50)];
     if (self) {
@@ -26,7 +41,7 @@
             if(strongSelf.keepFront) [strongSelf.superview bringSubviewToFront:strongSelf];
 
             if(!strongSelf.keepWindow) {
-                UIWindow *window = [UIApplication sharedApplication].keyWindow;
+                UIWindow *window = GVForegroundWindow();
                 if(strongSelf.superview != window) [window addSubview:strongSelf];
             }
 

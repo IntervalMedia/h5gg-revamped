@@ -12,11 +12,12 @@ UIWindow* makeWindow(NSString* clazz) {
             }
             if(!theScene) theScene = windowScene;
         }
-        if(!theScene) {
-            // Fallback to keyWindow's scene
-            theScene = (UIWindowScene*)UIApplication.sharedApplication.keyWindow.windowScene;
+        if(theScene) {
+            w = [[NSClassFromString(clazz) alloc] initWithWindowScene:theScene];
+        } else {
+            // Fallback if scene discovery races early app lifecycle.
+            w = [[NSClassFromString(clazz) alloc] initWithFrame:UIScreen.mainScreen.bounds];
         }
-        w = [[NSClassFromString(clazz) alloc] initWithWindowScene:theScene];
     } else {
         CGRect frame = [UIScreen mainScreen].bounds;
         w = [[NSClassFromString(clazz) alloc] initWithFrame:frame];

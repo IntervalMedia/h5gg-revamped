@@ -55,11 +55,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface FBScene : NSObject
 -(NSString *)identifier;
-- (FBSceneHostManager *)hostManager;
+- (id)hostManager;
 - (id)mutableSettings;
--(void)updateSettings:(id)arg1 withTransitionContext:(id)arg2 completion:(/*^block*/id)arg3 ;
-- (void)_applyMutableSettings:(id)arg1 withTransitionContext:(id)arg2 completion:(id)arg3;
--(void)updateSettings:(id)arg1 withTransitionContext:(id)arg2 ;
+-(void)updateSettings:(id)arg1 withTransitionContext:(id _Nullable)arg2 completion:(/*^block*/id _Nullable)arg3 ;
+- (void)_applyMutableSettings:(id)arg1 withTransitionContext:(id _Nullable)arg2 completion:(id _Nullable)arg3;
+-(void)updateSettings:(id)arg1 withTransitionContext:(id _Nullable)arg2 ;
 -(void)setMutableSettings:(FBSMutableSceneSettings *)arg1 ;
 @end
 

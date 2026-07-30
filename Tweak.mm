@@ -8,6 +8,12 @@
 
 #include "Localized.h"
 
+#ifdef H5GG_BUILD_ROOTHIDE
+#import <roothide.h>
+#endif
+
+
+
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 extern "C" void dumpKeyWindow(const char* tag) //only for debug mode

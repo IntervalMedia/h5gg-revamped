@@ -11,6 +11,10 @@
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "../incbin.h"
 
+#ifdef H5GG_BUILD_ROOTHIDE
+#import <roothide/roothide.h>
+#endif
+
 NS_ASSUME_NONNULL_BEGIN
 
 FILE* logger = NULL;
@@ -31,7 +35,7 @@ APAppView* _Nullable appView = nil;
 UIView* _Nullable hostView = nil;
 UIWindow* _Nullable GlobalView = nil;
 
-UIViewController *getViewControllerWithView(UIView *view){
+UIViewController * _Nullable getViewControllerWithView(UIView *view){
     UIResponder *responder = view;
     while ((responder = [responder nextResponder]))
         if ([responder isKindOfClass: [UIViewController class]])
@@ -232,7 +236,7 @@ void toggleGlobalView()
 {
     static UIAlertController *alertloading = nil;
 
-    static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t) {
+    __unused static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t) {
                 
         if(hostView) {
             GVSharedData.viewHosted = YES;
@@ -399,7 +403,7 @@ void initload()
     GlobalView.hidden = NO;
 
     //处理前台app变化时
-    static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t){
+    __unused static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t){
         SpringBoard* sbapp = (SpringBoard*)UIApplication.sharedApplication;
 
         //NSLog(@"GlobalView=activeInterfaceOrientation=%d, front=%@", sbapp.activeInterfaceOrientation, sbapp._accessibilityFrontMostApplication);
@@ -418,7 +422,7 @@ void initload()
         static long long lastOrientation=sbapp.activeInterfaceOrientation;
         GVSharedData.curOrientation = (UIInterfaceOrientation)sbapp.activeInterfaceOrientation;
         if(lastOrientation!=sbapp.activeInterfaceOrientation) {
-            NSLog(@"GlobalView=rotate=%d=>%d", lastOrientation, sbapp.activeInterfaceOrientation);
+            NSLog(@"GlobalView=rotate=%lld=>%lld", lastOrientation, sbapp.activeInterfaceOrientation);
             lastOrientation=sbapp.activeInterfaceOrientation;
             [GlobalView private_updateToInterfaceOrientation:(UIInterfaceOrientation)sbapp.activeInterfaceOrientation animated:YES];
         }
@@ -439,7 +443,7 @@ void initload()
     }];
 }
 
-static void* thread_running(void* arg)
+static void * _Nullable thread_running(void * _Nullable arg)
 {
     LOGGER("run in newthread");
     //等一下, 等系统框架初始化完
@@ -448,17 +452,10 @@ static void* thread_running(void* arg)
     //通过主线程执行下面的代码
     dispatch_async(dispatch_get_main_queue(), ^{
         LOGGER("run in main");
-        __block NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:1 repeats:YES block:^(NSTimer*t){
-        LOGGER("run in timer");
-            if (UIApplication.sharedApplication && UIApplication.sharedApplication.keyWindow) {
-                LOGGER("run in appdone");
-                [timer invalidate];
-                initload();
-            }
-        }];
+        initload();
     });
     
-    return 0;
+    return nil;
 }
 
 static void __attribute__((constructor)) _init_()
