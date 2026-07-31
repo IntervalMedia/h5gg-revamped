@@ -678,6 +678,55 @@ table.datatype {
     min-height: 54px;
 }
 
+.result-row {
+    position: relative;
+    min-height: 62px;
+    padding: 10px 76px 10px 12px;
+    border-bottom: 1px solid var(--result-border);
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.result-row:active,
+.result-row.selected {
+    background: rgba(10,132,255,0.16);
+}
+
+.result-address {
+    color: var(--result-font);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    word-break: break-all;
+}
+
+.result-value {
+    margin-top: 3px;
+    color: #0A84FF;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.25;
+    word-break: break-all;
+}
+
+.result-row-actions {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    display: flex;
+    transform: translateY(-50%);
+}
+
+.result-icon-button {
+    width: 32px;
+    min-height: 36px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-size: 18px;
+}
+
 @media (max-width: 520px) {
     #appShell {
         grid-template-columns: minmax(210px, 58%) minmax(0, 1fr);
@@ -752,6 +801,62 @@ table.datatype {
 
 #uiAlertOk {
     min-width: 96px;
+}
+
+#uiResultActionMask {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: flex-end;
+    padding: 8px 8px max(8px, var(--safe-bottom));
+    background: rgba(0,0,0,0.42);
+    pointer-events: auto;
+}
+
+#uiResultActionSheet {
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+.ui-result-action-group {
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background: var(--popup-bg);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.32);
+}
+
+#uiResultActionTitle {
+    padding: 12px 14px 9px;
+    color: var(--result-font);
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: center;
+    word-break: break-all;
+}
+
+.ui-result-action {
+    width: 100%;
+    min-height: 50px;
+    margin: 0;
+    border-top: 1px solid var(--result-border);
+    border-radius: 0;
+    background: transparent;
+    color: #0A84FF;
+    font-size: 17px;
+}
+
+#uiResultActionCancel {
+    width: 100%;
+    min-height: 50px;
+    margin: 8px 0 0;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background: var(--popup-bg);
+    color: #0A84FF;
+    font-size: 17px;
+    font-weight: 600;
 }
 
 /* iOS/iPadOS WKWebView tuning */
@@ -1641,6 +1746,7 @@ function copyCalcResult() {
 var gPointerChain = [];
 var gAllResults = [];
 var gCurrentCount = 0;
+var gSelectedResult = null;
 
 function cacheResults(results) {
     gAllResults = results || [];
@@ -1669,15 +1775,103 @@ function renderResults(results) {
     var html = '';
     for(var i = 0; i < results.length; i++) {
         var r = results[i];
-        html += '<div data-addr="'+r.address+'" onclick="openMemoryEditor(\''+r.address+'\',\''+r.type+'\')" style="cursor:pointer;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
-        html += '<div style="font-size:10px;color:var(--text-color,#888)">'+r.address+' ['+r.type+']</div>';
-        html += '<div class="result-value" style="font-size:12px;font-weight:bold;color:#3393EF">'+r.value+'</div>';
-        html += '<span onclick="event.stopPropagation();saveBookmark(\''+r.address+'\',\''+r.type+'\')" style="cursor:pointer;font-size:14px;margin-right:4px">\u2606</span>';
-        html += '<span onclick="event.stopPropagation();freezeResult(\''+r.address+'\',\''+r.value+'\',\''+r.type+'\')" style="cursor:pointer;font-size:14px">\u2744</span>';
+        var address = escapeScriptText(r.address);
+        var type = escapeScriptText(r.type);
+        var value = escapeScriptText(r.value);
+        html += '<div class="result-row" role="button" tabindex="0" data-addr="'+address+'" data-type="'+type+'" data-value="'+value+'" aria-label="Value '+value+', address '+address+'" onclick="showResultActions(this)" onkeydown="handleResultKeydown(event,this)">';
+        html += '<div class="result-address">'+address+' ['+type+']</div>';
+        html += '<div class="result-value">'+value+'</div>';
+        html += '<div class="result-row-actions">';
+        html += '<button class="result-icon-button" type="button" aria-label="Bookmark '+address+'" onclick="bookmarkResultRow(event,this)">\u2606</button>';
+        html += '<button class="result-icon-button" type="button" aria-label="Freeze '+address+'" onclick="freezeResultRow(event,this)">\u2744</button>';
+        html += '</div>';
         html += '</div>';
     }
     if(results.length == 0) html += '<div style="padding:12px;text-align:center;color:#888">No results</div>';
     display.innerHTML = html;
+}
+
+function bookmarkResultRow(event, button) {
+    event.stopPropagation();
+    var row = button.closest('.result-row');
+    if(row) saveBookmark(row.dataset.addr, row.dataset.type);
+}
+
+function freezeResultRow(event, button) {
+    event.stopPropagation();
+    var row = button.closest('.result-row');
+    if(row) freezeResult(row.dataset.addr, row.dataset.value, row.dataset.type);
+}
+
+function getResultCopyText(result, action) {
+    if(!result) return null;
+    if(action === 'address') return result.address;
+    if(action === 'value') return result.value;
+    if(action === 'both') return result.address + ' = ' + result.value + ' [' + result.type + ']';
+    return null;
+}
+
+function handleResultKeydown(event, row) {
+    if(event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    showResultActions(row);
+}
+
+function showResultActions(row) {
+    if(!row) return;
+    gSelectedResult = {
+        address: row.dataset.addr,
+        value: row.dataset.value,
+        type: row.dataset.type
+    };
+
+    document.querySelectorAll('.result-row.selected').forEach(function(selectedRow) {
+        selectedRow.classList.remove('selected');
+    });
+    row.classList.add('selected');
+
+    var layer = ensureTopLayer();
+    layer.querySelector('#uiResultActionTitle').textContent =
+        gSelectedResult.address + '  \u2022  ' + gSelectedResult.value + ' [' + gSelectedResult.type + ']';
+    layer.querySelector('#uiResultActionMask').style.display = 'flex';
+    setTimeout(function() {
+        try { layer.querySelector('[data-result-copy="value"]').focus(); } catch(_) {}
+    }, 0);
+}
+
+function dismissResultActions() {
+    var layer = ensureTopLayer();
+    layer.querySelector('#uiResultActionMask').style.display = 'none';
+    document.querySelectorAll('.result-row.selected').forEach(function(row) {
+        row.classList.remove('selected');
+    });
+}
+
+async function copySelectedResult(action) {
+    var text = getResultCopyText(gSelectedResult, action);
+    if(text === null) return;
+
+    var copied = false;
+    try {
+        if(typeof h5gg !== 'undefined' && typeof h5gg.copyText === 'function') {
+            copied = await h5gg.copyText(text);
+        } else if(navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+        }
+    } catch(error) {
+        console.error('copySelectedResult failed:', error);
+    }
+
+    dismissResultActions();
+    showToast(copied ? 'Copied to clipboard' : 'Unable to copy');
+}
+
+function editSelectedResult() {
+    if(!gSelectedResult) return;
+    var result = gSelectedResult;
+    dismissResultActions();
+    openMemoryEditor(result.address, result.type);
 }
 
 async function openMemoryEditor(address, type) {
@@ -2009,6 +2203,18 @@ function ensureTopLayer() {
                     '<button id="uiAlertOk" type="button">OK</button>' +
                 '</div>' +
             '</div>' +
+        '</div>' +
+        '<div id="uiResultActionMask" role="dialog" aria-modal="true" aria-label="Result actions">' +
+            '<div id="uiResultActionSheet">' +
+                '<div class="ui-result-action-group">' +
+                    '<div id="uiResultActionTitle"></div>' +
+                    '<button class="ui-result-action" type="button" data-result-copy="value" onclick="copySelectedResult(\'value\')">Copy Value</button>' +
+                    '<button class="ui-result-action" type="button" data-result-copy="address" onclick="copySelectedResult(\'address\')">Copy Address</button>' +
+                    '<button class="ui-result-action" type="button" data-result-copy="both" onclick="copySelectedResult(\'both\')">Copy Address and Value</button>' +
+                    '<button class="ui-result-action" type="button" onclick="editSelectedResult()">Edit Value</button>' +
+                '</div>' +
+                '<button id="uiResultActionCancel" type="button" onclick="dismissResultActions()">Cancel</button>' +
+            '</div>' +
         '</div>';
 
     document.documentElement.appendChild(layer);
@@ -2018,6 +2224,11 @@ function ensureTopLayer() {
         if(event.target === mask) {
             dismissActiveAlert();
         }
+    });
+
+    var resultMask = layer.querySelector('#uiResultActionMask');
+    resultMask.addEventListener('click', function(event) {
+        if(event.target === resultMask) dismissResultActions();
     });
 
     return layer;

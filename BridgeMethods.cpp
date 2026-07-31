@@ -54,6 +54,7 @@ static const H5GGBridgeMethod kBridgeMethods[] = {
     {"deleteScript", "deleteScript:", 1, 1},
     {"listScripts", "listScripts", 0, 0},
     {"getLastFileError", "getLastFileError", 0, 0},
+    {"copyText", "copyText:", 1, 1},
 };
 
 const H5GGBridgeMethod* H5GGBridgeMethods(size_t& count) {

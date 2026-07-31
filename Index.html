@@ -435,6 +435,93 @@ table.datatype {
     margin: 6px 0;
 }
 
+.result-row {
+    position: relative;
+    min-height: 62px;
+    padding: 10px 76px 10px 12px;
+    border-bottom: 1px solid var(--result-border);
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.result-row:active,
+.result-row.selected { background: rgba(10,132,255,0.16); }
+.result-address {
+    color: var(--result-font);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    word-break: break-all;
+}
+.result-value {
+    margin-top: 3px;
+    color: #0A84FF;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.25;
+    word-break: break-all;
+}
+.result-row-actions {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    display: flex;
+    transform: translateY(-50%);
+}
+.result-icon-button {
+    width: 32px;
+    min-height: 36px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-size: 18px;
+}
+#resultActionMask {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px;
+    background: rgba(0,0,0,0.42);
+}
+#resultActionSheet { width: 100%; max-width: 520px; margin: 0 auto; }
+.result-action-group {
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background: var(--popup-bg);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.32);
+}
+#resultActionTitle {
+    padding: 12px 14px 9px;
+    color: var(--result-font);
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: center;
+    word-break: break-all;
+}
+.result-action-button,
+#resultActionCancel {
+    width: 100%;
+    min-height: 50px;
+    margin: 0;
+    color: #0A84FF;
+    font-size: 17px;
+}
+.result-action-button {
+    border-top: 1px solid var(--result-border);
+    border-radius: 0;
+    background: transparent;
+}
+#resultActionCancel {
+    margin-top: 8px;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background: var(--popup-bg);
+    font-weight: 600;
+}
+
 .frozen td { color: #93C5FD !important; }
 .frozen-badge { display: none; font-size: 10px; margin-left: 4px; color: #60A5FA; }
 .frozen .frozen-badge { display: inline; }
@@ -1211,6 +1298,7 @@ function copyCalcResult() {
 var gPointerChain = [];
 var gAllResults = [];
 var gCurrentCount = 0;
+var gSelectedResult = null;
 
 function cacheResults(results) {
     gAllResults = results || [];
@@ -1239,15 +1327,114 @@ function renderResults(results) {
     var html = '';
     for(var i = 0; i < results.length; i++) {
         var r = results[i];
-        html += '<div data-addr="'+r.address+'" onclick="openMemoryEditor(\''+r.address+'\',\''+r.type+'\')" style="cursor:pointer;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
-        html += '<div style="font-size:10px;color:var(--text-color,#888)">'+r.address+' ['+r.type+']</div>';
-        html += '<div class="result-value" style="font-size:12px;font-weight:bold;color:#3393EF">'+r.value+'</div>';
-        html += '<span onclick="event.stopPropagation();saveBookmark(\''+r.address+'\',\''+r.type+'\')" style="cursor:pointer;font-size:14px;margin-right:4px">\u2606</span>';
-        html += '<span onclick="event.stopPropagation();freezeResult(\''+r.address+'\',\''+r.value+'\',\''+r.type+'\')" style="cursor:pointer;font-size:14px">\u2744</span>';
+        var address = escapeScriptText(r.address);
+        var type = escapeScriptText(r.type);
+        var value = escapeScriptText(r.value);
+        html += '<div class="result-row" role="button" tabindex="0" data-addr="'+address+'" data-type="'+type+'" data-value="'+value+'" aria-label="数值 '+value+'，地址 '+address+'" onclick="showResultActions(this)" onkeydown="handleResultKeydown(event,this)">';
+        html += '<div class="result-address">'+address+' ['+type+']</div>';
+        html += '<div class="result-value">'+value+'</div>';
+        html += '<div class="result-row-actions">';
+        html += '<button class="result-icon-button" type="button" aria-label="收藏 '+address+'" onclick="bookmarkResultRow(event,this)">\u2606</button>';
+        html += '<button class="result-icon-button" type="button" aria-label="冻结 '+address+'" onclick="freezeResultRow(event,this)">\u2744</button>';
+        html += '</div>';
         html += '</div>';
     }
     if(results.length == 0) html += '<div style="padding:12px;text-align:center;color:#888">No results</div>';
     display.innerHTML = html;
+}
+
+function bookmarkResultRow(event, button) {
+    event.stopPropagation();
+    var row = button.closest('.result-row');
+    if(row) saveBookmark(row.dataset.addr, row.dataset.type);
+}
+
+function freezeResultRow(event, button) {
+    event.stopPropagation();
+    var row = button.closest('.result-row');
+    if(row) freezeResult(row.dataset.addr, row.dataset.value, row.dataset.type);
+}
+
+function getResultCopyText(result, action) {
+    if(!result) return null;
+    if(action === 'address') return result.address;
+    if(action === 'value') return result.value;
+    if(action === 'both') return result.address + ' = ' + result.value + ' [' + result.type + ']';
+    return null;
+}
+
+function handleResultKeydown(event, row) {
+    if(event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    showResultActions(row);
+}
+
+function showResultActions(row) {
+    if(!row) return;
+    closeResultActions();
+    gSelectedResult = { address: row.dataset.addr, value: row.dataset.value, type: row.dataset.type };
+    row.classList.add('selected');
+
+    var mask = document.createElement('div');
+    mask.id = 'resultActionMask';
+    mask.setAttribute('role', 'dialog');
+    mask.setAttribute('aria-modal', 'true');
+    mask.setAttribute('aria-label', '结果操作');
+    mask.innerHTML =
+        '<div id="resultActionSheet">' +
+            '<div class="result-action-group">' +
+                '<div id="resultActionTitle"></div>' +
+                '<button class="result-action-button" type="button" data-copy="value">复制数值</button>' +
+                '<button class="result-action-button" type="button" data-copy="address">复制地址</button>' +
+                '<button class="result-action-button" type="button" data-copy="both">复制地址和数值</button>' +
+                '<button class="result-action-button" type="button" data-edit>修改数值</button>' +
+            '</div>' +
+            '<button id="resultActionCancel" type="button">取消</button>' +
+        '</div>';
+    document.body.appendChild(mask);
+    mask.querySelector('#resultActionTitle').textContent =
+        gSelectedResult.address + '  \u2022  ' + gSelectedResult.value + ' [' + gSelectedResult.type + ']';
+    mask.querySelectorAll('[data-copy]').forEach(function(button) {
+        button.addEventListener('click', function() { copySelectedResult(button.dataset.copy); });
+    });
+    mask.querySelector('[data-edit]').addEventListener('click', editSelectedResult);
+    mask.querySelector('#resultActionCancel').addEventListener('click', closeResultActions);
+    mask.addEventListener('click', function(event) {
+        if(event.target === mask) closeResultActions();
+    });
+}
+
+function closeResultActions() {
+    var mask = document.getElementById('resultActionMask');
+    if(mask) mask.remove();
+    document.querySelectorAll('.result-row.selected').forEach(function(row) {
+        row.classList.remove('selected');
+    });
+}
+
+async function copySelectedResult(action) {
+    var text = getResultCopyText(gSelectedResult, action);
+    if(text === null) return;
+    var copied = false;
+    try {
+        if(typeof h5gg !== 'undefined' && typeof h5gg.copyText === 'function') {
+            copied = await h5gg.copyText(text);
+        } else if(navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+        }
+    } catch(error) {
+        console.error('copySelectedResult failed:', error);
+    }
+    closeResultActions();
+    showToast(copied ? '已复制到剪贴板' : '无法复制');
+}
+
+function editSelectedResult() {
+    if(!gSelectedResult) return;
+    var result = gSelectedResult;
+    closeResultActions();
+    openMemoryEditor(result.address, result.type);
 }
 
 async function openMemoryEditor(address, type) {

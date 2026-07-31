@@ -94,6 +94,7 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 // Pointer chain
 -(NSString*)readPointer:(NSString*)address;
 -(void)appendLog:(NSString*)message;
+-(BOOL)copyText:(NSString*)text;
 
 // Find pointers
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)findPointers:(NSString*)address rangeStart:(NSString*)rangeStart rangeEnd:(NSString*)rangeEnd;
@@ -146,6 +147,7 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(BOOL)cancelDump;
 -(NSString*)readPointer:(NSString*)address;
 -(void)appendLog:(NSString*)message;
+-(BOOL)copyText:(NSString*)text;
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)findPointers:(NSString*)address rangeStart:(NSString*)rangeStart rangeEnd:(NSString*)rangeEnd;
 -(NSDictionary<NSString*,id>*)getPointerCapabilities;
 -(BOOL)saveScript:(NSString*)name content:(NSString*)content;

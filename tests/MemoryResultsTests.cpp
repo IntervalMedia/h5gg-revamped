@@ -189,6 +189,13 @@ static void bridgeSchemaRejectsUnknownOrMalformedCalls() {
     assert(results->acceptsArgumentCount(2));
     assert(!results->acceptsArgumentCount(0));
 
+    const H5GGBridgeMethod* copyText = H5GGBridgeMethodNamed("copyText");
+    assert(copyText);
+    assert(copyText->acceptsArgumentCount(1));
+    assert(!copyText->acceptsArgumentCount(0));
+    assert(!copyText->acceptsArgumentCount(2));
+    assert(std::strcmp(copyText->selector, "copyText:") == 0);
+
     assert(H5GGBridgeMethodNamed("dealloc") == nullptr);
     assert(H5GGBridgeMethodNamed("_freezerTick") == nullptr);
 }

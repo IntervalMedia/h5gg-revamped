@@ -12,6 +12,7 @@
 #include <mach-o/dyld.h>
 #include <dlfcn.h>
 #include <new>
+#import <UIKit/UIKit.h>
 
 #define CS_VALID                    0x00000001
 #define CS_HARD                     0x00000100
@@ -84,6 +85,12 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         JSContext.currentContext.exception = [JSValue valueWithNewErrorFromMessage:Localized(@"当前H5GG版本过低") inContext:JSContext.currentContext];
         return NO;
     }
+    return YES;
+}
+
+-(BOOL)copyText:(NSString*)text {
+    if(!text) return NO;
+    UIPasteboard.generalPasteboard.string = text;
     return YES;
 }
 
