@@ -48,16 +48,16 @@ JSExportAs(getResults, -(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)g
 JSExportAs(searchChange, -(void)searchChange:(NSString*)type);
 
 -(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getLocalScripts;
-JSExportAs(pickScriptFile, -(void)pickScriptFile:(JSValue*)callback withTypes:(nullable JSValue*)types);
+-(void)pickScriptFileWithTypes:(nullable id)types;
 
--(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getRangesList:(nullable JSValue*)filter;
+-(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getRangesList:(nullable id)filter;
 
 JSExportAs(addBookmark, -(BOOL)addBookmark:(NSString*)address name:(NSString*)name type:(NSString*)type);
 JSExportAs(removeBookmark, -(BOOL)removeBookmark:(NSString*)address);
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)getBookmarks;
 -(void)clearBookmarks;
 
--(nullable JSValue*)getProcList:(nullable JSValue*)filter;
+-(nullable NSArray<NSDictionary<NSString*,id>*>*)getProcList:(nullable id)filter;
 -(BOOL)setTargetProc:(pid_t)pid;
 
 JSExportAs(loadPlugin, -(nullable id)loadPlugin:(NSString*)className path:(NSString*)dylib);

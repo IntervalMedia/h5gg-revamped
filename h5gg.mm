@@ -4,10 +4,12 @@
 #include "FloatMenu.h"
 #include "crossproc.h"
 #include "version.h"
+#include "FileNames.h"
 
 #include <libgen.h>
 #include <mach-o/dyld.h>
 #include <dlfcn.h>
+#include <new>
 
 #define CS_VALID                    0x00000001
 #define CS_HARD                     0x00000100
@@ -54,6 +56,22 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     return self;
 }
 
+-(void)dealloc {
+    [_freezerTimer invalidate];
+    _freezerTimer = nil;
+    [_frozenValues removeAllObjects];
+
+    if(_engine) {
+        delete _engine;
+        _engine = nullptr;
+    }
+
+    if(_targetport != MACH_PORT_NULL && _targetport != mach_task_self()) {
+        mach_port_deallocate(mach_task_self(), _targetport);
+        _targetport = MACH_PORT_NULL;
+    }
+}
+
 -(BOOL)require:(double)minver {
     if(H5GG_VERSION < minver) {
         JSContext.currentContext.exception = [JSValue valueWithNewErrorFromMessage:Localized(@"当前H5GG版本过低") inContext:JSContext.currentContext];
@@ -62,12 +80,29 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     return YES;
 }
 
--(JSValue*)getProcList:(nullable JSValue*)filter {
+static NSString* _Nullable H5GGStringArgument(id _Nullable value) {
+    if(!value || value == NSNull.null) return nil;
+    if([value isKindOfClass:NSString.class]) return value;
+    if([value isKindOfClass:JSValue.class]) {
+        JSValue* jsValue = value;
+        return jsValue.isUndefined || jsValue.isNull ? nil : jsValue.toString;
+    }
+    return [value description];
+}
+
+static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
+    if(!name || !H5GGIsSafeFileName(name.UTF8String)) return nil;
+    NSString* documents = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+    return [documents stringByAppendingPathComponent:name];
+}
+
+-(NSArray<NSDictionary<NSString*,id>*>*)getProcList:(nullable id)filter {
     NSArray* allproc = getRunningProcess();
     if(!allproc)
-        return [JSValue valueWithNullInContext:JSContext.currentContext];
+        return @[];
 
     NSMutableArray* newarr = [[NSMutableArray alloc] init];
+    NSString* filterString = H5GGStringArgument(filter);
 
     for(NSDictionary* proc in allproc) {
         char path[PATH_MAX] = {0};
@@ -83,33 +118,48 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 
         NSLog(@"allproc=%@, %@, %s", proc[@"pid"], proc[@"name"], path);
 
-        if([filter isUndefined] || [[filter toString] isEqualToString:proc[@"name"]])
+        if(!filterString || [filterString isEqualToString:proc[@"name"]])
             [newarr addObject:proc];
     }
-    return [JSValue valueWithObject:newarr inContext:JSContext.currentContext];
+    return newarr;
 }
 
 -(BOOL)setTargetProc:(pid_t)pid {
     if(pid == _targetpid && _targetport != MACH_PORT_NULL)
         return YES;
 
-    if(_targetport != MACH_PORT_NULL && _targetport != mach_task_self())
-        mach_port_deallocate(mach_task_self(), _targetport);
-
-    _targetpid = 0;
-    _targetport = MACH_PORT_NULL;
-    [self clearResults];
-
-    task_port_t targetTask = 0;
+    task_port_t targetTask = MACH_PORT_NULL;
     kern_return_t ret = task_for_pid(mach_task_self(), pid, &targetTask);
     NSLog(@"task_for_pid=%d %d %d %s!", pid, ret, targetTask, mach_error_string(ret));
-    if(ret == KERN_SUCCESS) {
-        _targetpid = pid;
-        _targetport = targetTask;
-        return YES;
+    if(ret != KERN_SUCCESS || targetTask == MACH_PORT_NULL) {
+        if(targetTask != MACH_PORT_NULL) {
+            mach_port_deallocate(mach_task_self(), targetTask);
+        }
+        return NO;
     }
 
-    return NO;
+    JJMemoryEngine* newEngine = new(std::nothrow) JJMemoryEngine(targetTask);
+    if(!newEngine) {
+        mach_port_deallocate(mach_task_self(), targetTask);
+        [floatH5 alert:Localized(@"错误:内存不足!")];
+        return NO;
+    }
+
+    task_port_t previousPort = _targetport;
+    JJMemoryEngine* previousEngine = _engine;
+
+    _targetpid = pid;
+    _targetport = targetTask;
+    _engine = newEngine;
+    _firstSearchDone = NO;
+    _lastSearchType = nil;
+    [self clearFrozenValues];
+
+    delete previousEngine;
+    if(previousPort != MACH_PORT_NULL && previousPort != mach_task_self()) {
+        mach_port_deallocate(mach_task_self(), previousPort);
+    }
+    return YES;
 }
 
 -(void)setFloatTolerance:(NSString*)value {
@@ -246,45 +296,13 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 }
 
 -(int)parseValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type {
-    char* pvaluerr = NULL;
-    int JJType = 0;
-
-    if([type isEqualToString:@"I8"]) {
-        *(int8_t*)valuebuf = (int8_t)strtol(value.UTF8String, &pvaluerr, 10);
-        JJType = JJ_Search_Type_SByte;
-    } else if([type isEqualToString:@"U8"]) {
-        *(UInt8*)valuebuf = (UInt8)strtoul(value.UTF8String, &pvaluerr, 10);
-        JJType = JJ_Search_Type_UByte;
-    } else if([type isEqualToString:@"I16"]) {
-        *(int16_t*)valuebuf = (int16_t)strtol(value.UTF8String, &pvaluerr, 10);
-        JJType = JJ_Search_Type_SShort;
-    } else if([type isEqualToString:@"U16"]) {
-        *(UInt16*)valuebuf = (UInt16)strtoul(value.UTF8String, &pvaluerr, 10);
-        JJType = JJ_Search_Type_UShort;
-    } else if([type isEqualToString:@"I32"]) {
-        *(int32_t*)valuebuf = (int32_t)strtol(value.UTF8String, &pvaluerr, 10);
-        JJType = JJ_Search_Type_SInt;
-    } else if([type isEqualToString:@"U32"]) {
-        *(UInt32*)valuebuf = (UInt32)strtoul(value.UTF8String, &pvaluerr, 10);
-        JJType = JJ_Search_Type_UInt;
-    } else if([type isEqualToString:@"I64"]) {
-        *(int64_t*)valuebuf = strtoll(value.UTF8String, &pvaluerr, 10);
-        JJType = JJ_Search_Type_SLong;
-    } else if([type isEqualToString:@"U64"]) {
-        *(UInt64*)valuebuf = strtoull(value.UTF8String, &pvaluerr, 10);
-        JJType = JJ_Search_Type_ULong;
-    } else if([type isEqualToString:@"F32"]) {
-        *(float*)valuebuf = strtof(value.UTF8String, &pvaluerr);
-        JJType = JJ_Search_Type_Float;
-    } else if([type isEqualToString:@"F64"]) {
-        *(double*)valuebuf = strtod(value.UTF8String, &pvaluerr);
-        JJType = JJ_Search_Type_Double;
-    } else {
+    int JJType = [self ggtype2jjtype:type];
+    if(!JJType) {
         [floatH5 alert:Localized(@"不支持的数值类型")];
         return 0;
     }
 
-    if(pvaluerr && pvaluerr[0]) {
+    if(!JJParseValue(value.UTF8String, JJType, (uint8_t*)valuebuf)) {
         [floatH5 alert:Localized(@"数值格式错误或与类型不匹配")];
         return 0;
     }
@@ -346,13 +364,10 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         return;
     }
 
-    char* pvaluerr = NULL;
-    AddrRange range = {
-        strtoul(memoryFrom.UTF8String, &pvaluerr, 16),
-        strtoul(memoryTo.UTF8String, &pvaluerr, 16)
-    };
-
-    if((pvaluerr && pvaluerr[0]) || !range.end) {
+    AddrRange range = {};
+    if(!JJParseAddress(memoryFrom.UTF8String, 16, range.start) ||
+       !JJParseAddress(memoryTo.UTF8String, 16, range.end) ||
+       range.start >= range.end) {
         [floatH5 alert:Localized(@"内存搜索范围格式错误")];
         return;
     }
@@ -420,13 +435,13 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     int jjtype = [self parseSearchValue:valuebuf from:value byType:type];
     if(!jjtype) return;
 
-    char* pvaluerr = NULL;
-    size_t searchRange = strtoul(range.UTF8String, &pvaluerr, 16);
-
-    if((pvaluerr && pvaluerr[0]) || !searchRange) {
+    uint64_t parsedSearchRange = 0;
+    if(!JJParseAddress(range.UTF8String, 16, parsedSearchRange) ||
+       parsedSearchRange > SIZE_MAX) {
         [floatH5 alert:Localized(@"邻近范围格式错误")];
         return;
     }
+    size_t searchRange = (size_t)parsedSearchRange;
 
     if(searchRange < 2 || searchRange > 4096) {
         [floatH5 alert:Localized(@"邻近范围只能在2~4096之间")];
@@ -453,10 +468,9 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     int jjtype = [self ggtype2jjtype:type];
     if(!jjtype) return @"";
 
-    char* pvaluerr = NULL;
-    UInt64 addr = strtoul(address.UTF8String, &pvaluerr, [address hasPrefix:@"0x"] ? 16 : 10);
-
-    if((pvaluerr && pvaluerr[0]) || !addr) {
+    UInt64 addr = 0;
+    if(!JJParseAddress(address.UTF8String, [address hasPrefix:@"0x"] ? 16 : 10, addr) ||
+       !addr) {
         [floatH5 alert:Localized(@"读取失败:地址格式有误!")];
         return @"";
     }
@@ -474,10 +488,9 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     int jjtype = [self parseValue:valuebuf from:value byType:type];
     if(!jjtype) return NO;
 
-    char* pvaluerr = NULL;
-    UInt64 addr = strtoul(address.UTF8String, &pvaluerr, [address hasPrefix:@"0x"] ? 16 : 10);
-
-    if((pvaluerr && pvaluerr[0]) || !addr) {
+    UInt64 addr = 0;
+    if(!JJParseAddress(address.UTF8String, [address hasPrefix:@"0x"] ? 16 : 10, addr) ||
+       !addr) {
         [floatH5 alert:Localized(@"修改失败:地址格式有误!")];
         return NO;
     }
@@ -499,9 +512,10 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     return _engine->JJWriteAll(valuebuf, jjtype);
 }
 
--(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getRangesList:(nullable JSValue*)filter {
+-(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getRangesList:(nullable id)filter {
+    NSString* filterString = H5GGStringArgument(filter);
     if(_targetpid != getpid())
-        return getRangesList2(_targetpid, _targetport, [filter isUndefined] ? nil : [filter toString]);
+        return getRangesList2(_targetpid, _targetport, filterString);
 
     NSMutableArray* results = [[NSMutableArray alloc] init];
 
@@ -512,9 +526,9 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 
         NSLog(@"getRangesList[%d] %p %p %s", i, baseaddr, slide, name);
 
-        BOOL matches = [filter isUndefined]
-            || (i == 0 && [[filter toString] isEqual:@"0"])
-            || [[filter toString] isEqual:[NSString stringWithUTF8String:basename((char*)name)]];
+        BOOL matches = !filterString
+            || (i == 0 && [filterString isEqual:@"0"])
+            || [filterString isEqual:[NSString stringWithUTF8String:basename((char*)name)]];
 
         if(matches) {
             uint64_t size = getMachoVMSize(_targetpid, _targetport, (uint64_t)baseaddr);
@@ -526,7 +540,7 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
                 @"end": [NSString stringWithFormat:@"0x%llX", end],
             }];
 
-            if(i == 0 && [[filter toString] isEqual:@"0"]) break;
+            if(i == 0 && [filterString isEqual:@"0"]) break;
         }
     }
 
@@ -571,16 +585,20 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     block();
 }
 
--(void)pickScriptFile:(JSValue*)callback withTypes:(nullable JSValue*)types {
+-(void)pickScriptFileWithTypes:(nullable id)types {
     floatH5.hasPendingCallback = YES;
-    NSArray* _types = types.isUndefined ? @[@"public.data"] : types.toArray;
+    NSNumber* callId = floatH5.pendingCallId;
+    NSArray* requestedTypes = nil;
+    if([types isKindOfClass:NSArray.class]) {
+        requestedTypes = types;
+    } else if([types isKindOfClass:JSValue.class]) {
+        JSValue* value = types;
+        if(!value.isUndefined && !value.isNull) requestedTypes = value.toArray;
+    }
+    NSArray* resolvedTypes = requestedTypes.count ? requestedTypes : @[@"public.data"];
 
-    [TopShow filePicker:_types callback:^(NSString* path) {
-        if(floatH5.pendingCallId) {
-            NSString *escaped = path ? [[path stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"] stringByReplacingOccurrencesOfString:@"'" withString:@"\\'"] : @"null";
-            NSString *js = [NSString stringWithFormat:@"window.__h5gg_onResult(%@,null,'%@')", floatH5.pendingCallId, escaped];
-            [floatH5 evaluateJavaScript:js completionHandler:nil];
-        }
+    [TopShow filePicker:resolvedTypes callback:^(NSString* path) {
+        [floatH5 resolveCallId:callId result:path ?: NSNull.null error:nil];
     }];
 }
 
@@ -698,8 +716,10 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     if(!address || !value || !type) return NO;
     _frozenValues[address] = @{@"address": address, @"value": value, @"type": type};
     if(!_freezerTimer) {
+        __weak __typeof(self) weakSelf = self;
         _freezerTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *t) {
-            [self _freezerTick];
+            __strong __typeof(weakSelf) strongSelf = weakSelf;
+            [strongSelf _freezerTick];
         }];
     }
     return YES;
@@ -730,9 +750,10 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         UInt8 valuebuf[8];
         int jjtype = [self parseValue:valuebuf from:entry[@"value"] byType:entry[@"type"]];
         if(!jjtype) continue;
-        char* end = NULL;
-        UInt64 addr = strtoull([entry[@"address"] UTF8String], &end, [entry[@"address"] hasPrefix:@"0x"] ? 16 : 10);
-        if(end && *end) continue;
+        UInt64 addr = 0;
+        if(!JJParseAddress([entry[@"address"] UTF8String],
+                           [entry[@"address"] hasPrefix:@"0x"] ? 16 : 10,
+                           addr) || !addr) continue;
         _engine->JJWriteMemory((void*)addr, valuebuf, jjtype);
     }
 }
@@ -780,60 +801,58 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
         return;
     }
 
-    char* end = NULL;
-    AddrRange range = {
-        strtoull([memoryFrom UTF8String], &end, 16),
-        strtoull([memoryTo UTF8String], &end, 16)
-    };
-
-    if(!range.end) {
+    AddrRange range = {};
+    if(!JJParseAddress([memoryFrom UTF8String], 16, range.start) ||
+       !JJParseAddress([memoryTo UTF8String], 16, range.end) ||
+       range.start >= range.end) {
         [floatH5 alert:Localized(@"内存搜索范围格式错误")];
         return;
     }
 
-    if(_firstSearchDone && _engine->getResultsCount() == 0) {
-        [floatH5 alert:Localized(@"改善搜索失败: 当前列表为空")];
+    vector<uint8_t> parsedPattern;
+    if(!JJParseHexPattern(hex.UTF8String, parsedPattern)) {
+        [floatH5 alert:Localized(@"十六进制格式错误")];
         return;
     }
 
-    if(!_firstSearchDone) {
-        _engine->JJScanHexMemory(range, [hex UTF8String]);
-    } else {
-        _engine = new JJMemoryEngine(_targetport);
-        _engine->JJScanHexMemory(range, [hex UTF8String]);
-    }
+    [self clearResults];
+    _engine->JJScanHexMemory(range, [hex UTF8String]);
 
     _firstSearchDone = YES;
     _lastSearchType = @"Hex";
 }
 
 -(BOOL)dumpMemory:(NSString*)start end:(NSString*)end filename:(NSString*)filename {
-    char* endPtr = NULL;
-    UInt64 addr = strtoull([start UTF8String], &endPtr, [start hasPrefix:@"0x"] ? 16 : 10);
-    if(endPtr && *endPtr) return NO;
-    UInt64 endAddr = strtoull([end UTF8String], &endPtr, [end hasPrefix:@"0x"] ? 16 : 10);
-    if(endPtr && *endPtr) return NO;
-    if(addr >= endAddr) return NO;
+    NSString* outputPath = H5GGDocumentsPathForName(filename);
+    if(!outputPath) return NO;
+
+    UInt64 addr = 0;
+    UInt64 endAddr = 0;
+    if(!JJParseAddress([start UTF8String], [start hasPrefix:@"0x"] ? 16 : 10, addr) ||
+       !JJParseAddress([end UTF8String], [end hasPrefix:@"0x"] ? 16 : 10, endAddr) ||
+       !addr || addr >= endAddr || endAddr - addr > SIZE_MAX) return NO;
 
     size_t size = (size_t)(endAddr - addr);
     NSMutableData *data = [NSMutableData dataWithLength:size];
 
-    if(!_engine->JJReadMemory([data mutableBytes], addr, (int)size)) {
+    size_t initialRead = _engine->JJReadBytes([data mutableBytes], addr, size);
+    if(initialRead != size) {
         uint8_t* buf = (uint8_t*)[data mutableBytes];
-        size_t totalRead = 0;
+        size_t totalRead = initialRead;
         while(totalRead < size) {
             size_t chunk = MIN(size - totalRead, (size_t)4096);
-            if(!_engine->JJReadMemory(buf + totalRead, addr + totalRead, (int)chunk))
+            size_t bytesRead = _engine->JJReadBytes(buf + totalRead, addr + totalRead, chunk);
+            if(bytesRead == 0)
                 break;
-            totalRead += chunk;
+            totalRead += bytesRead;
+            if(bytesRead < chunk)
+                break;
         }
         if(totalRead == 0) return NO;
         [data setLength:totalRead];
     }
 
-    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
-    NSString *path = [NSString stringWithFormat:@"%@/%@", docDir, filename];
-    return [data writeToFile:path atomically:YES];
+    return [data writeToFile:outputPath atomically:YES];
 }
 
 -(void)appendLog:(NSString*)message {
@@ -850,9 +869,9 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 }
 
 -(NSString*)readPointer:(NSString*)address {
-    char* end = NULL;
-    UInt64 addr = strtoull([address UTF8String], &end, [address hasPrefix:@"0x"] ? 16 : 10);
-    if(end && *end) return @"";
+    UInt64 addr = 0;
+    if(!JJParseAddress([address UTF8String], [address hasPrefix:@"0x"] ? 16 : 10, addr) ||
+       !addr) return @"";
 
     UInt8 val[8] = {0};
     if(!_engine->JJReadMemory(val, addr, JJ_Search_Type_ULong))
@@ -865,21 +884,17 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 }
 
 -(NSString*)readBytes:(NSString*)address length:(int)length {
-    char* end = NULL;
-    UInt64 addr = strtoull([address UTF8String], &end, [address hasPrefix:@"0x"] ? 16 : 10);
-    if(end && *end) return @"";
+    UInt64 addr = 0;
+    if(!JJParseAddress([address UTF8String], [address hasPrefix:@"0x"] ? 16 : 10, addr) ||
+       !addr) return @"";
     if(length <= 0 || length > 4096) length = 256;
 
     NSMutableString *hex = [NSMutableString string];
-    UInt8 buf[4096];
+    UInt8 buf[4096] = {0};
     size_t readLen = min((size_t)length, sizeof(buf));
+    size_t bytesRead = _engine->JJReadBytes(buf, addr, readLen);
 
-    for(size_t i = 0; i < readLen; i += 8) {
-        size_t chunk = min((size_t)8, readLen - i);
-        if(!_engine->JJReadMemory(buf + i, addr + i, (int)chunk)) break;
-    }
-
-    for(int i = 0; i < (int)readLen; i++) {
+    for(int i = 0; i < (int)bytesRead; i++) {
         if(i > 0 && i % 16 == 0) [hex appendString:@"\n"];
         else if(i > 0 && i % 8 == 0) [hex appendString:@" "];
         [hex appendFormat:@"%02X ", buf[i]];
@@ -889,12 +904,13 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 }
 
 -(NSArray<NSDictionary<NSString*,NSString*>*>*)findPointers:(NSString*)address rangeStart:(NSString*)rangeStart rangeEnd:(NSString*)rangeEnd {
-    char* end = NULL;
-    UInt64 addr = strtoull([address UTF8String], &end, [address hasPrefix:@"0x"] ? 16 : 10);
-    if(end && *end) return @[];
-
-    UInt64 start = strtoull([rangeStart UTF8String], &end, 16);
-    UInt64 endAddr = strtoull([rangeEnd UTF8String], &end, 16);
+    UInt64 addr = 0;
+    UInt64 start = 0;
+    UInt64 endAddr = 0;
+    if(!JJParseAddress([address UTF8String], [address hasPrefix:@"0x"] ? 16 : 10, addr) ||
+       !JJParseAddress([rangeStart UTF8String], 16, start) ||
+       !JJParseAddress([rangeEnd UTF8String], 16, endAddr) ||
+       !addr || start >= endAddr) return @[];
 
     AddrRange range = {start, endAddr};
     auto ptrs = _engine->JJFindPointers(addr, range);
@@ -910,24 +926,25 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 }
 
 -(BOOL)saveScript:(NSString*)name content:(NSString*)content {
-    if(!name || !content) return NO;
-    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
-    NSString *path = [NSString stringWithFormat:@"%@/%@", docDir, name];
-    if(![name hasSuffix:@".js"]) path = [path stringByAppendingPathExtension:@"js"];
+    if(!name || !content || !H5GGIsSafeFileName(name.UTF8String)) return NO;
+    NSString* lowercaseName = name.lowercaseString;
+    if(![lowercaseName hasSuffix:@".js"] && ![lowercaseName hasSuffix:@".html"]) {
+        name = [name stringByAppendingPathExtension:@"js"];
+    }
+    NSString* path = H5GGDocumentsPathForName(name);
+    if(!path) return NO;
     return [[content dataUsingEncoding:NSUTF8StringEncoding] writeToFile:path atomically:YES];
 }
 
 -(NSString*)loadScript:(NSString*)name {
-    if(!name) return nil;
-    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
-    NSString *path = [NSString stringWithFormat:@"%@/%@", docDir, name];
+    NSString* path = H5GGDocumentsPathForName(name);
+    if(!path) return nil;
     return [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
 }
 
 -(BOOL)deleteScript:(NSString*)name {
-    if(!name) return NO;
-    NSString *docDir = [NSString stringWithFormat:@"%@/Documents", NSHomeDirectory()];
-    NSString *path = [NSString stringWithFormat:@"%@/%@", docDir, name];
+    NSString* path = H5GGDocumentsPathForName(name);
+    if(!path) return NO;
     return [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
 }
 
@@ -936,7 +953,9 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     NSArray *files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:docDir error:nil];
     NSMutableArray *scripts = [NSMutableArray array];
     for(NSString *f in files) {
-        if([f hasSuffix:@".js"]) [scripts addObject:f];
+        NSString* lowercaseName = f.lowercaseString;
+        if([lowercaseName hasSuffix:@".js"] || [lowercaseName hasSuffix:@".html"])
+            [scripts addObject:f];
     }
     return scripts;
 }

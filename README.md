@@ -6,6 +6,13 @@ Fully revamped and actively maintained. Complete rewrite of the original H5GG co
 
 iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but with custom HTML interfaces and a dylib plugin system.
 
+## Project design and status
+
+- [Architecture baseline](docs/architecture.md)
+- [Codebase review and issue register](docs/codebase-review.md)
+- [Stabilization and feature roadmap](docs/roadmap.md)
+- [Validation matrix](docs/validation.md)
+
 ---
 
 ### What changed in v8.0
@@ -28,7 +35,8 @@ iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but
 
 ## Build (Theos)
 
-- Minimum SDK target is iOS 15.0 (`TARGET = iphone:16.5:15.0`).
+- Minimum deployment target is iOS 15.0. The root, standalone, and GlobalView
+  builds share this baseline.
 - Build all jailbreak variants with compile-time flags:
   - `./build.sh all`
 - Build a single variant:

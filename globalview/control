@@ -2,7 +2,7 @@ Package: com.shadow.h5ggapp
 Name: H5GG
 Depends: mobilesubstrate
 Architecture: iphoneos-arm
-Description: Float On Screen for jailbroken devices(not compatible with iPad SlideOver/SplitView), tested on ios11~ios14 Discord https://discord.gg/FAs4MH7HMc
+Description: Float On Screen for jailbroken devices (iOS 15+; not compatible with iPad SlideOver/SplitView) Discord https://discord.gg/FAs4MH7HMc
 Maintainer: Shadow-
 Author: Shadow-
 Section: System

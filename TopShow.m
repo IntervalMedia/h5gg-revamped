@@ -66,6 +66,8 @@ extern GVData* PGVSharedData;
 
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
     NSLog(@"documentPickerWasCancelled=%@", controller);
+    self.pickedfile = nil;
+    if(self.pickedfile_notify) self.pickedfile_notify();
     [self dismiss];
 }
 
@@ -76,6 +78,7 @@ extern GVData* PGVSharedData;
     [self dismiss];
     self.pickedfile = [url path];
     self.pickedfile_notify();
+    if(canAccessingResource) [url stopAccessingSecurityScopedResource];
 }
 
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *>*)urls {

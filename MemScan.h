@@ -10,6 +10,8 @@
 #include <map>
 #include <set>
 
+#include "MemoryResults.h"
+#include "MemoryValue.h"
 #include "vmtag.h"
 
 using namespace std;
@@ -34,45 +36,11 @@ extern "C" kern_return_t mach_vm_protect
  vm_prot_t new_protection
  );
 
-enum JJ_Search_Type
-{
-    JJ_Search_Type_Error,
-
-    JJ_Search_Type_Double,
-    JJ_Search_Type_ULong,
-    JJ_Search_Type_SLong,
-    JJ_Search_Type_Float,
-    JJ_Search_Type_UInt,
-    JJ_Search_Type_SInt,
-    JJ_Search_Type_UShort,
-    JJ_Search_Type_SShort,
-    JJ_Search_Type_UByte,
-    JJ_Search_Type_SByte,
-
-    JJ_Search_Type_Max,
-};
-
-extern const int JJ_Search_Type_Len[];
-
 enum JJ_Change_Type {
     JJ_Change_Unchanged = 1,
     JJ_Change_Changed,
     JJ_Change_Increased,
     JJ_Change_Decreased,
-};
-
-struct result_region {
-    uint64_t region_base;
-    size_t region_size;
-    vector<uint32_t> slides;
-    vector<int8_t> types;
-
-    result_region(uint64_t base, size_t size);
-};
-
-struct Result {
-    vector<result_region*> regions;
-    size_t count;
 };
 
 struct AddrRange {
@@ -90,6 +58,7 @@ class JJMemoryEngine
     int lastNumberType;
 
     void freeResults();
+    size_t readMemoryBytes(void* buf, uint64_t addr, size_t len);
     bool readMemory(void* buf, uint64_t addr, size_t len);
     bool writeMemory(void* address, void *target, size_t len);
 
@@ -99,6 +68,7 @@ class JJMemoryEngine
     void unloadRegion(void* buffer, uint64_t size, bool remapped);
 
     void ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type, vector<result_region*>* outResults);
+    void enumerateRegions(AddrRange range);
     void FirstScan(AddrRange range, void* target, int type);
     void ScanAgain(AddrRange range, void* target, int type);
     void saveSnapshot();
@@ -114,6 +84,7 @@ public:
     void JJScanHexMemory(AddrRange range, const char* hexStr);
     void JJNearBySearch(size_t range, void *target, int type);
     vector<pair<uint64_t, uint64_t>> JJFindPointers(uint64_t targetAddr, AddrRange range);
+    size_t JJReadBytes(void* buf, uint64_t addr, size_t len);
     bool JJReadMemory(void* buf, uint64_t addr, int type);
     bool JJWriteMemory(void* address, void *target, int type);
     int JJWriteAll(void *target, int type);

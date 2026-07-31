@@ -1,7 +1,7 @@
 
 ARCHS = arm64 arm64e
 
-TARGET = iphone:clang:15.6:15.6
+TARGET = iphone:clang:15.6:15.0
 
 DEBUG=0
 STRIP=1
@@ -29,9 +29,8 @@ endif
 
 TWEAK_NAME = libH5GGApp
 libH5GGApp_FILES = globalview.mm ContextHostManager.mm ../FloatButton.m ../makeWindow.m
-libH5GGApp_CFLAGS = -fobjc-arc
-libH5GGApp_CCFLAGS = -fobjc-arc -std=c++17
-libH5GGApp_ADDITIONAL_CCFLAGS = $(H5GG_COMMON_FLAGS)
+libH5GGApp_CFLAGS = -fobjc-arc $(H5GG_COMMON_FLAGS)
+libH5GGApp_CCFLAGS = -fobjc-arc -std=c++17 $(H5GG_COMMON_FLAGS)
 
 ifneq ($(filter rootless roothide,$(JB_VARIANT)),)
 libH5GGApp_LDFLAGS += -L$(THEOS)/vendor/lib -L$(THEOS)/vendor/lib/iphone/rootless

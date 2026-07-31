@@ -5,6 +5,7 @@
 #import "Localized.h"
 #import "version.h"
 #import "globalview/globalview.h"
+#include "BridgeMethods.h"
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "incbin.h"
 
@@ -79,7 +80,15 @@ static NSString* _bridgeSource() {
     static NSString *source = nil;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        source =
+        size_t methodCount = 0;
+        const H5GGBridgeMethod* methods = H5GGBridgeMethods(methodCount);
+        NSMutableArray<NSString*>* methodNames = [NSMutableArray arrayWithCapacity:methodCount];
+        for(size_t index = 0; index < methodCount; index++) {
+            [methodNames addObject:[NSString stringWithFormat:@"'%s'", methods[index].name]];
+        }
+        NSString* methodsSource = [methodNames componentsJoinedByString:@","];
+
+        source = [NSString stringWithFormat:
         @"(function(){"
         "if(window.__h5ggPM)return;"
         "window.__h5ggPM=true;"
@@ -93,18 +102,7 @@ static NSString* _bridgeSource() {
         "window.webkit.messageHandlers.h5gg.postMessage({callId:i,method:m,args:a});"
         "});"
         "};"
-        "var methods=["
-        "'searchNumber','searchNearby','getValue','setValue',"
-        "'editAll','getResults','getResultsCount','clearResults',"
-        "'getLocalScripts','pickScriptFile','getRangesList',"
-        "'getProcList','setTargetProc','loadPlugin','makeTweak',"
-        "'require','setFloatTolerance','searchChange','searchFilter',"
-        "'getInputHistory','addInputHistory','clearInputHistory',"
-        "'addBookmark','removeBookmark','getBookmarks','clearBookmarks',"
-        "'freezeValue','unfreezeValue','getFrozenValues','clearFrozenValues',"
-        "'searchHex','getSearchHistory','addSearchHistory','clearSearchHistory',"
-        "'dumpMemory','readPointer','findPointers','readBytes','appendLog','saveScript','loadScript','deleteScript','listScripts'"
-        "];"
+        "var methods=[%@];"
         "window.h5gg={};"
         "methods.forEach(function(m){"
         "Object.defineProperty(window.h5gg,m,{"
@@ -112,7 +110,7 @@ static NSString* _bridgeSource() {
         "value:function(){return window.__h5gg_native(m,Array.prototype.slice.call(arguments));}"
         "});"
         "});"
-        "})();";
+        "})();", methodsSource];
     });
     return source;
 }
@@ -321,30 +319,91 @@ static NSString* _bridgeSource() {
     NSNumber *callId = body[@"callId"];
     NSString *methodName = body[@"method"];
     NSArray *args = body[@"args"];
+    if(![callId isKindOfClass:NSNumber.class]) return;
+    if(![methodName isKindOfClass:NSString.class] || ![args isKindOfClass:NSArray.class]) {
+        [self resolveCallId:callId result:nil error:@"Invalid bridge message"];
+        return;
+    }
 
     self.pendingCallId = callId;
     self.hasPendingCallback = NO;
-    id result = [self _dispatchMethod:methodName args:args];
+    NSString* dispatchError = nil;
+    id result = nil;
+    @try {
+        result = [self _dispatchMethod:methodName args:args error:&dispatchError];
+    } @catch(NSException* exception) {
+        dispatchError = [NSString stringWithFormat:@"Native call failed: %@", exception.reason ?: exception.name];
+    }
 
-    if(self.hasPendingCallback) return;
+    if(self.hasPendingCallback) {
+        self.pendingCallId = nil;
+        return;
+    }
 
-    NSError *err = nil;
-    NSData *json = result ? [NSJSONSerialization dataWithJSONObject:result options:0 error:&err] : nil;
-    NSString *jsonStr = json ? [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding] : @"null";
-    NSString *js = [NSString stringWithFormat:@"window.__h5gg_onResult(%@,null,%@)", callId, jsonStr];
-    [self evaluateJavaScript:js completionHandler:nil];
+    self.pendingCallId = nil;
+    [self resolveCallId:callId result:result error:dispatchError];
 }
 
-- (id)_dispatchMethod:(NSString*)methodName args:(NSArray*)args {
+- (id)_dispatchMethod:(NSString*)methodName args:(NSArray*)args error:(NSString**)error {
     id action = self.actions[methodName];
     if(action && [action isKindOfClass:NSClassFromString(@"NSBlock")]) {
+        NSMethodSignature *signature = [action methodSignatureForSelector:@selector(invoke)];
+        NSUInteger parameterCount = signature.numberOfArguments > 2 ? signature.numberOfArguments - 2 : 0;
+        if(parameterCount != args.count) {
+            if(error) *error = [NSString stringWithFormat:@"Invalid argument count for %@", methodName];
+            return nil;
+        }
         return [self _invokeBlock:action withArgs:args];
     }
+
+    const H5GGBridgeMethod* method = H5GGBridgeMethodNamed(methodName.UTF8String);
+    if(!method) {
+        if(error) *error = [NSString stringWithFormat:@"Unknown bridge method: %@", methodName];
+        return nil;
+    }
+    if(!method->acceptsArgumentCount(args.count)) {
+        if(error) *error = [NSString stringWithFormat:@"Invalid argument count for %@", methodName];
+        return nil;
+    }
+
     id engine = self.actions[@"h5gg"];
     if(engine) {
-        return [self _invokeMethod:methodName onObject:engine withArgs:args];
+        return [self _invokeMethod:method onObject:engine withArgs:args error:error];
     }
+    if(error) *error = @"H5GG engine is unavailable";
     return nil;
+}
+
+- (void)resolveCallId:(NSNumber*)callId result:(id)result error:(NSString*)error {
+    if(!callId) return;
+
+    NSError* serializationError = nil;
+    NSString* errorJSON = @"null";
+    NSString* resultJSON = @"null";
+
+    if(error) {
+        NSData* data = [NSJSONSerialization dataWithJSONObject:error
+                                                       options:NSJSONWritingFragmentsAllowed
+                                                         error:&serializationError];
+        if(data) errorJSON = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    } else if(result && result != NSNull.null) {
+        NSData* data = [NSJSONSerialization dataWithJSONObject:result
+                                                       options:NSJSONWritingFragmentsAllowed
+                                                         error:&serializationError];
+        if(data) {
+            resultJSON = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        } else {
+            errorJSON = @"\"Native result is not JSON serializable\"";
+        }
+    }
+
+    if(serializationError && [errorJSON isEqualToString:@"null"]) {
+        errorJSON = @"\"Failed to serialize native result\"";
+    }
+
+    NSString *js = [NSString stringWithFormat:@"window.__h5gg_onResult(%@,%@,%@)",
+                     callId, errorJSON, resultJSON];
+    [self evaluateJavaScript:js completionHandler:nil];
 }
 
 #pragma mark - Dynamic invocation helpers
@@ -371,70 +430,17 @@ static NSString* _bridgeSource() {
     return [self _extractReturnValue:inv];
 }
 
-+ (NSString*)_jsExportSelectorForMethod:(NSString*)method argCount:(NSUInteger)argCount {
-    static NSDictionary<NSString*, NSString*> *map;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        map = @{
-            @"searchNumber":     @"searchNumber:param2:param3:param4:",
-            @"searchNearby":     @"searchNearby:param2:param3:",
-            @"getValue":         @"getValue:param2:",
-            @"setValue":         @"setValue:param2:param3:",
-            @"editAll":          @"editAll:param3:",
-            @"getResults":       @"getResults:param1:",
-            @"getResultsCount":  @"getResultsCount",
-            @"clearResults":     @"clearResults",
-            @"getLocalScripts":  @"getLocalScripts",
-            @"pickScriptFile":   @"pickScriptFile:withTypes:",
-            @"getRangesList":    @"getRangesList:",
-            @"getProcList":      @"getProcList:",
-            @"setTargetProc":    @"setTargetProc:",
-            @"loadPlugin":       @"loadPlugin:path:",
-            @"makeTweak":        @"makeTweak:with:",
-            @"require":          @"require:",
-            @"setFloatTolerance":@"setFloatTolerance:",
-            @"searchChange":      @"searchChange:",
-@"searchFilter":      @"searchFilter:type:mode:",
-            @"getInputHistory":    @"getInputHistory",
-            @"addInputHistory":    @"addInputHistory:",
-            @"clearInputHistory":  @"clearInputHistory",
-            @"addBookmark":        @"addBookmark:name:type:",
-            @"removeBookmark":     @"removeBookmark:",
-            @"getBookmarks":       @"getBookmarks",
-            @"clearBookmarks":     @"clearBookmarks",
-            @"freezeValue":        @"freezeValue:value:type:",
-            @"unfreezeValue":      @"unfreezeValue:",
-            @"getFrozenValues":    @"getFrozenValues",
-            @"clearFrozenValues":  @"clearFrozenValues",
-            @"searchHex":          @"searchHex:memoryFrom:memoryTo:",
-            @"getSearchHistory":   @"getSearchHistory",
-            @"addSearchHistory":   @"addSearchHistory:type:count:",
-            @"clearSearchHistory": @"clearSearchHistory",
-            @"dumpMemory":         @"dumpMemory:end:filename:",
-            @"readPointer":        @"readPointer:",
-            @"findPointers":      @"findPointers:rangeStart:rangeEnd:",
-            @"appendLog":         @"appendLog:",
-             @"readBytes":          @"readBytes:length:",
-             @"saveScript":         @"saveScript:content:",
-             @"loadScript":         @"loadScript:",
-             @"deleteScript":       @"deleteScript:",
-             @"listScripts":        @"listScripts",
-        };
-    });
-    NSString *sel = map[method];
-    if(sel) return sel;
-    NSMutableString *ms = [method mutableCopy];
-    for(NSUInteger i = 0; i < argCount; i++) [ms appendString:@":"];
-    return ms;
-}
+- (id)_invokeMethod:(const H5GGBridgeMethod*)method
+            onObject:(id)object
+            withArgs:(NSArray*)args
+               error:(NSString**)error {
+    if(!object || !method) return nil;
 
-- (id)_invokeMethod:(NSString*)methodName onObject:(id)object withArgs:(NSArray*)args {
-    if(!object || !methodName) return nil;
-
-    NSString *selName = [[self class] _jsExportSelectorForMethod:methodName argCount:args.count];
+    NSString *selName = [NSString stringWithUTF8String:method->selector];
     SEL selector = NSSelectorFromString(selName);
     if(![object respondsToSelector:selector]) {
-        NSLog(@"h5gg bridge: no method %@ (%@) on %@", methodName, selName, object);
+        NSLog(@"h5gg bridge: no method %s (%@) on %@", method->name, selName, object);
+        if(error) *error = [NSString stringWithFormat:@"Native method unavailable: %s", method->name];
         return nil;
     }
 
@@ -447,9 +453,10 @@ static NSString* _bridgeSource() {
     [inv setTarget:object];
     [inv setSelector:selector];
 
-    for (NSUInteger i = 0; i < paramCount && i < args.count; i++) {
+    for (NSUInteger i = 0; i < paramCount; i++) {
         const char *type = [sig getArgumentTypeAtIndex:i + 2];
-        [self _setInvocationArgument:inv atIndex:i + 2 withType:type value:args[i]];
+        id value = i < args.count ? args[i] : nil;
+        [self _setInvocationArgument:inv atIndex:i + 2 withType:type value:value];
     }
 
     [inv invoke];
@@ -458,31 +465,44 @@ static NSString* _bridgeSource() {
 
 - (void)_setInvocationArgument:(NSInvocation*)inv atIndex:(NSInteger)idx withType:(const char*)type value:(id)value {
     if(strcmp(type, @encode(id)) == 0) {
+        if(value == NSNull.null) value = nil;
         [inv setArgument:&value atIndex:idx];
     } else if(strcmp(type, @encode(BOOL)) == 0) {
-        BOOL v = [value boolValue]; [inv setArgument:&v atIndex:idx];
+        BOOL v = value && value != NSNull.null ? [value boolValue] : NO;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(int)) == 0) {
-        int v = [value intValue]; [inv setArgument:&v atIndex:idx];
+        int v = value && value != NSNull.null ? [value intValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(unsigned int)) == 0) {
-        unsigned int v = [value unsignedIntValue]; [inv setArgument:&v atIndex:idx];
+        unsigned int v = value && value != NSNull.null ? [value unsignedIntValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(float)) == 0) {
-        float v = [value floatValue]; [inv setArgument:&v atIndex:idx];
+        float v = value && value != NSNull.null ? [value floatValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(double)) == 0) {
-        double v = [value doubleValue]; [inv setArgument:&v atIndex:idx];
+        double v = value && value != NSNull.null ? [value doubleValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(long)) == 0) {
-        long v = [value longValue]; [inv setArgument:&v atIndex:idx];
+        long v = value && value != NSNull.null ? [value longValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(long long)) == 0) {
-        long long v = [value longLongValue]; [inv setArgument:&v atIndex:idx];
+        long long v = value && value != NSNull.null ? [value longLongValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(short)) == 0) {
-        short v = [value shortValue]; [inv setArgument:&v atIndex:idx];
+        short v = value && value != NSNull.null ? [value shortValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(char)) == 0) {
-        char v = (char)[value charValue]; [inv setArgument:&v atIndex:idx];
+        char v = value && value != NSNull.null ? (char)[value charValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(unsigned long)) == 0) {
-        unsigned long v = [value unsignedLongValue]; [inv setArgument:&v atIndex:idx];
+        unsigned long v = value && value != NSNull.null ? [value unsignedLongValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(unsigned long long)) == 0) {
-        unsigned long long v = [value unsignedLongLongValue]; [inv setArgument:&v atIndex:idx];
+        unsigned long long v = value && value != NSNull.null ? [value unsignedLongLongValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else if(strcmp(type, @encode(CGFloat)) == 0) {
-        CGFloat v = [value doubleValue]; [inv setArgument:&v atIndex:idx];
+        CGFloat v = value && value != NSNull.null ? [value doubleValue] : 0;
+        [inv setArgument:&v atIndex:idx];
     } else {
         [inv setArgument:&value atIndex:idx];
     }

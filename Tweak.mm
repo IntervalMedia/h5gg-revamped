@@ -12,7 +12,9 @@
 #import <roothide.h>
 #endif
 
-
+#ifdef H5GG_BUILD_ROOTLESS
+#import <rootless.h>
+#endif
 
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
