@@ -4,6 +4,6 @@ Depends: mobilesubstrate
 Version: 8.0.0
 Architecture: iphoneos-arm
 Description: an iOS cheat engine for JavaScript APIs & Html5 UI. Discord https://discord.gg/FAs4MH7HMc
-Maintainer: @CrazyMind90
+Maintainer: 
 Author: H5GG
 Section: Tweaks

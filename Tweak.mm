@@ -229,8 +229,14 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
 
 FloatMenu* initFloatMenu(UIWindow* win)
 {
-    //创建悬浮菜单, 设置位置=居中  尺寸=380宽x屏幕高(最大400)
-    CGRect MenuRect = CGRectMake(0, 0, 370, 370);
+    // Use roughly half of the available screen while preserving safe margins on phones.
+    CGSize availableSize = win.bounds.size;
+    CGFloat menuWidth = MIN(availableSize.width - 32.0, MAX(370.0, availableSize.width * 0.55));
+    CGFloat menuHeight = MIN(availableSize.height - 32.0, MAX(370.0, availableSize.height * 0.55));
+    menuWidth = MAX(320.0, menuWidth);
+    menuHeight = MAX(320.0, menuHeight);
+
+    CGRect MenuRect = CGRectMake(0, 0, menuWidth, menuHeight);
     MenuRect.origin.x = (win.frame.size.width-MenuRect.size.width)/2;
     MenuRect.origin.y = (win.frame.size.height-MenuRect.size.height)/2;
     

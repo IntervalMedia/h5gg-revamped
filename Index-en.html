@@ -113,19 +113,19 @@
     }
 }
 
-html {
-    zoom:1.2; /*在手机上显示整体放大1.2倍*/
-}
-
+html,
 body {
     width: 100%;
     height: 100%;
+    margin: 0;
+    overflow: hidden;
     background-color: var(--bg-color);
 }
 * {
+    box-sizing: border-box;
     /*默认文字颜色*/
     color: var(--text-color);
-    font-size: 12px;
+    font-size: 13px;
     font-family: Arial, sans-serif;
     
    -webkit-tap-highlight-color: transparent;
@@ -146,11 +146,15 @@ body {
 
 input {
     background-color: var(--input-bg);
-    height: 30px;
+    height: 34px;
+    min-width: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 0 8px;
 }
 
 button {
-    height: 30px;
+    min-height: 34px;
     color: #3393EF;
     background-color: var(--btn-bg);
     display: inline-block;
@@ -402,10 +406,12 @@ table.datatype {
 
 #listdiv {
     display:block;
+    flex: 1;
+    min-height: 0;
     overflow-x:hidden;
     overflow-y:scroll;
-    height:100%;
-    padding: 4px;
+    height:auto;
+    padding: 0;
 }
 
 #resultList tr.hilight td{
@@ -433,6 +439,230 @@ table.datatype {
     border: none;
     border-top: 1px solid var(--result-border);
     margin: 6px 0;
+}
+
+#titleBar {
+    height: 38px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background-color: var(--title-bg);
+    border-bottom: 1px solid var(--result-border);
+    cursor: move;
+}
+
+.title-brand {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.title-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.title-action {
+    min-height: 30px;
+    height: 30px;
+    margin: 0;
+    padding: 0 9px;
+    background: transparent;
+    color: var(--text-color);
+}
+
+#appShell {
+    height: calc(100% - 38px);
+    display: grid;
+    grid-template-columns: minmax(230px, 42%) minmax(0, 1fr);
+    min-height: 0;
+}
+
+#appShell.controls-collapsed {
+    grid-template-columns: 0 minmax(0, 1fr);
+}
+
+#controlsPanel {
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 10px;
+    border-right: 1px solid var(--result-border);
+    transition: opacity 120ms ease;
+}
+
+#appShell.controls-collapsed #controlsPanel {
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.control-section {
+    margin: 0 0 10px;
+    padding: 10px;
+    border: 1px solid var(--result-border);
+    border-radius: 8px;
+    background: rgba(127,127,127,0.05);
+}
+
+.section-title,
+.control-section > summary {
+    display: block;
+    margin: 0 0 8px;
+    font-weight: bold;
+    color: #3393EF;
+}
+
+.control-section > summary {
+    cursor: pointer;
+    min-height: 28px;
+    line-height: 28px;
+}
+
+.field-grid {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 7px 8px;
+    align-items: center;
+}
+
+.field-grid label {
+    color: var(--result-font);
+}
+
+.radio-row,
+.inline-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 7px;
+}
+
+.radio-row label {
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+}
+
+.action-grid,
+.tool-grid,
+.sort-grid {
+    display: grid;
+    gap: 6px;
+}
+
+.action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.action-grid button,
+.tool-grid button,
+.sort-grid button {
+    width: 100%;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.primary-action {
+    color: white;
+    background: #2F7DCD;
+    font-weight: bold;
+}
+
+.compact-input {
+    width: 100%;
+}
+
+.inline-row > input,
+.inline-row > select {
+    flex: 1;
+    min-width: 0;
+}
+
+.inline-row > button {
+    flex: 0 0 auto;
+}
+
+#resultsPanel {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#resultsToolbar {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--result-border);
+    background: rgba(127,127,127,0.05);
+}
+
+.results-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 26px;
+    margin-bottom: 6px;
+}
+
+#results_count {
+    display: none;
+    margin: 0;
+    font-weight: bold;
+}
+
+.filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#filterInput {
+    flex: 1;
+    width: 100%;
+}
+
+.sort-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 6px;
+}
+
+.sort-grid button {
+    min-height: 30px;
+    height: 30px;
+    padding: 0 3px;
+    font-size: 11px;
+}
+
+.empty-state {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--result-font);
+}
+
+#listdiv > div[data-addr] {
+    min-height: 54px;
+}
+
+@media (max-width: 520px) {
+    #appShell {
+        grid-template-columns: minmax(210px, 58%) minmax(0, 1fr);
+    }
+
+    .action-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .frozen td { color: #93C5FD !important; }
@@ -744,7 +974,7 @@ function showPopView(name, action, type, value)
 {
     $("#maskview").show();
     $("#popup_search_edit").show();
-    $("#popup_search_edit").find("B#titleBar").html(name);
+        $("#popup_search_edit").find("#popupTitle").html(name);
     $("#popup_search_edit").find("button#action").html(name);
     
     if(type) {
@@ -814,6 +1044,7 @@ async function loadResults(from, count)
     if(from == 0) {
         gAllResults = results;
         cacheResults(gAllResults);
+        renderResults(gAllResults);
     } else {
         gAllResults = gAllResults.concat(results);
         renderResults(gAllResults);
@@ -1043,6 +1274,15 @@ function toggleTheme() {
         html.classList.add('dark');
         localStorage.setItem('h5gg_theme', 'dark');
     }
+}
+
+function toggleControlPanel() {
+    var shell = document.getElementById('appShell');
+    var button = document.getElementById('controlsToggle');
+    if(!shell || !button) return;
+    var collapsed = shell.classList.toggle('controls-collapsed');
+    button.textContent = collapsed ? 'Show controls' : 'Hide controls';
+    button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
 }
 
 async function loadSearchResults() {
@@ -1722,113 +1962,113 @@ async function viewerPage(dir) {
 </script>
 
 </head>
-<body style="margin:0;">
-<!--标题栏-->
-<div id="titleBar" style="background-color:var(--title-bg); padding:5px; margin:0px; height:12px">
-&nbsp;<font style="color:green">H5</font> <font style="color:red">GG</font>&nbsp;v<span id="version"></span>
-<span id="crossproc" style="display:none">
-<font style="color:blue">&nbsp;CrossProc&nbsp;</font><font id="procname">procname</font>
-</span>
-    
-<div id="theme-toggle" onclick="toggleTheme()">&#9790;</div>
-<div id="closeMenu" style="float:right; font-size:16px; line-height:14px; font-family: Arial, sans-serif;" onclick="setWindowVisible(false)">&nbsp;X&nbsp;</div>
-</div>
-<!--用一个表格来布局左右两栏-->
-<table id="bodyView" width="100%" style="table-layout:fixed;height: calc(100% - 22px) ;">
-<tr>
-<td style="vertical-align:top;width:135px;border-right:solid 2px var(--result-border);padding:4px;">
-<div>
-MemStart:<input id="range_min" style="width:76px;padding-left:0" value="0x00000000" />
-<br/>
-MemEnd:<input id="range_max" style="width:80px;padding-left:0"  value="0x200000000" />
-<br/>
-<label><input type=radio name="numtype" value="signed" checked />Signed</label>
-<label><input type=radio name="numtype" value="unsigned" />UnSigned</label>
-<br/>
-<button onclick="onClickSearchNumber()">Search</button>
-<button onclick="onClickSearchNearby()">NearbySearch</button>
-<br/>
-<button onclick="onClickClearResults()">Clear</button>
-<button onclick="onClickEditAll()">EditAll</button>
-<button onclick="onClickRefreshResults()">Refresh</button>
-<br/>
-<button onclick="onShowLoadScript(true)">&nbsp;Scripts&nbsp;</button>
-<button onclick="onClickMakeTweak()">&nbsp;MakeTweak&nbsp;</button>
-<button onclick="openBookmarksPanel()">&nbsp;Bookmarks&nbsp;</button>
-<button onclick="openFreezePanel()">&nbsp;Freeze&nbsp;</button>
-<br/>
-<button onclick="openScriptEditor()">Scripts</button>
-<button onclick="openOffsetCalc()">Calc</button>
-<button onclick="openPointerChain()">Ptr</button>
-<button onclick="openDumpPanel()">Dump</button>
-<button onclick="openHistoryPanel()">Hist</button>
-<button onclick="openMemoryViewer()">Viewer</button>
-<br/>
-<div style="display:flex;align-items:center;padding:2px 0">
-    <select id="autorunSelect" onchange="setAutorun()" style="flex:1;font-size:10px;margin:2px 4px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
-        <option value="">-- Auto-run --</option>
-    </select>
-    <button onclick="openSettings()" style="height:24px;font-size:11px;padding:2px 6px">Settings</button>
-</div>
-NearbyRange:<input id="nearby_range" style="width:55px"  value="0x100"/>
-<br/>
-FloatTolerance:<input id="float_tolerance" style="width:50px" value="0.0"/>
-<br/>
-<div style="display:flex;align-items:center;padding:2px 4px;margin-top:2px">
-    <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#3393EF">Hex</span>
-    <input id="hexInput" type="text" placeholder="90 ?? E? AF" title="? is a wildcard nibble; searching again refines current results" style="flex:1;height:26px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
-    <button onclick="doHexSearch()" style="height:26px;font-size:11px;padding:2px 6px;margin-left:4px">Search</button>
-</div>
-<div style="display:flex;align-items:center;padding:2px 4px">
-    <input id="refineValue" type="text" placeholder="refine value" style="width:70px;height:24px;font-size:10px">
-    <select id="refineType" style="width:48px;height:24px;font-size:10px"><option>I8</option><option>U8</option><option>I16</option><option>U16</option><option selected>I32</option><option>U32</option><option>I64</option><option>U64</option><option>F32</option><option>F64</option></select>
-    <select id="refineMode" style="width:42px;height:24px;font-size:10px"><option value="0">=</option><option value="2">&gt;</option><option value="3">&lt;</option></select>
-    <button onclick="refineNumericResults()" style="height:24px;font-size:10px;padding:2px 5px">Refine</button>
-</div>
-<div style="display:flex;align-items:center;padding:2px 4px">
-    <span style="font-size:11px;margin-right:4px;color:#888">Tolerance</span>
-    <input id="tolInput" type="text" value="0" placeholder="0.0" style="width:50px;height:24px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin-right:4px">
-    <button onclick="applyTolerance()" style="height:24px;font-size:11px;padding:2px 6px">Set</button>
-</div>
-<div style="display:flex;align-items:center;padding:2px 4px;margin-top:2px">
-    <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#888">Filter</span>
-    <input id="filterInput" type="text" placeholder="filter results..." style="flex:1;height:24px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px" oninput="filterResults()">
-    <span id="filterCount" style="font-size:10px;color:#888;margin-left:4px;min-width:20px"></span>
-</div>
-<br/>
-<hr class="control-separator"/>
-<p id="results_count" style="display:none">Results Count:<span>0</span></p>
-<button onclick="sortResults('addr')" style="font-size:10px;padding:1px 4px;margin:0 2px">Addr</button>
-<button onclick="sortResults('addrD')" style="font-size:10px;padding:1px 4px;margin:0 2px">Addr↓</button>
-<button onclick="sortResults('val')" style="font-size:10px;padding:1px 4px;margin:0 2px">Val</button>
-<button onclick="sortResults('valD')" style="font-size:10px;padding:1px 4px;margin:0 2px">Val↓</button>
-</div>
-</td>
-<td style="vertical-align:top;">
-<div id="listdiv" class="scrollbar" ontouchend="showMoreResults(this);">
-<table id="resultList" style="width:100%;cursor:hand;">
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>1.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>2.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>3.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>4.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>5.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>6.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>7.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>8.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>9.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>10.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>11.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>12.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>13.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>14.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>15.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>16.0x102345678<br/><font>0.112233112233112233112233112233112233</td></tr>
-</table>
-</div>
+<body>
+<header id="titleBar">
+    <div class="title-brand">
+        <span style="color:green">H5</span> <span style="color:red">GG</span>&nbsp;v<span id="version"></span>
+        <span id="crossproc" style="display:none"><span style="color:blue">&nbsp;CrossProc&nbsp;</span><span id="procname">procname</span></span>
+    </div>
+    <div class="title-actions">
+        <button id="controlsToggle" class="title-action" type="button" aria-controls="controlsPanel" aria-expanded="true" onclick="toggleControlPanel()">Hide controls</button>
+        <button id="theme-toggle" class="title-action" type="button" aria-label="Change theme" onclick="toggleTheme()">&#9790;</button>
+        <button id="closeMenu" class="title-action" type="button" aria-label="Close H5GG" onclick="setWindowVisible(false)">&#10005;</button>
+    </div>
+</header>
 
-</td>
-</tr>
-</table>
+<div id="appShell">
+    <aside id="controlsPanel" class="scrollbar" aria-label="Search controls">
+        <section class="control-section">
+            <h2 class="section-title">Memory search</h2>
+            <div class="field-grid">
+                <label for="range_min">Start</label>
+                <input id="range_min" class="compact-input" value="0x00000000" inputmode="text" autocomplete="off" />
+                <label for="range_max">End</label>
+                <input id="range_max" class="compact-input" value="0x200000000" inputmode="text" autocomplete="off" />
+            </div>
+            <div class="radio-row" role="group" aria-label="Number sign">
+                <label><input type="radio" name="numtype" value="signed" checked />Signed</label>
+                <label><input type="radio" name="numtype" value="unsigned" />Unsigned</label>
+            </div>
+            <div class="action-grid">
+                <button class="primary-action" onclick="onClickSearchNumber()">Search</button>
+                <button onclick="onClickSearchNearby()">Nearby</button>
+                <button onclick="onClickRefreshResults()">Refresh</button>
+                <button onclick="onClickClearResults()">Clear</button>
+                <button onclick="onClickEditAll()">Edit all</button>
+            </div>
+        </section>
+
+        <details class="control-section" open>
+            <summary>Search options</summary>
+            <div class="field-grid">
+                <label for="nearby_range">Nearby</label>
+                <input id="nearby_range" class="compact-input" value="0x100" />
+                <label for="float_tolerance">Float tolerance</label>
+                <input id="float_tolerance" class="compact-input" value="0.0" />
+            </div>
+            <div class="inline-row">
+                <input id="hexInput" type="text" placeholder="Hex: 90 ?? E? AF" aria-label="Hex pattern" title="? is a wildcard nibble; searching again refines current results" />
+                <button onclick="doHexSearch()">Hex search</button>
+            </div>
+            <div class="inline-row">
+                <input id="refineValue" type="text" placeholder="Refine value" aria-label="Refine value" />
+                <select id="refineType" aria-label="Refine type"><option>I8</option><option>U8</option><option>I16</option><option>U16</option><option selected>I32</option><option>U32</option><option>I64</option><option>U64</option><option>F32</option><option>F64</option></select>
+                <select id="refineMode" aria-label="Refine comparison"><option value="0">=</option><option value="2">&gt;</option><option value="3">&lt;</option></select>
+                <button onclick="refineNumericResults()">Refine</button>
+            </div>
+            <div class="inline-row">
+                <label for="tolInput">Tolerance</label>
+                <input id="tolInput" type="text" value="0" placeholder="0.0" />
+                <button onclick="applyTolerance()">Apply</button>
+            </div>
+        </details>
+
+        <details class="control-section">
+            <summary>Tools and scripts</summary>
+            <div class="tool-grid">
+                <button onclick="onShowLoadScript(true)">Load script</button>
+                <button onclick="openScriptEditor()">Script editor</button>
+                <button onclick="onClickMakeTweak()">Make tweak</button>
+                <button onclick="openBookmarksPanel()">Bookmarks</button>
+                <button onclick="openFreezePanel()">Frozen values</button>
+                <button onclick="openOffsetCalc()">Calculator</button>
+                <button onclick="openPointerChain()">Pointers</button>
+                <button onclick="openDumpPanel()">Memory dump</button>
+                <button onclick="openHistoryPanel()">History</button>
+                <button onclick="openMemoryViewer()">Memory viewer</button>
+            </div>
+            <div class="inline-row">
+                <select id="autorunSelect" onchange="setAutorun()" aria-label="Auto-run script">
+                    <option value="">-- Auto-run --</option>
+                </select>
+                <button onclick="openSettings()">Settings</button>
+            </div>
+        </details>
+    </aside>
+
+    <main id="resultsPanel" aria-label="Search results">
+        <div id="resultsToolbar">
+            <div class="results-heading">
+                <strong>Results</strong>
+                <p id="results_count">Results Count: 0</p>
+            </div>
+            <div class="filter-row">
+                <input id="filterInput" type="search" placeholder="Filter by address or value" aria-label="Filter results" oninput="filterResults()" />
+                <span id="filterCount" aria-live="polite"></span>
+            </div>
+            <div class="sort-grid" aria-label="Sort results">
+                <button onclick="sortResults('addr')">Address &#8593;</button>
+                <button onclick="sortResults('addrD')">Address &#8595;</button>
+                <button onclick="sortResults('val')">Value &#8593;</button>
+                <button onclick="sortResults('valD')">Value &#8595;</button>
+            </div>
+        </div>
+        <div id="listdiv" class="scrollbar" ontouchend="showMoreResults(this);">
+            <table id="resultList" hidden><tbody></tbody></table>
+            <div class="empty-state">No results yet</div>
+        </div>
+    </main>
+</div>
 
 <!--全局灰色遮罩层(弹出搜索框的时候用)-->
 <div id="maskview" class="maskview"></div>
@@ -1837,7 +2077,7 @@ FloatTolerance:<input id="float_tolerance" style="width:50px" value="0.0"/>
 <div class="popup_container">
     
 <div id="popup_search_edit">
-<B id="titleBar">Search Number</B>
+<B id="popupTitle">Search Number</B>
 <br/><br/>
 <center>
 <table id="datatype" class="datatype">
