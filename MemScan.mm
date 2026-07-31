@@ -4,6 +4,8 @@
 #include <Foundation/Foundation.h>
 #include <cctype>
 #include <cstdlib>
+#include <type_traits>
+        
 
 #pragma mark - JJMemoryEngine
 

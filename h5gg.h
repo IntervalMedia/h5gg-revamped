@@ -3,11 +3,7 @@
 //  h5gg
 //
 //  Created by admin on 11/3/2022.
-//
-
-/**
- *  Strong reminder: Please do not modify this JS interface to maintain the compatibility of js scripts
- */
+//  reworked by silentninjabee 31/7/2026
 
 #ifndef h5gg_h
 #define h5gg_h
@@ -167,4 +163,4 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 
 NS_ASSUME_NONNULL_END
 
-#endif /* h5gg_h */
+#endif
