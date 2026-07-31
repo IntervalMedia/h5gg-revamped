@@ -1,4 +1,4 @@
-# H5GG-Revamped v8.0
+# H5GG-Revamped v8.0 - DEV BRANCH (Work in progress)
 
 Fully revamped and actively maintained. Complete rewrite of the original H5GG codebase after years of inactivity. All code modernized for current iOS versions.
 
@@ -59,41 +59,7 @@ Build outputs are collected in `packages/release-artifacts/` so CI/manual releas
 3. [standalone app for jailbroken devices (iPad SlideOver+SplitView compatible)](/appstand/packages/)
 4. [Float On Screen for jailbroken devices (iOS 15+ tested)](/globalview/packages/)
 
-Also a [TrollStore version](/appstand/packages/).
-
-## h5frida plugin
-
-1. invoke C/C++/Objective-C functions (non-jailbroken)
-2. hook Objective-C methods (non-jailbroken)
-3. hook C/C++ exported functions (non-jailbroken)
-4. hook C/C++ internal functions/instructions (jailbroken only)
-5. MSHookFunction for C/C++ (non-jailbroken)
-6. code-patch with bytes dynamically (non-jailbroken)
-
-## Screenshots
-
-![text](/pictures/h5gg1.png)
-![text](/pictures/h5gg2.png)
-![text](/pictures/h5gg3.png)
-![text](/pictures/h5gg4.PNG)
-
-## Designing HTML menu UI
-
-Use any text editor. Previously EasyHtml on the AppStore was popular but may need sideloading now.
-
-![text](/pictures/easyhtml.png)
-
-## Debugging JS/HTML via macOS Safari
-
-Requires `get-task-allow` entitlement (jailbroken or signed with Developer Certificate).
-
-![text](/pictures/macos.png)
-
 ## Dependencies (GlobalView / Float On Screen)
 
 - [BackgrounderAction2](https://github.com/akusio): libH5GG.B.dylib (jp.akusio.backgrounderaction13) for iOS 15+
 - [libAPAppView](https://github.com/Baw-Appie/libAPAppView): libH5GG.A.dylib (com.rpgfarm.libapappview) for iOS 15+
-
-## [JavaScript API docs](/h5gg-js-doc-en.js)
-
-Free and open source.
