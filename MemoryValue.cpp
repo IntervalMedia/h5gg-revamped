@@ -181,32 +181,61 @@ static int hexDigitValue(char value) {
 }
 
 bool JJParseHexPattern(const char* text, std::vector<uint8_t>& bytes) {
-    bytes.clear();
-    if(!text) {
+    JJHexPattern pattern;
+    if(!JJParseMaskedHexPattern(text, pattern)) {
+        bytes.clear();
         return false;
     }
+
+    for(uint8_t mask : pattern.masks) {
+        if(mask != 0xFF) {
+            bytes.clear();
+            return false;
+        }
+    }
+    bytes = std::move(pattern.values);
+    return true;
+}
+
+bool JJParseMaskedHexPattern(const char* text, JJHexPattern& pattern) {
+    pattern.values.clear();
+    pattern.masks.clear();
+    if(!text) return false;
 
     std::vector<char> digits;
     for(const char* current = text; *current; current++) {
         unsigned char value = static_cast<unsigned char>(*current);
-        if(std::isspace(value)) {
-            continue;
-        }
-        if(!std::isxdigit(value)) {
-            return false;
-        }
+        if(std::isspace(value)) continue;
+        if(!std::isxdigit(value) && value != '?') return false;
         digits.push_back(*current);
     }
 
-    if(digits.empty() || digits.size() % 2 != 0) {
+    if(digits.empty() || digits.size() % 2 != 0) return false;
+
+    pattern.values.reserve(digits.size() / 2);
+    pattern.masks.reserve(digits.size() / 2);
+    for(size_t index = 0; index < digits.size(); index += 2) {
+        int high = digits[index] == '?' ? 0 : hexDigitValue(digits[index]);
+        int low = digits[index + 1] == '?' ? 0 : hexDigitValue(digits[index + 1]);
+        uint8_t mask = (digits[index] == '?' ? 0 : 0xF0) |
+                       (digits[index + 1] == '?' ? 0 : 0x0F);
+        pattern.values.push_back(static_cast<uint8_t>((high << 4) | low));
+        pattern.masks.push_back(mask);
+    }
+    return true;
+}
+
+bool JJHexPatternMatches(const uint8_t* bytes, size_t length, const JJHexPattern& pattern) {
+    if(!bytes || pattern.empty() || pattern.values.size() != pattern.masks.size() ||
+       length < pattern.size()) {
         return false;
     }
 
-    bytes.reserve(digits.size() / 2);
-    for(size_t index = 0; index < digits.size(); index += 2) {
-        int high = hexDigitValue(digits[index]);
-        int low = hexDigitValue(digits[index + 1]);
-        bytes.push_back(static_cast<uint8_t>((high << 4) | low));
+    for(size_t index = 0; index < pattern.size(); index++) {
+        if((bytes[index] & pattern.masks[index]) !=
+           (pattern.values[index] & pattern.masks[index])) {
+            return false;
+        }
     }
     return true;
 }

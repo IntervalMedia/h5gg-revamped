@@ -150,8 +150,14 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
     PGVSharedData->enable = YES;
     
     
-    PGVSharedData->buttonImageSize = gIconSize;
-    memcpy(PGVSharedData->buttonImageData, gIconData, gIconSize);
+    NSData* customIcon = H5GGEmbeddedCustomIcon();
+    if(customIcon && customIcon.length <= sizeof(PGVSharedData->buttonImageData)) {
+        PGVSharedData->buttonImageSize = customIcon.length;
+        [customIcon getBytes:PGVSharedData->buttonImageData length:customIcon.length];
+    } else {
+        PGVSharedData->buttonImageSize = gIconSize;
+        memcpy(PGVSharedData->buttonImageData, gIconData, gIconSize);
+    }
     
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, screenLockStateChanged, NotificationDisplayStatus, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 
@@ -340,8 +346,21 @@ FloatMenu* initFloatMenu(UIWindow* win)
     };
     
     
-    // Store load info - actual loading happens after view is added to window
-    floatH5.rawHTML = [getLLCode() isEqualToString:@"zh"] ? [NSString stringWithUTF8String:gMenuData] : [NSString stringWithUTF8String:gMenuEnData];
+    // Store load info - actual loading happens after view is added to window.
+    floatH5.rawHTML = H5GGEmbeddedCustomMenu();
+    if(!floatH5.rawHTML) {
+        NSString* bundledMenu = [NSBundle.mainBundle pathForResource:@"H5Menu" ofType:@"html"];
+        if(bundledMenu) {
+            floatH5.rawHTML = [NSString stringWithContentsOfFile:bundledMenu
+                                                       encoding:NSUTF8StringEncoding
+                                                          error:nil];
+        }
+    }
+    if(!floatH5.rawHTML) {
+        floatH5.rawHTML = [getLLCode() isEqualToString:@"zh"] ?
+            [NSString stringWithUTF8String:gMenuData] :
+            [NSString stringWithUTF8String:gMenuEnData];
+    }
     NSString* jquery = [NSString stringWithUTF8String:gH5GG_JQUERY_FILEData];
     floatH5.rawHTML = [floatH5.rawHTML stringByReplacingOccurrencesOfString:@"var h5gg_jquery_stub;" withString:jquery];
     
@@ -451,7 +470,12 @@ void initFloatButton(void (^callback)(void))
     if(g_testapp_runmode)
         floatBtn.center = CGPointMake(150, 60);
     
-    UIImage* iconImage = [UIImage imageNamed:@"H5Icon.png"];
+    NSData* customIcon = H5GGEmbeddedCustomIcon();
+    UIImage* iconImage = customIcon ? [[UIImage alloc] initWithData:customIcon] : nil;
+    if(!iconImage) {
+        NSString* bundledIcon = [NSBundle.mainBundle pathForResource:@"H5Icon" ofType:@"png"];
+        if(bundledIcon) iconImage = [UIImage imageWithContentsOfFile:bundledIcon];
+    }
     if(!iconImage) {
         NSData* iconData = [[NSData alloc] initWithBytes:gIconData length:gIconSize];
         iconImage = [[UIImage alloc] initWithData:iconData];

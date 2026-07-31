@@ -73,6 +73,12 @@ extern GVData* PGVSharedData;
 
 - (void)_documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentAtURL:(NSURL *)url {
     NSLog(@"didPickDocumentAtURL %@", url);
+    if(!url) {
+        self.pickedfile = nil;
+        if(self.pickedfile_notify) self.pickedfile_notify();
+        [self dismiss];
+        return;
+    }
     BOOL canAccessingResource = [url startAccessingSecurityScopedResource];
     NSLog(@"canAccessingResource=%d", canAccessingResource);
     [self dismiss];
@@ -83,14 +89,17 @@ extern GVData* PGVSharedData;
 
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *>*)urls {
     NSLog(@"didPickDocumentAtURLs %@", urls);
-    [self _documentPicker:controller didPickDocumentAtURL:urls[0]];
+    [self _documentPicker:controller didPickDocumentAtURL:urls.firstObject];
 }
 
 + (void)filePicker:(NSArray<NSString*>*)types callback:(void(^)(NSString*))callback {
     [self present:^(TopShow* controller) {
         __weak TopShow* weakPicker = controller;
+        __block BOOL settled = NO;
 
         controller.pickedfile_notify = ^{
+            if(settled) return;
+            settled = YES;
             __strong TopShow* strongPicker = weakPicker;
             if(strongPicker) callback(strongPicker.pickedfile);
         };

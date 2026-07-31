@@ -579,14 +579,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
                     if($("#procname").attr('pid'))
                     {
-                        var procs = await h5gg.getProcList();
-                        var alive = false;
-                        for(var i=0; i<procs.length; i++) {
-                            if(procs[i].pid == $("#procname").attr('pid')) {
-                                alive=true;
-                                break;
-                            }
-                        }
+                        var targetStatus = await h5gg.getTargetStatus();
+                        var alive = targetStatus && targetStatus.available;
                         
                         if(!alive) {
                             alert("目标进程已结束\n\n请点击标题栏选择新的目标");
@@ -922,9 +916,11 @@ async function onClickMakeTweak()
     console.log('FUNC onClickMakeTweak');
     alert("制作自己专属的dylib\n\n第一步: 选择悬浮按钮图标文件");
     var icon = await h5gg.pickScriptFile(["public.image"]);
+    if(!icon) return;
     
     alert("第二步: 选择需要自动加载的html文件");
     var html = await h5gg.pickScriptFile(["public.html"]);
+    if(!html) return;
     
     alert(await h5gg.makeTweak(icon, html));
 }
@@ -984,7 +980,10 @@ async function saveBookmark(addr, type) {
 }
 
 async function freezeResult(addr, val, type) {
-    await h5gg.freezeValue(addr, val, type);
+    if(!await h5gg.freezeValue(addr, val, type)) {
+        showToast('Unable to freeze value');
+        return;
+    }
     var el = document.querySelector('[data-addr="'+addr+'"]');
     if(el) el.classList.add('frozen');
 }
@@ -1005,6 +1004,7 @@ async function openFreezePanel() {
         html += '<div style="display:flex;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
         html += '<div style="flex:1;font-size:12px">';
         html += '<span style="font-weight:bold">'+f.type+'</span> <span>'+f.address+'</span> = <span style="color:#3393EF">'+f.value+'</span>';
+        html += '<div style="font-size:10px;color:'+(f.status == 'active' ? 'green' : 'red')+'">'+f.status+(f.failures ? ' ('+f.failures+' failures)' : '')+(f.lastError ? ': '+f.lastError : '')+'</div>';
         html += '</div>';
         html += '<button onclick="unfreezeAddr(\''+f.address+'\')" style="font-size:16px;color:red;background:none;border:none;padding:4px">&times;</button>';
         html += '</div>';
@@ -1105,20 +1105,26 @@ async function openScriptEditor() {
     html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
     html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
     html += '<span>Script Editor</span>';
-    html += '<span><button onclick="runCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Run</button><button onclick="saveCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Save</button> <span onclick="closeOverlay(\'scriptOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
+    html += '<span><button onclick="runCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Run JS</button><button onclick="saveCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Save</button><button onclick="deleteCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Delete</button> <span onclick="closeOverlay(\'scriptOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
     html += '</div>';
     html += '<div style="display:flex;flex:1;overflow:hidden">';
     html += '<div class="scrollbar" style="width:100px;border-right:1px solid var(--border-color,#ccc);overflow-y:auto;flex-shrink:0;padding:2px">';
     html += '<button onclick="newScript()" style="width:100%;font-size:11px;margin:2px 0">+ New</button>';
     for(var i=0;i<list.length;i++) {
-        html += '<div onclick="loadScript(\''+list[i]+'\')" style="padding:4px;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border-color,#eee);word-break:break-all">'+list[i]+'</div>';
+        html += '<div data-script="'+encodeURIComponent(list[i])+'" onclick="loadScript(decodeURIComponent(this.dataset.script))" style="padding:4px;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border-color,#eee);word-break:break-all">'+escapeScriptText(list[i])+'</div>';
     }
     html += '</div>';
     html += '<div style="flex:1;display:flex;flex-direction:column;padding:4px">';
     html += '<input id="scriptFileName" value="untitled.js" style="width:100%;margin-bottom:4px;padding:4px;font-size:12px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
-    html += '<textarea id="scriptEditor" style="flex:1;width:100%;font-family:monospace;font-size:11px;padding:4px;resize:none;background:var(--input-bg,transparent);color:var(--text-color,#000);border:1px solid var(--border-color,#ccc);border-radius:3px">// Write your script here</textarea>';
+    html += '<textarea id="scriptEditor" style="flex:1;width:100%;font-family:monospace;font-size:11px;padding:4px;resize:none;background:var(--input-bg,transparent);color:var(--text-color,#000);border:1px solid var(--border-color,#ccc);border-radius:3px">// Explicit save only; there is no autosave.</textarea>';
     html += '</div></div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function escapeScriptText(value) {
+    return String(value).replace(/[&<>"']/g, function(character) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];
+    });
 }
 
 async function loadScript(name) {
@@ -1126,7 +1132,8 @@ async function loadScript(name) {
     var input = document.getElementById('scriptFileName');
     var editor = document.getElementById('scriptEditor');
     if(input) input.value = name;
-    if(editor && content) editor.value = content;
+    if(editor && content !== null) editor.value = content;
+    if(content === null) showToast((await h5gg.getLastFileError()) || 'Unable to load script');
 }
 
 async function saveCurrentScript() {
@@ -1138,7 +1145,22 @@ async function saveCurrentScript() {
     var content = editor.value;
     if(!name) return alert('Enter a file name');
     var ok = await h5gg.saveScript(name, content);
-    if(ok) alert('Saved');
+    if(ok) {
+        showToast('Saved');
+    } else {
+        showToast((await h5gg.getLastFileError()) || 'Unable to save script');
+    }
+}
+
+async function deleteCurrentScript() {
+    var input = document.getElementById('scriptFileName');
+    if(!input || !confirm('Delete '+input.value+'?')) return;
+    if(await h5gg.deleteScript(input.value)) {
+        closeOverlay('scriptOverlay');
+        await openScriptEditor();
+    } else {
+        showToast((await h5gg.getLastFileError()) || 'Unable to delete script');
+    }
 }
 
 function newScript() {
@@ -1262,6 +1284,10 @@ async function openPointerChain() {
 
 async function addPtrStep() {
     console.log('FUNC addPtrStep');
+    if(gPointerChain.length > 32) {
+        showToast('Pointer chains are limited to 32 reads');
+        return;
+    }
     if(gPointerChain.length == 0) {
         var base = document.getElementById('ptrBase').value.trim();
         if(!base) return;
@@ -1272,9 +1298,16 @@ async function addPtrStep() {
     if(!off) return;
     
     var currentAddr = gPointerChain[gPointerChain.length - 1];
-    var offNum = off.startsWith('0x') ? parseInt(off.substring(2), 16) : parseInt(off);
-    var targetAddr = (parseInt(currentAddr.startsWith('0x') ? currentAddr.substring(2) : currentAddr, 16) + offNum).toString(16);
-    targetAddr = '0x' + targetAddr.toUpperCase();
+    var target;
+    try {
+        var offset = off.startsWith('-0x') ? -BigInt('0x'+off.substring(3)) : BigInt(off);
+        target = BigInt(currentAddr) + offset;
+        if(target < 0n || target > 0xFFFFFFFFFFFFFFFFn) throw new Error('range');
+    } catch(error) {
+        showToast('Invalid pointer address or offset');
+        return;
+    }
+    var targetAddr = '0x' + target.toString(16).toUpperCase();
     
     var value = await h5gg.readPointer(targetAddr);
     
@@ -1287,6 +1320,10 @@ async function addPtrStep() {
         display.appendChild(line);
     }
     
+    if(!value) {
+        showToast('Pointer read failed');
+        return;
+    }
     gPointerChain.push(value);
     document.getElementById('ptrOffset').value = '';
     document.getElementById('ptrOffset').focus();
@@ -1296,9 +1333,20 @@ async function doHexSearch() {
     console.log('FUNC doHexSearch');
     var hex = document.getElementById('hexInput').value.trim();
     if(!hex) return;
-    await h5gg.searchHex(hex, '0x0', '0xFFFFFFFF00000000');
+    var start = document.getElementById('range_min').value;
+    var end = document.getElementById('range_max').value;
+    await h5gg.searchHex(hex, start, end);
     await loadSearchResults();
     await h5gg.addSearchHistory(hex, 'Hex', await h5gg.getResultsCount());
+}
+
+async function refineNumericResults() {
+    var value = document.getElementById('refineValue').value.trim();
+    var type = document.getElementById('refineType').value;
+    var mode = Number(document.getElementById('refineMode').value);
+    if(!value) return;
+    await h5gg.searchFilter(value, type, mode);
+    await onClickRefreshResults(true);
 }
 
 async function openDumpPanel() {
@@ -1313,7 +1361,7 @@ async function openDumpPanel() {
     html += '<div style="margin:6px 0"><label>Start Address:</label><br><input id="dumpStart" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
     html += '<div style="margin:6px 0"><label>End Address:</label><br><input id="dumpEnd" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
     html += '<div style="margin:6px 0"><label>File Name:</label><br><input id="dumpName" type="text" value="dump.bin" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<button onclick="doDump()" style="width:100%;margin:6px 0">Dump</button>';
+    html += '<div style="display:flex;gap:4px"><button onclick="doDump()" style="flex:1;margin:6px 0">Dump</button><button onclick="cancelDump()" style="flex:1;margin:6px 0">Cancel</button></div>';
     html += '<div id="dumpStatus" style="font-size:11px;color:#888"></div>';
     html += '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
@@ -1326,10 +1374,29 @@ async function doDump() {
     var name = document.getElementById('dumpName').value.trim();
     if(!start || !end || !name) return;
     var status = document.getElementById('dumpStatus');
-    if(status) status.textContent = 'Dumping...';
-    var ok = await h5gg.dumpMemory(start, end, name);
-    if(status) status.textContent = ok ? 'Saved to Documents/'+name : 'Dump failed';
-    if(ok) setTimeout(function(){ closeOverlay('dumpOverlay'); }, 1500);
+    if(status) status.textContent = 'Dumping... 0%';
+    var poll = setInterval(async function() {
+        var current = await h5gg.getDumpStatus();
+        if(status && current && current.state == 'running') {
+            status.textContent = 'Dumping... ' + Math.floor((current.progress || 0) * 100) + '%';
+        }
+    }, 250);
+    try {
+        var ok = await h5gg.dumpMemory(start, end, name);
+        var finalStatus = await h5gg.getDumpStatus();
+        if(status) status.textContent = ok ? 'Saved to Documents/'+name :
+            (finalStatus.state == 'cancelled' ? 'Dump cancelled' :
+             'Dump failed' + (finalStatus.error ? ': ' + finalStatus.error : ''));
+        if(ok) setTimeout(function(){ closeOverlay('dumpOverlay'); }, 1500);
+    } catch(error) {
+        if(status) status.textContent = 'Dump failed: ' + error;
+    } finally {
+        clearInterval(poll);
+    }
+}
+
+async function cancelDump() {
+    await h5gg.cancelDump();
 }
 
 async function openMemoryEditor(addr, type) {
@@ -1448,6 +1515,7 @@ async function loadAutorunList() {
     var list = await h5gg.listScripts();
     sel.innerHTML = '<option value="">-- 自动运行 --</option>';
     for(var i=0;i<list.length;i++) {
+        if(!list[i].toLowerCase().endsWith('.js')) continue;
         var opt = document.createElement('option');
         opt.value = list[i];
         opt.textContent = list[i];
@@ -1462,7 +1530,12 @@ function setAutorun() {
 }
 
 function runCurrentScript() {
-    runScript(document.getElementById('scriptEditor').value, document.getElementById('scriptFileName').value);
+    var filename = document.getElementById('scriptFileName').value;
+    if(filename.toLowerCase().endsWith('.html')) {
+        showToast('HTML files can be edited and saved, but only JavaScript files can run here');
+        return;
+    }
+    runScript(document.getElementById('scriptEditor').value, filename);
 }
 
 function runScript(code, filename) {
@@ -1515,6 +1588,10 @@ async function checkAutorun() {
     console.log('FUNC checkAutorun');
     var name = localStorage.getItem('h5gg_autorun');
     if(!name) return;
+    if(!name.toLowerCase().endsWith('.js')) {
+        localStorage.removeItem('h5gg_autorun');
+        return;
+    }
     var content = await h5gg.loadScript(name);
     if(content) runScript(content, name);
 }
@@ -1590,8 +1667,14 @@ function openMemoryViewer() {
 async function viewerGo() {
     var input = document.getElementById('viewerAddr');
     if(!input) return;
-    gViewerAddr = input.value.trim();
-    if(!gViewerAddr.startsWith('0x')) gViewerAddr = '0x' + parseInt(gViewerAddr).toString(16);
+    try {
+        var address = BigInt(input.value.trim());
+        if(address < 0n || address > 0xFFFFFFFFFFFFFFFFn) throw new Error('range');
+        gViewerAddr = '0x' + address.toString(16).toUpperCase();
+    } catch(error) {
+        document.getElementById('viewerDump').textContent = 'Invalid address';
+        return;
+    }
     input.value = gViewerAddr;
     await viewerRefresh();
 }
@@ -1601,22 +1684,32 @@ async function viewerRefresh() {
     var dump = document.getElementById('viewerDump');
     if(!dump || !gViewerAddr) return;
 
-    var addr = parseInt(gViewerAddr, 16);
-    var hex = await h5gg.readBytes(gViewerAddr, 256);
-    if(!hex) { dump.textContent = 'Failed to read memory'; return; }
+    var addr = BigInt(gViewerAddr);
+    var page = await h5gg.readMemoryPage(gViewerAddr, 256);
+    if(!page || page.error) { dump.textContent = 'Failed to read memory'; return; }
 
-    var lines = hex.split('\n');
     var out = '';
-    for(var i = 0; i < lines.length; i++) {
-        var offset = (addr + i * 16).toString(16).toUpperCase().padStart(8, '0');
-        out += offset + '  ' + lines[i] + '\n';
+    for(var line = 0; line < page.bytes.length; line += 16) {
+        var offset = (addr + BigInt(line)).toString(16).toUpperCase().padStart(16, '0');
+        var hex = '';
+        var ascii = '';
+        for(var column = 0; column < 16; column++) {
+            var value = page.bytes[line + column];
+            hex += value === null ? '?? ' : value.toString(16).toUpperCase().padStart(2, '0') + ' ';
+            if(column == 7) hex += ' ';
+            ascii += value === null ? '\u00b7' : (value >= 32 && value <= 126 ? String.fromCharCode(value) : '.');
+        }
+        out += offset + '  ' + hex + ' |' + ascii + '|\n';
     }
+    if(!page.complete) out += '\nUnreadable bytes are shown as ??.';
     dump.textContent = out;
 }
 
 async function viewerStep(delta) {
-    var addr = parseInt(gViewerAddr, 16);
-    addr += delta;
+    var addr = BigInt(gViewerAddr) + BigInt(delta);
+    var maximum = 0xFFFFFFFFFFFFFFFFn - 255n;
+    if(addr < 0n) addr = 0n;
+    if(addr > maximum) addr = maximum;
     gViewerAddr = '0x' + addr.toString(16).toUpperCase();
     var input = document.getElementById('viewerAddr');
     if(input) input.value = gViewerAddr;
@@ -1683,8 +1776,14 @@ async function viewerPage(dir) {
 <br/>
 <div style="display:flex;align-items:center;padding:2px 4px;margin-top:2px">
     <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#3393EF">Hex</span>
-    <input id="hexInput" type="text" placeholder="90 00 E0 AF" style="flex:1;height:26px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
+    <input id="hexInput" type="text" placeholder="90 ?? E? AF" title="? is a wildcard nibble; searching again refines current results" style="flex:1;height:26px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
     <button onclick="doHexSearch()" style="height:26px;font-size:11px;padding:2px 6px;margin-left:4px">Search</button>
+</div>
+<div style="display:flex;align-items:center;padding:2px 4px">
+    <input id="refineValue" type="text" placeholder="refine value" style="width:70px;height:24px;font-size:10px">
+    <select id="refineType" style="width:48px;height:24px;font-size:10px"><option>I8</option><option>U8</option><option>I16</option><option>U16</option><option selected>I32</option><option>U32</option><option>I64</option><option>U64</option><option>F32</option><option>F64</option></select>
+    <select id="refineMode" style="width:42px;height:24px;font-size:10px"><option value="0">=</option><option value="2">&gt;</option><option value="3">&lt;</option></select>
+    <button onclick="refineNumericResults()" style="height:24px;font-size:10px;padding:2px 5px">Refine</button>
 </div>
 <div style="display:flex;align-items:center;padding:2px 4px">
     <span style="font-size:11px;margin-right:4px;color:#888">容差</span>

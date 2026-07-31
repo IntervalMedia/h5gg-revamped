@@ -17,6 +17,10 @@ The host suite covers:
 - signed, unsigned, floating-point, and invalid value parsing;
 - equal/greater/less result filtering through an in-memory reader;
 - strict hexadecimal pattern parsing;
+- wildcard hex matching and result refinement;
+- partial memory pages with unreadable-byte markers;
+- streaming dump progress, cancellation, and failure behavior;
+- multi-slice dylib template replacement and host `ldid` signing;
 - bridge method allowlisting and argument ranges;
 - user-controlled filename confinement;
 - exactly one `H5GG_BUILD_*` definition for every Theos scheme when `THEOS` is
@@ -45,14 +49,19 @@ for every row.
 | Standalone | Invalid/terminated target | Operation fails without corrupting the current session |
 | Any | Numeric first/refine search for every type | Counts, values, and types remain consistent |
 | Any | Equal/greater/less result filter | Returned count equals displayed result count |
-| Any | Hex search with spaced/mixed-case bytes | Matches are returned as byte results |
+| Any | Hex first/refine search with mixed-case and `?` wildcards | Matches refine in place and are returned as byte results |
 | Any | Invalid/odd-length hex search | Search is rejected without changing the current session |
-| Any | Read 256 raw bytes | Viewer shows only bytes actually read |
-| Any | Dump across a readable page | File length and contents match memory |
-| Any | Dump crossing an unreadable page | No uninitialized output is written |
+| Any | Read 256 bytes across a protection boundary | Viewer shows readable bytes and `??` for each unreadable byte |
+| Any | Dump across a readable page | Progress reaches 100%; file length and contents match memory |
+| Any | Cancel a multi-page dump | Promise settles false and no partial file remains |
+| Any | Dump crossing an unreadable page | Status identifies the failure and no partial file remains |
 | Any | Cancel and overlap file pickers | Every Promise settles once with the correct call ID |
 | Any | Post unknown bridge method | Promise rejects and no Objective-C selector is invoked |
 | Any | Save/load/delete script | Valid `.js`/`.html` names work; traversal names are rejected |
+| Any | Load an `H5GGPluginRPC` demo plugin | Handle loads and JSON calls/results cross the WK bridge |
+| Any | Generate and load a custom dylib | Both architecture slices are signed; custom icon/menu load |
+| Any | Terminate selected target with frozen values | Session invalidates and entries report/clear target state safely |
+| Any | Search exact 64-bit pointers | Results stop at documented limits and chains stop at 32 reads |
 | GlobalView | Host/unhost supported application | View and button state synchronize without a SpringBoard crash |
 | GlobalView | Rotate and switch applications | Orientation and configured dismissal behavior apply |
 | Rootful | Install/uninstall normal package | Files use rootful paths and runtime launches |
@@ -65,6 +74,7 @@ As of 2026-07-31:
 
 - host tests pass;
 - normal arm64/arm64e compilation passes;
+- universal dylib replacement and host signing integration passes;
 - rootless and roothide sources compile with their distinct definitions;
 - plist and entitlement linting passes;
 - device rows remain unverified and must be completed before a stable release.

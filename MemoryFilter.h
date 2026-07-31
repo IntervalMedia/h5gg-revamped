@@ -2,6 +2,7 @@
 #define H5GG_MEMORY_FILTER_H
 
 #include "MemoryResults.h"
+#include "MemoryValue.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -14,5 +15,10 @@ size_t JJFilterResultSet(Result& results,
                          int type,
                          int mode,
                          const JJMemoryReader& reader);
+size_t JJFilterHexResultSet(Result& results,
+                            const JJHexPattern& pattern,
+                            const JJMemoryReader& reader,
+                            uint64_t rangeStart,
+                            uint64_t rangeEnd);
 
 #endif

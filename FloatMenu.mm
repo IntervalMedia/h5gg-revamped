@@ -406,6 +406,12 @@ static NSString* _bridgeSource() {
     [self evaluateJavaScript:js completionHandler:nil];
 }
 
+- (NSNumber*)deferCurrentCall {
+    if(!self.pendingCallId) return nil;
+    self.hasPendingCallback = YES;
+    return self.pendingCallId;
+}
+
 #pragma mark - Dynamic invocation helpers
 
 - (id)_invokeBlock:(id)block withArgs:(NSArray*)args {

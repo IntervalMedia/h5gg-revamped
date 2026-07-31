@@ -16,7 +16,11 @@ trap 'rm -f "$test_output"' EXIT
   "$repo_root/BridgeMethods.cpp" \
   "$repo_root/FileNames.cpp" \
   "$repo_root/MemoryFilter.cpp" \
+  "$repo_root/MemoryPage.cpp" \
+  "$repo_root/MemoryDump.cpp" \
+  "$repo_root/DylibTemplate.cpp" \
   -o "$test_output"
 
 "$test_output"
 bash "$repo_root/tests/check_build_variants.sh"
+bash "$repo_root/tests/check_dylib_generation.sh"

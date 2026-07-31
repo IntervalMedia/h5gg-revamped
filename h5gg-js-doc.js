@@ -29,7 +29,13 @@ await h5gg.clearResults(); //清除搜索结果, 重新开始搜索
 await h5gg.getRangesList('模块文件名'); //返回模块数组, 模块有 start(基址), end(结束地址), name(路径) 属性
 (模块文件名=0 返回APP主程序模块信息, 不传参返回全部模块列表)
 
-await h5gg.loadPlugin('Objective-C 类名', 'dylib 文件路径'); //加载 dylib 插件, 返回 OC 实例对象
+const plugin = await h5gg.loadPlugin('Objective-C 类名', 'dylib 文件路径'); //WK插件实现H5GGPluginRPC并返回JSON句柄
+const reply = await h5gg.callPlugin(plugin.id, '方法名', ['JSON参数']); //返回 {ok,result} 或 {ok:false,error}
+
+await h5gg.searchHex('DE AD ?? E?', '0x0', '0x200000000'); //首次搜索，后续调用改善结果；?表示通配半字节
+await h5gg.searchFilter('100', 'I32', 0); //筛选当前结果：0等于、2大于、3小于
+await h5gg.readMemoryPage('0x1000', 256); //返回字节/null标记、可读数量和complete状态
+await h5gg.dumpMemory('0x1000', '0x2000', 'dump.bin'); //异步流式导出；可查询getDumpStatus()或调用cancelDump()
 
 仅跨进程版 APP 可用:
 

@@ -339,10 +339,21 @@ void JJMemoryEngine::JJScanMemory(AddrRange range, void* target, int type) {
 }
 
 void JJMemoryEngine::JJScanHexMemory(AddrRange range, const char* hexStr) {
-    vector<uint8_t> pattern;
-    if(!JJParseHexPattern(hexStr, pattern)) return;
+    JJHexPattern pattern;
+    if(!JJParseMaskedHexPattern(hexStr, pattern)) return;
 
-    result->clear();
+    if(firstScanDone) {
+        JJFilterHexResultSet(
+            *result, pattern,
+            [this](void* output, uint64_t address, size_t length) {
+                return readMemory(output, address, length);
+            },
+            range.start, range.end);
+        lastNumberType = JJ_Search_Type_UByte;
+        saveSnapshot();
+        return;
+    }
+
     enumerateRegions(range);
 
     for(auto& [base, size] : this->regions) {
@@ -363,13 +374,11 @@ void JJMemoryEngine::JJScanHexMemory(AddrRange range, const char* hexStr) {
         uint64_t scanSize = min((uint64_t)loadSize, region_size);
         auto matches = std::make_unique<result_region>(region_base, region_size);
 
-        for(uint64_t off = 0; off <= scanSize - pattern.size(); off++) {
-            bool match = true;
-            for(size_t i = 0; i < pattern.size(); i++) {
-                if(bytes[off + i] != pattern[i]) { match = false; break; }
-            }
-            if(match) {
-                matches->append((uint32_t)off, JJ_Search_Type_UByte);
+        if(scanSize >= pattern.size()) {
+            for(uint64_t off = 0; off <= scanSize - pattern.size(); off++) {
+                if(JJHexPatternMatches(bytes + off, pattern.size(), pattern)) {
+                    matches->append((uint32_t)off, JJ_Search_Type_UByte);
+                }
             }
         }
 
@@ -709,15 +718,30 @@ int JJMemoryEngine::JJWriteAll(void *target, int type) {
     return count;
 }
 
-vector<pair<uint64_t, uint64_t>> JJMemoryEngine::JJFindPointers(uint64_t targetAddr, AddrRange range) {
+vector<pair<uint64_t, uint64_t>> JJMemoryEngine::JJFindPointers(
+    uint64_t targetAddr,
+    AddrRange range,
+    size_t maxResults,
+    uint64_t maxScannedBytes) {
     vector<pair<uint64_t, uint64_t>> results;
+    if(range.start >= range.end || maxResults == 0 || maxScannedBytes < sizeof(uint64_t)) {
+        return results;
+    }
 
+    enumerateRegions(range);
+    uint64_t scannedBytes = 0;
     for(auto& [base, size] : this->regions) {
-        if(base < range.start || base > range.end) continue;
+        uint64_t mappedEnd = size > UINT64_MAX - base ? UINT64_MAX : base + size;
+        if(base >= range.end || size == 0 || mappedEnd <= range.start) continue;
 
-        uint64_t region_end = min(base + size, range.end);
+        uint64_t region_end = min(mappedEnd, range.end);
         uint64_t region_base = max(base, range.start);
+        if(region_base > UINT64_MAX - (sizeof(uint64_t) - 1)) continue;
+        region_base = (region_base + sizeof(uint64_t) - 1) &
+                      ~(uint64_t)(sizeof(uint64_t) - 1);
+        if(region_base >= region_end || scannedBytes >= maxScannedBytes) break;
         uint64_t region_size = region_end - region_base;
+        region_size = min(region_size, maxScannedBytes - scannedBytes);
         if(region_size < 8) continue;
 
         bool remapped = false;
@@ -727,14 +751,17 @@ vector<pair<uint64_t, uint64_t>> JJMemoryEngine::JJFindPointers(uint64_t targetA
 
         uint64_t* ptrs = (uint64_t*)buffer;
         uint64_t scanSize = min((uint64_t)loadSize, region_size) / 8;
+        scannedBytes += scanSize * sizeof(uint64_t);
 
         for(uint64_t i = 0; i < scanSize; i++) {
             if(ptrs[i] == targetAddr) {
                 results.push_back({region_base + i * 8, ptrs[i]});
+                if(results.size() >= maxResults) break;
             }
         }
 
         unloadRegion(buffer, loadSize, remapped);
+        if(results.size() >= maxResults) break;
     }
 
     return results;

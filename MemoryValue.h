@@ -27,6 +27,19 @@ enum JJ_Filter_Mode {
     JJ_Filter_Less = 3,
 };
 
+struct JJHexPattern {
+    std::vector<uint8_t> values;
+    std::vector<uint8_t> masks;
+
+    bool empty() const {
+        return values.empty();
+    }
+
+    size_t size() const {
+        return values.size();
+    }
+};
+
 extern const int JJ_Search_Type_Len[];
 
 bool JJParseValue(const char* text, int type, uint8_t output[8]);
@@ -36,5 +49,7 @@ bool JJValueMatchesFilter(const uint8_t current[8],
                           int type,
                           int mode);
 bool JJParseHexPattern(const char* text, std::vector<uint8_t>& bytes);
+bool JJParseMaskedHexPattern(const char* text, JJHexPattern& pattern);
+bool JJHexPatternMatches(const uint8_t* bytes, size_t length, const JJHexPattern& pattern);
 
 #endif

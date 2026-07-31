@@ -26,6 +26,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)confirm:(NSString*)message;
 - (nullable NSString*)prompt:(NSString*)text defaultText:(NSString*)defaultText;
 - (void)resolveCallId:(NSNumber*)callId result:(nullable id)result error:(nullable NSString*)error;
+- (nullable NSNumber*)deferCurrentCall;
 
 @end
 

@@ -12,7 +12,12 @@ bridge allowlisting, Promise error settlement, and distinct compiler
 definitions for each package variant. The host suite covers the bridge schema
 and the in-memory reader seam; native WK dispatch, raw Mach reads, package
 layouts, and the device checks in [validation.md](validation.md) remain release
-gates. Phases 2–5 remain planned work.
+gates. Phases 3–5 remain planned work.
+
+Phase 2 code and host verification were completed on 2026-07-31. The exact
+contracts and explicit limits are recorded in
+[phase-2-features.md](phase-2-features.md). Hardware-dependent rows remain
+experimental until recorded in [validation.md](validation.md).
 
 ## Release gates
 
@@ -73,17 +78,17 @@ Goal: finish features already present in the UI or README before expanding scope
 
 | Capability | Current state | Completion outcome |
 |---|---|---|
-| Hex search | UI/native entry exists; region setup is broken | First/refine semantics, wildcard decision, syntax errors, tests |
-| Search within results | Native path violates result invariants | All numeric types and documented modes |
-| Memory viewer | UI exists; raw read is incorrect | Partial reads, unreadable markers, bounded paging |
-| Memory dump | UI exists; raw read/path handling broken | Chunked streaming, progress/cancel, safe filename |
-| Cross-process mode | Selection reports success with wrong engine port | Atomic target session and target-lifecycle handling |
-| Value freezer | Works in simple cases; lifecycle is unsafe | Target-aware entries, failure status, safe timer teardown |
-| Script editor | Basic CRUD exists; paths/docs are incomplete | Sandboxed names, `.js`/`.html` policy, errors, autosave decision |
-| Native plugins | `dlopen` exists; WK return contract is broken | Explicit RPC/proxy design or documented removal |
-| Dylib generation | UI exists; replacement stubs are unavailable | Embedded stubs and signed-output integration test |
-| File picker | Basic success path exists | Cancellation, overlapping calls, security-scope cleanup |
-| Pointer tools | Exact pointer and JS chain flows exist | Define supported pointer widths/ranges and completion limits |
+| Hex search | Complete | First/refine semantics; nibble wildcards; parser/refinement tests |
+| Search within results | Complete | Every numeric type; equal/greater/less; invariant-safe filtering |
+| Memory viewer | Complete | Partial reads; `??` markers; bounded 64-bit paging |
+| Memory dump | Complete | Streaming; progress/cancel; partial-file cleanup; safe filename |
+| Cross-process mode | Complete | Atomic target sessions; termination invalidation; dump port ownership |
+| Value freezer | Complete | Target PID binding; visible failures; safe timer teardown |
+| Script editor | Complete | Sandboxed names; explicit `.js`/`.html` policy; errors; explicit save |
+| Native plugins | Complete, new contract | JSON RPC for WK; legacy object compatibility only in JavaScriptCore |
+| Dylib generation | Host-verified; device experimental | Embedded per-slice stubs; replacement/signing integration check |
+| File picker | Complete | Once-only cancellation/success; independent call IDs; scope cleanup |
+| Pointer tools | Complete with limits | 64-bit/8-byte; 4,096 results; 512 MiB scan; 32-step chains |
 
 Exit: every capability is either verified and documented, marked experimental
 with explicit limits, or removed from the stable UI.

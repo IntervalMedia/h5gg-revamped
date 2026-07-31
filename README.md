@@ -11,6 +11,7 @@ iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but
 - [Architecture baseline](docs/architecture.md)
 - [Codebase review and issue register](docs/codebase-review.md)
 - [Stabilization and feature roadmap](docs/roadmap.md)
+- [Phase 2 feature contracts and limits](docs/phase-2-features.md)
 - [Validation matrix](docs/validation.md)
 
 ---
@@ -28,7 +29,7 @@ iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but
 - memory search/read/write [APIs](/examples-JavaScript/) from JavaScript
 - fully custom HTML5 UI
 - load scripts (.js or .html) from local storage or network
-- dylib plugin system ([demo](/pluginDemo/customAlert))
+- JSON-RPC dylib plugin system ([demo](/pluginDemo/customAlert))
 - auto pointer chain search ([example](/examples-JavaScript/AutoSearchPointerChains.js))
 - one-click dylib generation
 - [h5frida](/examples-h5frida) plugin for C/C++/ObjC hooking

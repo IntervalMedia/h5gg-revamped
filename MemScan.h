@@ -83,7 +83,11 @@ public:
     void JJScanMemory(AddrRange range, void* target, int type);
     void JJScanHexMemory(AddrRange range, const char* hexStr);
     void JJNearBySearch(size_t range, void *target, int type);
-    vector<pair<uint64_t, uint64_t>> JJFindPointers(uint64_t targetAddr, AddrRange range);
+    vector<pair<uint64_t, uint64_t>> JJFindPointers(
+        uint64_t targetAddr,
+        AddrRange range,
+        size_t maxResults = 4096,
+        uint64_t maxScannedBytes = 512ULL * 1024ULL * 1024ULL);
     size_t JJReadBytes(void* buf, uint64_t addr, size_t len);
     bool JJReadMemory(void* buf, uint64_t addr, int type);
     bool JJWriteMemory(void* address, void *target, int type);

@@ -19,7 +19,7 @@ endif
 
 TWEAK_NAME = H5GG
 
-H5GG_FILES = Tweak.mm h5gg.mm MemScan.mm MemoryResults.cpp MemoryValue.cpp MemoryFilter.cpp BridgeMethods.cpp FileNames.cpp crossproc.mm FloatMenu.mm FloatButton.m FloatWindow.m TopShow.m ModalShow.m makeDYLIB.mm makeWindow.m ldid-master/ldid.cpp ldid-master/lookup2.c
+H5GG_FILES = Tweak.mm h5gg.mm MemScan.mm MemoryResults.cpp MemoryValue.cpp MemoryFilter.cpp MemoryPage.cpp MemoryDump.cpp DylibTemplate.cpp BridgeMethods.cpp FileNames.cpp crossproc.mm FloatMenu.mm FloatButton.m FloatWindow.m TopShow.m ModalShow.m makeDYLIB.mm makeWindow.m ldid-master/ldid.cpp ldid-master/lookup2.c
 H5GG_COMMON_FLAGS =
 ifeq ($(JB_VARIANT),normal)
 H5GG_COMMON_FLAGS += -DH5GG_BUILD_NORMAL=1
