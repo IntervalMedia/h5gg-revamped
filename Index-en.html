@@ -1,13 +1,17 @@
-<html>
+<!DOCTYPE html>
 <head>
 <title>H5GG</title>
-<!--设置手机显示模式, 填满宽度,原尺寸显示,禁止双指缩放-->
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark">
 <!--CSS外观样式表-->
 <style>
 :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --ios-control-font-size: 16px;
     --bg-color: rgba(255,255,255,0.8);
     --text-color: #000;
     --btn-bg: #84848450;
@@ -31,6 +35,8 @@
     --border-light: #B8B8B880;
     --checkbox-border: #686868;
     --checkbox-checked-border: #B8B8B8;
+    --radio-border-color: #000000;
+    --radio-dot-color: #000000;
 }
 
 :root.dark {
@@ -57,6 +63,8 @@
     --border-light: #68686880;
     --checkbox-border: #888888;
     --checkbox-checked-border: #888888;
+    --radio-border-color: #D0D0D0;
+    --radio-dot-color: #D0D0D0;
 }
 
 :root.light {
@@ -83,6 +91,8 @@
     --border-light: #B8B8B880;
     --checkbox-border: #686868;
     --checkbox-checked-border: #B8B8B8;
+    --radio-border-color: #000000;
+    --radio-dot-color: #000000;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -110,6 +120,8 @@
         --border-light: #68686880;
         --checkbox-border: #888888;
         --checkbox-checked-border: #888888;
+        --radio-border-color: #D0D0D0;
+        --radio-dot-color: #D0D0D0;
     }
 }
 
@@ -120,13 +132,15 @@ body {
     margin: 0;
     overflow: hidden;
     background-color: var(--bg-color);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 * {
     box-sizing: border-box;
     /*默认文字颜色*/
     color: var(--text-color);
     font-size: 13px;
-    font-family: Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
     
    -webkit-tap-highlight-color: transparent;
    outline: none;
@@ -176,18 +190,27 @@ button:active {
 input[type=radio]  {
     width:16px;
     height:16px;
-    margin-right:6px;
-    border:none;
-    outline-style:none;
-    -webkit-appearance:none;
-    vertical-align:middle;
-    border:1px solid var(--border-color);
-    border-radius:50%;
     margin:6px 2px;
+    margin-right:6px;
+    vertical-align:middle;
+    -webkit-appearance:none;
+    appearance:none;
+    border:1px solid var(--radio-border-color);
+    border-radius:50%;
+    background-color:transparent;
+    display:inline-grid;
+    place-content:center;
 }
-input[type=radio]:checked {
-    border:5px solid #2F7DCDF0;
-    background: var(--radio-checked-bg);
+input[type=radio]::before {
+    content:"";
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--radio-dot-color);
+    transform:scale(0);
+}
+input[type=radio]:checked::before {
+    transform:scale(1);
 }
     
 input[type=checkbox]{
@@ -309,12 +332,12 @@ input[type=range]:focus::-webkit-slider-runnable-track {
     text-align: center;
     background-color: var(--popup-bg);
     width:200px;
-    height:150px;
+    /* height:150px; */
     position:absolute;
     left:-100px; top:50px;
     border:1px solid var(--border-light);
     border-radius: 5px;
-    padding: 10px;
+    padding: 1px;
 }
     
 #popup_progress {
@@ -490,7 +513,7 @@ table.datatype {
     min-width: 0;
     overflow-x: hidden;
     overflow-y: auto;
-    padding: 10px;
+    padding: 0px;
     border-right: 1px solid var(--result-border);
     transition: opacity 120ms ease;
 }
@@ -668,6 +691,110 @@ table.datatype {
 .frozen td { color: #93C5FD !important; }
 .frozen-badge { display: none; font-size: 10px; margin-left: 4px; color: #60A5FA; }
 .frozen .frozen-badge { display: inline; }
+
+#uiTopLayer {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+}
+
+#uiToast {
+    position: absolute;
+    left: 50%;
+    bottom: max(24px, calc(var(--safe-bottom) + 12px));
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.82);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    line-height: 1.3;
+    max-width: min(90vw, 520px);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+}
+
+#uiAlertMask {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.45);
+    pointer-events: auto;
+}
+
+#uiAlertCard {
+    width: min(88vw, 360px);
+    border-radius: 12px;
+    background: var(--popup-bg);
+    border: 1px solid var(--border-light);
+    box-shadow: 0 10px 36px rgba(0,0,0,0.3);
+    overflow: hidden;
+}
+
+#uiAlertBody {
+    padding: 14px 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-align: center;
+    font-size: 13px;
+}
+
+#uiAlertActions {
+    border-top: 1px solid var(--result-border);
+    padding: 8px;
+    display: flex;
+    justify-content: center;
+}
+
+#uiAlertOk {
+    min-width: 96px;
+}
+
+/* iOS/iPadOS WKWebView tuning */
+@supports (-webkit-touch-callout: none) {
+    html,
+    body {
+        min-height: -webkit-fill-available;
+    }
+
+    body {
+        padding-top: var(--safe-top);
+        padding-right: var(--safe-right);
+        padding-bottom: var(--safe-bottom);
+        padding-left: var(--safe-left);
+        overscroll-behavior: none;
+    }
+
+    #appShell {
+        height: calc(100dvh - 38px - var(--safe-top) - var(--safe-bottom));
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+        font-size: var(--ios-control-font-size);
+    }
+
+    input,
+    textarea,
+    select {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+
+    .scrollbar,
+    #controlsPanel,
+    #listdiv,
+    .menuview.current {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+}
 </style>
 
 <script>
@@ -1340,7 +1467,20 @@ async function clearHistory() {
 
 async function openScriptEditor() {
     console.log('FUNC openScriptEditor');
-    var list = await h5gg.listScripts();
+    if(typeof h5gg == 'undefined' || !h5gg.listScripts) {
+        showToast('Script API is unavailable in this environment');
+        return;
+    }
+
+    var list = [];
+    try {
+        var loaded = await h5gg.listScripts();
+        if(Array.isArray(loaded)) list = loaded;
+    } catch(error) {
+        console.error('openScriptEditor listScripts failed:', error);
+        showToast('Unable to load script list');
+    }
+
     var html = '<div id="scriptOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'scriptOverlay\')">';
     html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
     html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
@@ -1368,38 +1508,88 @@ function escapeScriptText(value) {
 }
 
 async function loadScript(name) {
-    var content = await h5gg.loadScript(name);
+    if(typeof h5gg == 'undefined' || !h5gg.loadScript) {
+        showToast('Script API is unavailable in this environment');
+        return;
+    }
+
+    var content = null;
+    try {
+        content = await h5gg.loadScript(name);
+    } catch(error) {
+        console.error('loadScript failed:', error);
+    }
+
     var input = document.getElementById('scriptFileName');
     var editor = document.getElementById('scriptEditor');
     if(input) input.value = name;
     if(editor && content !== null) editor.value = content;
-    if(content === null) showToast((await h5gg.getLastFileError()) || 'Unable to load script');
+    if(content === null) {
+        var err = null;
+        try {
+            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
+        } catch(_) {}
+        showToast(err || 'Unable to load script');
+    }
 }
 
 async function saveCurrentScript() {
     console.log('FUNC saveCurrentScript');
+    if(typeof h5gg == 'undefined' || !h5gg.saveScript) {
+        showToast('Script API is unavailable in this environment');
+        return;
+    }
+
     var input = document.getElementById('scriptFileName');
     var editor = document.getElementById('scriptEditor');
     if(!input || !editor) return;
     var name = input.value.trim();
     var content = editor.value;
     if(!name) return alert('Enter a file name');
-    var ok = await h5gg.saveScript(name, content);
+
+    var ok = false;
+    try {
+        ok = await h5gg.saveScript(name, content);
+    } catch(error) {
+        console.error('saveCurrentScript failed:', error);
+    }
+
     if(ok) {
         showToast('Saved');
     } else {
-        showToast((await h5gg.getLastFileError()) || 'Unable to save script');
+        var err = null;
+        try {
+            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
+        } catch(_) {}
+        showToast(err || 'Unable to save script');
     }
 }
 
 async function deleteCurrentScript() {
+    if(typeof h5gg == 'undefined' || !h5gg.deleteScript) {
+        showToast('Script API is unavailable in this environment');
+        return;
+    }
+
     var input = document.getElementById('scriptFileName');
     if(!input || !confirm('Delete '+input.value+'?')) return;
-    if(await h5gg.deleteScript(input.value)) {
+
+    var ok = false;
+    try {
+        ok = await h5gg.deleteScript(input.value);
+    } catch(error) {
+        console.error('deleteCurrentScript failed:', error);
+    }
+
+    if(ok) {
         closeOverlay('scriptOverlay');
         await openScriptEditor();
     } else {
-        showToast((await h5gg.getLastFileError()) || 'Unable to delete script');
+        var err = null;
+        try {
+            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
+        } catch(_) {}
+        showToast(err || 'Unable to delete script');
     }
 }
 
@@ -1658,6 +1848,9 @@ async function openMemoryEditor(addr, type) {
     html += '<div style="padding:12px;font-size:12px">';
     html += '<div style="margin:4px 0"><b>Address:</b> <span style="color:#3393EF">' + addr + '</span></div>';
     html += '<div style="margin:4px 0"><b>Type:</b> ' + type + ' <b>Value:</b> <span style="color:#3393EF">' + curVal + '</span></div>';
+    html += '<div style="margin:8px 0"><b>Edit Value (Decimal/Typed):</b></div>';
+    html += '<input id="memEditorValue" type="text" value="' + escapeScriptText(curVal) + '" style="width:100%;font-size:12px;padding:6px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin:4px 0">';
+    html += '<button onclick="writeMemoryValue(\'' + addr + '\',\'' + type + '\')" style="width:100%;margin:6px 0;height:32px">Write Value</button>';
     html += '<div style="margin:4px 0"><b>Hex:</b> <span style="font-family:monospace;font-size:11px">' + hex + '</span></div>';
     html += '<div style="margin:8px 0"><b>Edit Hex:</b></div>';
     html += '<input id="memEditorInput" type="text" value="' + hex + '" style="width:100%;font-family:monospace;font-size:12px;padding:6px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin:4px 0">';
@@ -1666,6 +1859,44 @@ async function openMemoryEditor(addr, type) {
     html += '<div id="memEditorStatus" style="font-size:11px;color:#888;text-align:center"></div>';
     html += '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function writeMemoryValue(addr, type) {
+    console.log('FUNC writeMemoryValue');
+    var input = document.getElementById('memEditorValue');
+    var status = document.getElementById('memEditorStatus');
+    if(!input || !status) return;
+
+    var value = input.value.trim();
+    if(value === '') {
+        status.textContent = 'Enter a value';
+        status.style.color = 'red';
+        return;
+    }
+
+    var ok = false;
+    try {
+        ok = await h5gg.setValue(addr, value, h5ggType(type));
+    } catch(error) {
+        console.error('writeMemoryValue failed:', error);
+    }
+
+    if(!ok) {
+        status.textContent = 'Value write failed';
+        status.style.color = 'red';
+        return;
+    }
+
+    var newVal = await h5gg.getValue(addr, h5ggType(type));
+    status.textContent = 'Value written successfully';
+    status.style.color = 'green';
+
+    var rows = document.querySelectorAll('[data-addr="' + addr + '"]');
+    if(rows.length > 0) {
+        var row = rows[0];
+        var valEl = row.querySelector('.result-value');
+        if(valEl) valEl.textContent = newVal;
+    }
 }
 
 async function writeMemoryEditor(addr, type, bytes) {
@@ -1727,18 +1958,124 @@ function sortResults(mode) {
 }
 
 function showToast(msg) {
-    var el = document.getElementById('toastMsg');
-    if(!el) {
-        el = document.createElement('div');
-        el.id = 'toastMsg';
-        el.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:8px 16px;border-radius:20px;font-size:12px;z-index:999999;transition:opacity 0.3s';
-        document.body.appendChild(el);
-    }
-    el.textContent = msg;
-    el.style.opacity = '1';
-    clearTimeout(el._timer);
-    el._timer = setTimeout(function() { el.style.opacity = '0'; }, 2000);
+    gToastQueue.push({
+        message: String(msg == null ? '' : msg),
+        duration: 2000
+    });
+    processToastQueue();
 }
+
+var gToastQueue = [];
+var gToastShowing = false;
+var gAlertQueue = [];
+var gAlertShowing = false;
+
+function processToastQueue() {
+    if(gToastShowing || !gToastQueue.length) return;
+
+    var layer = ensureTopLayer();
+    var el = layer.querySelector('#uiToast');
+    var current = gToastQueue[0];
+
+    gToastShowing = true;
+    el.textContent = current.message;
+    el.style.opacity = '1';
+
+    clearTimeout(el._hideTimer);
+    clearTimeout(el._nextTimer);
+
+    el._hideTimer = setTimeout(function() {
+        el.style.opacity = '0';
+        el._nextTimer = setTimeout(function() {
+            gToastQueue.shift();
+            gToastShowing = false;
+            processToastQueue();
+        }, 240);
+    }, current.duration);
+}
+
+function ensureTopLayer() {
+    var layer = document.getElementById('uiTopLayer');
+    if(layer) return layer;
+
+    layer = document.createElement('div');
+    layer.id = 'uiTopLayer';
+    layer.innerHTML =
+        '<div id="uiToast" aria-live="polite"></div>' +
+        '<div id="uiAlertMask" role="dialog" aria-modal="true">' +
+            '<div id="uiAlertCard">' +
+                '<div id="uiAlertBody"></div>' +
+                '<div id="uiAlertActions">' +
+                    '<button id="uiAlertOk" type="button">OK</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    document.documentElement.appendChild(layer);
+
+    var mask = layer.querySelector('#uiAlertMask');
+    mask.addEventListener('click', function(event) {
+        if(event.target === mask) {
+            dismissActiveAlert();
+        }
+    });
+
+    return layer;
+}
+
+function dismissActiveAlert() {
+    var layer = ensureTopLayer();
+    var mask = layer.querySelector('#uiAlertMask');
+    if(mask.style.display !== 'flex') return;
+
+    mask.style.display = 'none';
+    gAlertShowing = false;
+    if(gAlertQueue.length) gAlertQueue.shift();
+
+    if(layer._alertKeydownHandler) {
+        document.removeEventListener('keydown', layer._alertKeydownHandler);
+        layer._alertKeydownHandler = null;
+    }
+
+    setTimeout(processAlertQueue, 0);
+}
+
+function processAlertQueue() {
+    if(gAlertShowing || !gAlertQueue.length) return;
+
+    var layer = ensureTopLayer();
+    var mask = layer.querySelector('#uiAlertMask');
+    var body = layer.querySelector('#uiAlertBody');
+    var ok = layer.querySelector('#uiAlertOk');
+
+    gAlertShowing = true;
+    body.textContent = String(gAlertQueue[0]);
+    mask.style.display = 'flex';
+
+    ok.onclick = dismissActiveAlert;
+
+    layer._alertKeydownHandler = function(event) {
+        if(mask.style.display !== 'flex') return;
+        if(event.key === 'Escape' || event.key === 'Enter') {
+            event.preventDefault();
+            dismissActiveAlert();
+        }
+    };
+
+    document.addEventListener('keydown', layer._alertKeydownHandler);
+    setTimeout(function() {
+        try { ok.focus(); } catch(_) {}
+    }, 0);
+}
+
+function showCustomAlert(message) {
+    gAlertQueue.push(message == null ? '' : message);
+    processAlertQueue();
+}
+
+window.alert = function(message) {
+    showCustomAlert(message);
+};
 
 function applyTolerance() {
     console.log('FUNC applyTolerance');
@@ -1752,7 +2089,19 @@ async function loadAutorunList() {
     var sel = document.getElementById('autorunSelect');
     if(!sel) return;
     var saved = localStorage.getItem('h5gg_autorun') || '';
-    var list = await h5gg.listScripts();
+    if(typeof h5gg == 'undefined' || !h5gg.listScripts) {
+        sel.innerHTML = '<option value="">-- Auto-run --</option>';
+        return;
+    }
+
+    var list = [];
+    try {
+        var loaded = await h5gg.listScripts();
+        if(Array.isArray(loaded)) list = loaded;
+    } catch(error) {
+        console.error('loadAutorunList failed:', error);
+    }
+
     sel.innerHTML = '<option value="">-- Auto-run --</option>';
     for(var i=0;i<list.length;i++) {
         if(!list[i].toLowerCase().endsWith('.js')) continue;
@@ -1832,8 +2181,14 @@ async function checkAutorun() {
         localStorage.removeItem('h5gg_autorun');
         return;
     }
-    var content = await h5gg.loadScript(name);
-    if(content) runScript(content, name);
+    if(typeof h5gg == 'undefined' || !h5gg.loadScript) return;
+
+    try {
+        var content = await h5gg.loadScript(name);
+        if(content) runScript(content, name);
+    } catch(error) {
+        console.error('checkAutorun failed:', error);
+    }
 }
 
 function openSettings() {
@@ -1965,7 +2320,7 @@ async function viewerPage(dir) {
 <body>
 <header id="titleBar">
     <div class="title-brand">
-        <span style="color:green">H5</span> <span style="color:red">GG</span>&nbsp;v<span id="version"></span>
+        <span style="color:green">H5</span> <span style="color:red">GG</span>v8.0<span id="version"></span>
         <span id="crossproc" style="display:none"><span style="color:blue">&nbsp;CrossProc&nbsp;</span><span id="procname">procname</span></span>
     </div>
     <div class="title-actions">
@@ -2100,7 +2455,7 @@ async function viewerPage(dir) {
 <center>
 <div class="menubox current" menu="localjs" onclick="refreshLocalSrcipts()">Local ⟳</div>
 <div class="menubox" menu="netjs">Network</div>
-<div style="float:right; font-size:16px; font-family: Arial, sans-serif;" onclick="onShowLoadScript(false)">&nbsp;X&nbsp;</div>
+<div style="float:right; font-size:16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;" onclick="onShowLoadScript(false)">&nbsp;X&nbsp;</div>
 </center>
 <hr/>
 <div id="localjs" class="menuview current scrollbar" style="height:190px">

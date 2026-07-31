@@ -33,6 +33,7 @@ endif
 
 H5GG_CFLAGS = -fobjc-arc -Wno-deprecated-declarations $(H5GG_COMMON_FLAGS)
 H5GG_CCFLAGS = -fobjc-arc -std=c++17 -Wno-deprecated-declarations $(H5GG_COMMON_FLAGS)
+H5GG_FRAMEWORKS = UIKit Foundation CoreGraphics QuartzCore JavaScriptCore CoreFoundation
 
 ifneq ($(filter rootless roothide,$(JB_VARIANT)),)
 H5GG_LDFLAGS += -L$(THEOS)/vendor/lib -L$(THEOS)/vendor/lib/iphone/rootless
