@@ -1,8 +1,23 @@
-ARCHS = arm64
+# ARCHS = arm64
 
-TARGET = iphone:clang:15.6:15.0
+# TARGET = iphone:clang:15.6:15.0
 
-# THEOS_DEVICE_IP = iphoneX.local
+
+JB_VARIANT = roothide
+ifneq ($(filter rootless roothide,$(THEOS_PACKAGE_SCHEME)),)
+JB_VARIANT = $(THEOS_PACKAGE_SCHEME)
+endif
+
+ifeq ($(JB_VARIANT),normal)
+	ARCHS = arm64 arm64e
+	TARGET = iphone:clang:latest:15.0
+else ifeq ($(JB_VARIANT),rootless)
+	ARCHS = arm64 arm64e
+	TARGET = iphone:clang:16.5:15.0
+else ifeq ($(JB_VARIANT),roothide)
+	ARCHS = arm64 arm64e
+	TARGET = iphone:clang:16.5:15.0
+endif
 
 THEOS_PLATFORM_DEB_COMPRESSION_TYPE = gzip
 
@@ -12,15 +27,11 @@ FINALPACKAGE=0
 
 include $(THEOS)/makefiles/common.mk
 
-JB_VARIANT = normal
-ifneq ($(filter rootless roothide,$(THEOS_PACKAGE_SCHEME)),)
-JB_VARIANT = $(THEOS_PACKAGE_SCHEME)
-endif
-
 TWEAK_NAME = H5GG
 
 H5GG_FILES = Tweak.mm h5gg.mm MemScan.mm MemoryResults.cpp MemoryValue.cpp MemoryFilter.cpp MemoryPage.cpp MemoryDump.cpp DylibTemplate.cpp BridgeMethods.cpp FileNames.cpp crossproc.mm FloatMenu.mm FloatButton.m FloatWindow.m TopShow.m ModalShow.m makeDYLIB.mm makeWindow.m ldid-master/ldid.cpp ldid-master/lookup2.c
 H5GG_COMMON_FLAGS =
+
 ifeq ($(JB_VARIANT),normal)
 H5GG_COMMON_FLAGS += -DH5GG_BUILD_NORMAL=1
 else ifeq ($(JB_VARIANT),rootless)

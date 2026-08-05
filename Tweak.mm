@@ -534,10 +534,10 @@ void initload()
 
 static void* thread_running(void* arg)
 {
-    //等一秒, 等系统框架初始化完
+    // Wait one second for system frameworks to finish initializing.
     sleep(1);
     
-    //通过主线程执行下面的代码
+    // Execute the following code on the main thread.
     dispatch_async(dispatch_get_main_queue(), ^{
         __block NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.5 repeats:YES block:^(NSTimer*t){
             
