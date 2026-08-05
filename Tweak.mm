@@ -461,7 +461,7 @@ void initFloatButton(void (^callback)(void))
     floatBtn = [[FloatButton alloc] init];
     
     if(g_testapp_runmode)
-        floatBtn.center = CGPointMake(150, 60);
+        floatBtn.center = CGPointMake(25, 25);
     
     NSData* customIcon = H5GGEmbeddedCustomIcon();
     UIImage* iconImage = customIcon ? [[UIImage alloc] initWithData:customIcon] : nil;
