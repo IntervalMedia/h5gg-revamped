@@ -23,5 +23,6 @@ trap 'rm -f "$test_output"' EXIT
 
 "$test_output"
 node "$repo_root/tests/ResultActionsTests.js"
+node "$repo_root/tests/check_javascript_api_docs.js"
 bash "$repo_root/tests/check_build_variants.sh"
 bash "$repo_root/tests/check_dylib_generation.sh"

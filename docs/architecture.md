@@ -91,6 +91,10 @@ Its external interface consists of:
 - Promise completion and error behavior;
 - rules for file, network, and plugin access.
 
+The complete current frontend contract, including global window controls,
+callbacks, injected values, schemas, and examples, is defined in
+[javascript-api.md](javascript-api.md).
+
 The allowed method table is the security seam. JavaScript must not be able to
 derive arbitrary Objective-C selectors.
 
