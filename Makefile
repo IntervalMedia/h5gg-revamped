@@ -3,14 +3,18 @@
 # TARGET = iphone:clang:15.6:15.0
 
 
-JB_VARIANT = roothide
-ifneq ($(filter rootless roothide,$(THEOS_PACKAGE_SCHEME)),)
-JB_VARIANT = $(THEOS_PACKAGE_SCHEME)
+JB_VARIANT := normal
+ifneq ($(strip $(THEOS_PACKAGE_SCHEME)),)
+JB_VARIANT := $(THEOS_PACKAGE_SCHEME)
+endif
+
+ifeq ($(filter normal rootless roothide,$(JB_VARIANT)),)
+$(error Unsupported jailbreak build variant '$(JB_VARIANT)'. Use normal, rootless or roothide.)
 endif
 
 ifeq ($(JB_VARIANT),normal)
 	ARCHS = arm64 arm64e
-	TARGET = iphone:clang:latest:15.0
+	TARGET = iphone:clang:15.6:15.0
 else ifeq ($(JB_VARIANT),rootless)
 	ARCHS = arm64 arm64e
 	TARGET = iphone:clang:16.5:15.0
@@ -38,8 +42,6 @@ else ifeq ($(JB_VARIANT),rootless)
 H5GG_COMMON_FLAGS += -DH5GG_BUILD_ROOTLESS=1
 else ifeq ($(JB_VARIANT),roothide)
 H5GG_COMMON_FLAGS += -DH5GG_BUILD_ROOTHIDE=1
-else
-$(error Unsupported jailbreak build variant '$(JB_VARIANT)'. Use normal, rootless or roothide.)
 endif
 
 H5GG_CFLAGS = -fobjc-arc -Wno-deprecated-declarations $(H5GG_COMMON_FLAGS)
@@ -55,17 +57,11 @@ H5GG_LOGOS_DEFAULT_GENERATOR = internal
 include $(THEOS_MAKE_PATH)/tweak.mk
 
 .PHONY: package-normal package-rootless package-roothide package-all
+.NOTPARALLEL: package-all
 
-package-normal:
-	$(MAKE) clean package FINALPACKAGE=$(FINALPACKAGE)
-
-package-rootless:
-	$(MAKE) clean package FINALPACKAGE=$(FINALPACKAGE) THEOS_PACKAGE_SCHEME=rootless
-
-package-roothide:
-	$(MAKE) clean package FINALPACKAGE=$(FINALPACKAGE) THEOS_PACKAGE_SCHEME=roothide
+package-normal package-rootless package-roothide: package-%:
+	$(MAKE) -j1 clean THEOS_PACKAGE_SCHEME=$(if $(filter normal,$*),,$*)
+	$(MAKE) -j1 all THEOS_PACKAGE_SCHEME=$(if $(filter normal,$*),,$*)
+	$(MAKE) -j1 package FINALPACKAGE=$(FINALPACKAGE) THEOS_PACKAGE_SCHEME=$(if $(filter normal,$*),,$*)
 
 package-all: package-normal package-rootless package-roothide
-
-clean::
-	rm -rf ./packages/*

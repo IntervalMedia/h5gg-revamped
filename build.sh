@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
+H5GG_CLEAN_ARTIFACT_DIR=""
 if [ -n "${ARTIFACT_DIR:-}" ]; then
   mkdir -p "$ARTIFACT_DIR"
 else
@@ -11,16 +12,25 @@ else
   umask 077
   ARTIFACT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/h5gg-release-artifacts.XXXXXX")"
   umask "$old_umask"
-  trap 'rm -rf "$ARTIFACT_DIR"' EXIT
+  H5GG_CLEAN_ARTIFACT_DIR="$ARTIFACT_DIR"
 fi
 
-collect_variant_artifacts() {
+H5GG_PACKAGE_BUILD_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/h5gg-package-build.XXXXXX")"
+H5GG_COLLECTED_DIR="$H5GG_PACKAGE_BUILD_ROOT/collected"
+mkdir -p "$H5GG_COLLECTED_DIR"
+cleanup() {
+  rm -rf "$H5GG_PACKAGE_BUILD_ROOT"
+  if [ -n "$H5GG_CLEAN_ARTIFACT_DIR" ]; then
+    rm -rf "$H5GG_CLEAN_ARTIFACT_DIR"
+  fi
+}
+trap cleanup EXIT
+
+collect_variant_artifacts() (
   local variant="$1"
-  local nullglob_state
-  nullglob_state="$(shopt -p nullglob)"
+  local package_dir="$2"
   shopt -s nullglob
-  local artifacts=(packages/*.deb)
-  eval "$nullglob_state"
+  local artifacts=("$package_dir"/*.deb)
   if [ ${#artifacts[@]} -eq 0 ]; then
     echo "No deb artifacts found for ${variant}" >&2
     return 1
@@ -28,26 +38,54 @@ collect_variant_artifacts() {
 
   local artifact
   for artifact in "${artifacts[@]}"; do
-    cp "$artifact" "${ARTIFACT_DIR}/${variant}-$(basename "$artifact")"
+    cp "$artifact" "$H5GG_COLLECTED_DIR/${variant}-$(basename "$artifact")"
   done
+)
+
+publish_artifact() {
+  local artifact="$1"
+  local destination_dir="$2"
+  local filename
+  local destination
+
+  filename="$(basename "$artifact")"
+  destination="$destination_dir/$filename"
+  mkdir -p "$destination_dir"
+
+  if [ -e "$destination" ]; then
+    if cmp -s "$artifact" "$destination"; then
+      return 0
+    fi
+    local digest
+    digest="$(shasum -a 256 "$artifact" | awk '{print substr($1, 1, 12)}')"
+    destination="$destination_dir/${filename%.deb}-${digest}.deb"
+    if [ -e "$destination" ]; then
+      if cmp -s "$artifact" "$destination"; then
+        return 0
+      fi
+      echo "Artifact collision at ${destination}" >&2
+      return 1
+    fi
+  fi
+
+  cp "$artifact" "$destination"
 }
 
-publish_collected_artifacts() {
-  local nullglob_state
-  nullglob_state="$(shopt -p nullglob)"
+publish_collected_artifacts() (
   shopt -s nullglob
-  local artifacts=("$ARTIFACT_DIR"/*.deb)
-  eval "$nullglob_state"
+  local artifacts=("$H5GG_COLLECTED_DIR"/*.deb)
 
   if [ ${#artifacts[@]} -eq 0 ]; then
-    echo "No collected deb artifacts found in ${ARTIFACT_DIR}" >&2
+    echo "No collected deb artifacts found in ${H5GG_COLLECTED_DIR}" >&2
     return 1
   fi
 
-  mkdir -p packages/release-artifacts
-  rm -f packages/release-artifacts/*.deb
-  cp "${artifacts[@]}" packages/release-artifacts/
-}
+  local artifact
+  for artifact in "${artifacts[@]}"; do
+    publish_artifact "$artifact" "$ARTIFACT_DIR"
+    publish_artifact "$artifact" "$ROOT_DIR/packages/release-artifacts"
+  done
+)
 
 preflight_check_variant() {
   local variant="$1"
@@ -86,27 +124,22 @@ preflight_check_variant() {
 
 build_variant() {
   local variant="$1"
+  local package_dir="$H5GG_PACKAGE_BUILD_ROOT/$variant"
 
   preflight_check_variant "$variant"
-
-  # Avoid mixing stale artifacts from earlier builds.
-  rm -f packages/*.deb
+  mkdir -p "$package_dir"
 
   case "$variant" in
-    normal)
-      echo "==> Building normal (rootful) package"
-      make clean package FINALPACKAGE=1
-      ;;
-    rootless|roothide)
+    normal|rootless|roothide)
       echo "==> Building ${variant} package"
-      make clean package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME="$variant"
+      make -j1 "package-${variant}" FINALPACKAGE=1 THEOS_PACKAGE_DIR="$package_dir"
       ;;
     *)
       echo "Unsupported build variant: $variant" >&2
       return 1
       ;;
   esac
-  collect_variant_artifacts "$variant"
+  collect_variant_artifacts "$variant" "$package_dir"
 }
 
 mode="${1:-all}"
