@@ -42,6 +42,32 @@ collect_variant_artifacts() (
   done
 )
 
+publish_to_new_path() {
+  local artifact="$1"
+  local destination="$2"
+  local destination_dir
+  local temporary
+
+  destination_dir="$(dirname "$destination")"
+  temporary="$(mktemp "$destination_dir/.h5gg-artifact.XXXXXX")"
+  if ! cp "$artifact" "$temporary"; then
+    rm -f "$temporary"
+    return 1
+  fi
+
+  # A hard link publishes the fully copied file atomically and fails rather
+  # than replacing a destination created by another build.
+  if ln "$temporary" "$destination" 2>/dev/null; then
+    rm -f "$temporary"
+    return 0
+  fi
+
+  rm -f "$temporary"
+  [ -e "$destination" ] && return 2
+  echo "Unable to publish artifact at ${destination}" >&2
+  return 1
+}
+
 publish_artifact() {
   local artifact="$1"
   local destination_dir="$2"
@@ -52,23 +78,34 @@ publish_artifact() {
   destination="$destination_dir/$filename"
   mkdir -p "$destination_dir"
 
-  if [ -e "$destination" ]; then
-    if cmp -s "$artifact" "$destination"; then
-      return 0
-    fi
-    local digest
-    digest="$(shasum -a 256 "$artifact" | awk '{print substr($1, 1, 12)}')"
-    destination="$destination_dir/${filename%.deb}-${digest}.deb"
+  local digest=""
+  while true; do
     if [ -e "$destination" ]; then
       if cmp -s "$artifact" "$destination"; then
         return 0
       fi
-      echo "Artifact collision at ${destination}" >&2
-      return 1
-    fi
-  fi
 
-  cp "$artifact" "$destination"
+      if [ -n "$digest" ]; then
+        echo "Artifact collision at ${destination}" >&2
+        return 1
+      fi
+
+      digest="$(shasum -a 256 "$artifact" | awk '{print substr($1, 1, 12)}')"
+      destination="$destination_dir/${filename%.deb}-${digest}.deb"
+      continue
+    fi
+
+    local publish_status
+    if publish_to_new_path "$artifact" "$destination"; then
+      return 0
+    else
+      publish_status=$?
+    fi
+
+    if [ "$publish_status" -ne 2 ]; then
+      return "$publish_status"
+    fi
+  done
 }
 
 publish_collected_artifacts() (
