@@ -17,3 +17,10 @@
 /ViewController.mm
 /viewdebug.m
 /pluginDemo/h5frida15.1.24/libfrida-core-15.1.24.a
+packages/com.test.h5gg_8.0.0_iphoneos-arm.deb
+packages/com.test.h5gg_8.0.0_iphoneos-arm64e.deb
+packages/release-artifacts/normal-com.test.h5gg_8.0.0_iphoneos-arm-390893be49e2.deb
+packages/release-artifacts/normal-com.test.h5gg_8.0.0_iphoneos-arm.deb
+packages/release-artifacts/roothide-com.test.h5gg_8.0.0_iphoneos-arm64e-b00c250dcd81.deb
+packages/release-artifacts/roothide-com.test.h5gg_8.0.0_iphoneos-arm64e.deb
+packages/release-artifacts/rootless-com.test.h5gg_8.0.0_iphoneos-arm64.deb
