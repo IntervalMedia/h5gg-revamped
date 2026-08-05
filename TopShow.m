@@ -8,7 +8,6 @@ extern GVData* PGVSharedData;
 
 - (BOOL)shouldAutorotate {
     BOOL should = YES;
-    dumpKeyWindow("TopShow shouldAutorotate");
     return should;
 }
 
@@ -16,19 +15,16 @@ extern GVData* PGVSharedData;
     UIInterfaceOrientationMask mask = (UIInterfaceOrientationMask)(1 << UIApplication.sharedApplication.statusBarOrientation);
     uint64_t mask2 = 1 << UIApplication.sharedApplication.statusBarOrientation;
     mask = self.followOrientationMask | mask2;
-    dumpKeyWindow("TopShow supportedOrientations");
     return mask;
 }
 
 - (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {
     UIInterfaceOrientation preferred = UIApplication.sharedApplication.statusBarOrientation;
-    dumpKeyWindow("TopShow preferredOrientation");
     return preferred;
 }
 
 + (void)present:(UIViewController* (^)(TopShow* controller))alert {
     void (^submit)() = ^() {
-        dumpKeyWindow("TopShow present");
         TopShow* rootVC = [TopShow new];
         rootVC.followOrientationMask = UIApplication.sharedApplication.keyWindow.rootViewController.supportedInterfaceOrientations;
 

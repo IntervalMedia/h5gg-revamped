@@ -1,7 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <pthread.h>
 #include <dlfcn.h>
-#include <libgen.h>
 
 #include "ContextHostManager.h"
 #include "globalview.h"
@@ -427,11 +426,15 @@ void initload()
             [GlobalView private_updateToInterfaceOrientation:(UIInterfaceOrientation)sbapp.activeInterfaceOrientation animated:YES];
         }
 
-        if(GVSharedData.buttonImageSize) {
-            NSData* iconData = [[NSData alloc] initWithBytes:GVSharedData.buttonImageData length:GVSharedData.buttonImageSize];
+        size_t buttonImageSize = __atomic_load_n(&GVSharedData.buttonImageSize, __ATOMIC_ACQUIRE);
+        if(buttonImageSize > 0 && buttonImageSize <= sizeof(GVSharedData.buttonImageData)) {
+            NSData* iconData = [[NSData alloc] initWithBytes:GVSharedData.buttonImageData length:buttonImageSize];
             g_pinnedBundleIcon = [[UIImage alloc] initWithData:iconData];
             if(g_pinnedBundleIcon) [floatBtn setIcon:g_pinnedBundleIcon];
-            GVSharedData.buttonImageSize = 0;
+            __atomic_store_n(&GVSharedData.buttonImageSize, 0, __ATOMIC_RELEASE);
+        } else if(buttonImageSize > sizeof(GVSharedData.buttonImageData)) {
+            LOGGER("GlobalView rejected oversized button image: %zu", buttonImageSize);
+            __atomic_store_n(&GVSharedData.buttonImageSize, 0, __ATOMIC_RELEASE);
         }
 
         SBApplication *appToHost = applicationForID(g_pinnedBundleId);
@@ -469,16 +472,9 @@ static void __attribute__((constructor)) _init_()
 
     if ([NSBundle.mainBundle.bundleIdentifier isEqualToString:@"com.apple.springboard"])
     {
-        // NSString* infoPath = [NSString stringWithFormat:@"%s/Info.plist", dirname((char*)di.dli_fname)];
-        // if(infoPath) {
-        //     NSDictionary* info = [[NSDictionary alloc] initWithContentsOfFile:infoPath];
-        //     if(info)
-        //         g_pinnedBundleId = info[@"CFBundleIdentifier"];
-        // }
-
-        NSString* plistPath = [NSString stringWithUTF8String:di.dli_fname];
-        char* p = (char*)plistPath.UTF8String + strlen(di.dli_fname) - 5;
-        strcpy(p, "plist");
+        NSString* dylibPath = [NSString stringWithUTF8String:di.dli_fname];
+        NSString* plistPath = [[dylibPath stringByDeletingPathExtension]
+            stringByAppendingPathExtension:@"plist"];
         
         NSDictionary* plist = [[NSDictionary alloc] initWithContentsOfFile:plistPath];
         NSLog(@"plist=%@\n%@\n%@\n%@", plistPath, plist, plist[@"Filter"], plist[@"Filter"][@"Bundles"]);
@@ -489,7 +485,10 @@ static void __attribute__((constructor)) _init_()
                     pthread_t thread;
                     pthread_attr_t attr;
                     pthread_attr_init(&attr);
-                    pthread_create(&thread, &attr, thread_running, nil);
+                    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+                    int result = pthread_create(&thread, &attr, thread_running, nil);
+                    pthread_attr_destroy(&attr);
+                    if(result != 0) LOGGER("GlobalView failed to start initialization thread: %d", result);
                 } else {
                     g_pinnedBundleId = bundleId;
                 }
