@@ -1,10 +1,21 @@
-# H5GG-Revamped v8.0
+# H5GG-Revamped v8.0 - DEV BRANCH (Work in progress)
 
 Fully revamped and actively maintained. Complete rewrite of the original H5GG codebase after years of inactivity. All code modernized for current iOS versions.
 
 **Join the [Discord](https://discord.gg/CnwCJC5jak)** -- please introduce yourself when you join!
 
 iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but with custom HTML interfaces and a dylib plugin system.
+
+## Project design and status
+
+New GUI for new features implemented 
+New javascript API for new h5gg engine capabilities ([API DOCS](/docs/javascript-api.md)) 
+
+- [Architecture baseline](docs/architecture.md)
+- [Codebase review and issue register](docs/codebase-review.md)
+- [Stabilization and feature roadmap](docs/roadmap.md)
+- [Phase 2 feature contracts and limits](docs/phase-2-features.md)
+- [Validation matrix](docs/validation.md)
 
 ---
 
@@ -18,17 +29,15 @@ iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but
 
 ### Features
 
-- memory search/read/write [APIs](/examples-JavaScript/) from JavaScript
+- memory search/read/write with a new ([API DOCS](/docs/javascript-api.md)) written in JavaScript
 - fully custom HTML5 UI
 - load scripts (.js or .html) from local storage or network
-- dylib plugin system ([demo](/pluginDemo/customAlert))
-- auto pointer chain search ([example](/examples-JavaScript/AutoSearchPointerChains.js))
-- one-click dylib generation
-- [h5frida](/examples-h5frida) plugin for C/C++/ObjC hooking
+- JSON-RPC dylib plugin system ([demo](/pluginDemo/customAlert))
 
 ## Build (Theos)
 
-- Minimum SDK target is iOS 15.0 (`TARGET = iphone:16.5:15.0`).
+- Minimum deployment target is iOS 15.0. The root, standalone, and GlobalView
+  builds share this baseline.
 - Build all jailbreak variants with compile-time flags:
   - `./build.sh all`
 - Build a single variant:
@@ -42,49 +51,3 @@ Compile-time flags exposed to source:
 - `H5GG_BUILD_ROOTHIDE`
 
 Build outputs are collected in `packages/release-artifacts/` so CI/manual release workflows can publish all generated `.deb` files.
-
-## Running modes
-
-1. [inject H5GG.dylib into ipa for non-jailbroken devices](/packages/)
-2. [tweak (deb) auto-loads into all apps for jailbroken devices](/packages/)
-3. [standalone app for jailbroken devices (iPad SlideOver+SplitView compatible)](/appstand/packages/)
-4. [Float On Screen for jailbroken devices (iOS 15+ tested)](/globalview/packages/)
-
-Also a [TrollStore version](/appstand/packages/).
-
-## h5frida plugin
-
-1. invoke C/C++/Objective-C functions (non-jailbroken)
-2. hook Objective-C methods (non-jailbroken)
-3. hook C/C++ exported functions (non-jailbroken)
-4. hook C/C++ internal functions/instructions (jailbroken only)
-5. MSHookFunction for C/C++ (non-jailbroken)
-6. code-patch with bytes dynamically (non-jailbroken)
-
-## Screenshots
-
-![text](/pictures/h5gg1.png)
-![text](/pictures/h5gg2.png)
-![text](/pictures/h5gg3.png)
-![text](/pictures/h5gg4.PNG)
-
-## Designing HTML menu UI
-
-Use any text editor. Previously EasyHtml on the AppStore was popular but may need sideloading now.
-
-![text](/pictures/easyhtml.png)
-
-## Debugging JS/HTML via macOS Safari
-
-Requires `get-task-allow` entitlement (jailbroken or signed with Developer Certificate).
-
-![text](/pictures/macos.png)
-
-## Dependencies (GlobalView / Float On Screen)
-
-- [BackgrounderAction2](https://github.com/akusio): libH5GG.B.dylib (jp.akusio.backgrounderaction13) for iOS 15+
-- [libAPAppView](https://github.com/Baw-Appie/libAPAppView): libH5GG.A.dylib (com.rpgfarm.libapappview) for iOS 15+
-
-## [JavaScript API docs](/h5gg-js-doc-en.js)
-
-Free and open source.

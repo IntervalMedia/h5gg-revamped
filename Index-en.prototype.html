@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- PROTOTYPE — Three result-selection variants, switchable with ?variant=A|B|C. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>H5GG result actions prototype</title>
+<style>
+:root {
+    color-scheme: dark;
+    --blue: #0a84ff;
+    --bg: #000;
+    --panel: #1c1c1e;
+    --raised: #2c2c2e;
+    --separator: rgba(84,84,88,.65);
+    --secondary: #98989d;
+}
+* { box-sizing: border-box; }
+html, body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--bg); color:#fff; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif; }
+button { font:inherit; }
+.app { height:100%; display:flex; flex-direction:column; }
+.nav { height:44px; padding:0 12px; display:flex; align-items:center; justify-content:space-between; background:rgba(28,28,30,.94); border-bottom:.5px solid var(--separator); }
+.nav strong { font-size:17px; }
+.nav button { min-width:44px; min-height:44px; border:0; background:transparent; color:var(--blue); font-size:16px; }
+.toolbar { min-height:68px; padding:8px 12px; background:var(--panel); border-bottom:.5px solid var(--separator); }
+.search { width:100%; height:36px; padding:0 12px; color:#fff; background:var(--raised); border:0; border-radius:10px; font-size:15px; }
+.meta { margin-top:6px; display:flex; justify-content:space-between; color:var(--secondary); font-size:12px; }
+.selection-bar { display:none; align-items:center; gap:6px; padding:7px 10px; background:var(--panel); border-bottom:.5px solid var(--separator); }
+.selection-bar.visible { display:flex; }
+.selection-bar button, .inline-actions button { flex:1; min-height:36px; border:0; border-radius:9px; color:var(--blue); background:var(--raised); }
+.results { flex:1; min-height:0; overflow:auto; background:var(--bg); }
+.row { position:relative; padding:11px 48px 11px 16px; min-height:62px; border-bottom:.5px solid var(--separator); -webkit-user-select:none; user-select:none; }
+.row:active { background:#242426; }
+.row.selected { background:rgba(10,132,255,.18); }
+.value { font-size:17px; font-variant-numeric:tabular-nums; }
+.address { margin-top:4px; color:var(--secondary); font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.chevron { position:absolute; right:16px; top:22px; color:#636366; font-size:22px; }
+.check { display:none; position:absolute; right:15px; top:20px; color:var(--blue); font-size:21px; }
+.row.selected .check { display:block; }
+.row.selected .chevron { display:none; }
+.inline-actions { display:none; gap:6px; padding:8px 12px 10px; background:#161618; border-bottom:.5px solid var(--separator); }
+.inline-actions.visible { display:flex; }
+.scrim { display:none; position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.38); }
+.scrim.visible { display:block; }
+.sheet { position:fixed; z-index:21; left:8px; right:8px; bottom:calc(8px + env(safe-area-inset-bottom)); transform:translateY(calc(100% + 24px)); transition:transform .22s ease; }
+.sheet.visible { transform:translateY(0); }
+.sheet-group { overflow:hidden; border-radius:14px; background:rgba(44,44,46,.98); }
+.sheet-title { padding:13px 16px 9px; text-align:center; color:var(--secondary); font-size:12px; }
+.sheet button { width:100%; min-height:54px; border:0; border-top:.5px solid var(--separator); color:var(--blue); background:transparent; font-size:18px; }
+.sheet .cancel { margin-top:8px; border:0; border-radius:14px; color:var(--blue); background:rgba(44,44,46,.98); font-weight:600; }
+.toast { position:fixed; left:50%; top:58px; z-index:40; transform:translate(-50%,-20px); padding:8px 13px; opacity:0; pointer-events:none; border-radius:16px; color:#fff; background:rgba(44,44,46,.96); box-shadow:0 4px 18px rgba(0,0,0,.35); transition:.18s ease; font-size:13px; }
+.toast.visible { opacity:1; transform:translate(-50%,0); }
+.switcher { position:fixed; z-index:50; left:50%; bottom:10px; transform:translateX(-50%); display:flex; align-items:center; gap:8px; padding:6px; border:1px solid #555; border-radius:999px; background:#111; box-shadow:0 4px 20px #000; }
+.switcher button { width:38px; height:34px; border:0; border-radius:999px; color:#fff; background:#333; }
+.switcher span { min-width:166px; text-align:center; font-size:12px; }
+.variant-b .row { padding-right:48px; }
+.variant-c .row { min-height:58px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+    <header class="nav"><button aria-label="Controls">‹</button><strong>Results</strong><button aria-label="More">•••</button></header>
+    <div class="toolbar">
+        <input class="search" type="search" placeholder="Filter by address or value" aria-label="Filter results">
+        <div class="meta"><span>26,451 results</span><span id="hint">Tap a result for actions</span></div>
+    </div>
+    <div class="selection-bar" id="selectionBar" aria-label="Selected result actions">
+        <button data-copy="address">Copy address</button><button data-copy="value">Copy value</button><button data-copy="both">Copy both</button><button data-edit>Edit</button>
+    </div>
+    <main class="results" id="results" aria-label="Memory search results"></main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Result actions">
+    <div class="sheet-group">
+        <div class="sheet-title" id="sheetTitle"></div>
+        <button data-copy="value">Copy Value</button>
+        <button data-copy="address">Copy Address</button>
+        <button data-copy="both">Copy Address and Value</button>
+        <button data-edit>Edit Value</button>
+    </div>
+    <button class="cancel" id="cancelSheet">Cancel</button>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<nav class="switcher" aria-label="Prototype variants">
+    <button id="previous" aria-label="Previous variant">←</button>
+    <span id="variantLabel"></span>
+    <button id="next" aria-label="Next variant">→</button>
+</nav>
+
+<script>
+var variants = {
+    A: { name: 'Action sheet', hint: 'Tap a result for actions' },
+    B: { name: 'Selection toolbar', hint: 'Tap to select, then choose an action' },
+    C: { name: 'Inline actions', hint: 'Tap to reveal row actions' }
+};
+var sampleResults = [
+    {value:'5', address:'0x1026A38A0', type:'I32'},
+    {value:'5', address:'0x1026B614C', type:'I32'},
+    {value:'5', address:'0x104928C10', type:'I32'},
+    {value:'5', address:'0x10493AA74', type:'I32'},
+    {value:'5', address:'0x106E73418', type:'I32'},
+    {value:'5', address:'0x10A2D03CC', type:'I32'},
+    {value:'5', address:'0x10A4110B8', type:'I32'}
+];
+var params = new URLSearchParams(location.search);
+var variant = variants[params.get('variant')] ? params.get('variant') : 'A';
+var selected = null;
+
+function escapeText(value) {
+    return String(value).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+}
+
+function rowHTML(result, index) {
+    var row = '<div class="row" role="button" tabindex="0" data-index="'+index+'" aria-label="Value '+escapeText(result.value)+', address '+escapeText(result.address)+'">';
+    row += '<div class="value">'+escapeText(result.value)+' <span style="color:var(--secondary);font-size:12px">'+escapeText(result.type)+'</span></div>';
+    row += '<div class="address">'+escapeText(result.address)+'</div><span class="chevron">›</span><span class="check">✓</span></div>';
+    row += '<div class="inline-actions" data-actions="'+index+'"><button data-copy="address">Copy address</button><button data-copy="value">Copy value</button><button data-edit>Edit</button></div>';
+    return row;
+}
+
+function render() {
+    document.body.className = 'variant-'+variant.toLowerCase();
+    document.getElementById('results').innerHTML = sampleResults.map(rowHTML).join('');
+    document.getElementById('variantLabel').textContent = variant+' — '+variants[variant].name;
+    document.getElementById('hint').textContent = variants[variant].hint;
+    document.getElementById('selectionBar').classList.remove('visible');
+    closeSheet();
+    selected = null;
+}
+
+function selectResult(index) {
+    selected = sampleResults[index];
+    document.querySelectorAll('.row').forEach(function(row) { row.classList.toggle('selected', Number(row.dataset.index) === index); });
+    document.querySelectorAll('.inline-actions').forEach(function(actions) { actions.classList.toggle('visible', variant === 'C' && Number(actions.dataset.actions) === index); });
+    if(variant === 'A') openSheet();
+    if(variant === 'B') document.getElementById('selectionBar').classList.add('visible');
+}
+
+function openSheet() {
+    document.getElementById('sheetTitle').textContent = selected.address+'  •  '+selected.value+' ['+selected.type+']';
+    document.getElementById('scrim').classList.add('visible');
+    document.getElementById('sheet').classList.add('visible');
+}
+function closeSheet() {
+    document.getElementById('scrim').classList.remove('visible');
+    document.getElementById('sheet').classList.remove('visible');
+}
+function feedback(message) {
+    var toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('visible');
+    setTimeout(function(){ toast.classList.remove('visible'); }, 900);
+}
+function act(target) {
+    if(!selected) return;
+    if(target.dataset.copy) feedback('Copied '+target.dataset.copy);
+    if(target.hasAttribute('data-edit')) feedback('Open value editor');
+    closeSheet();
+}
+function switchVariant(direction) {
+    var keys = Object.keys(variants), index = keys.indexOf(variant);
+    variant = keys[(index + direction + keys.length) % keys.length];
+    history.replaceState(null, '', '?variant='+variant);
+    render();
+}
+
+document.addEventListener('click', function(event) {
+    var row = event.target.closest('.row');
+    if(row) selectResult(Number(row.dataset.index));
+    var action = event.target.closest('[data-copy],[data-edit]');
+    if(action) act(action);
+});
+document.getElementById('scrim').addEventListener('click', closeSheet);
+document.getElementById('cancelSheet').addEventListener('click', closeSheet);
+document.getElementById('previous').addEventListener('click', function(){ switchVariant(-1); });
+document.getElementById('next').addEventListener('click', function(){ switchVariant(1); });
+document.addEventListener('keydown', function(event) {
+    if(/INPUT|TEXTAREA/.test(event.target.tagName) || event.target.isContentEditable) return;
+    if(event.key === 'ArrowLeft') switchVariant(-1);
+    if(event.key === 'ArrowRight') switchVariant(1);
+    if((event.key === 'Enter' || event.key === ' ') && event.target.classList.contains('row')) selectResult(Number(event.target.dataset.index));
+});
+render();
+</script>
+</body>
+</html>

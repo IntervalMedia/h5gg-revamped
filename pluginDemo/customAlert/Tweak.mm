@@ -4,6 +4,7 @@
 #import <Foundation/Foundation.h>
 #import <JavaScriptCore/JavaScriptCore.h>
 #import <UIKit/UIKit.h>
+#import "../../H5GGPluginRPC.h"
 
 #pragma GCC diagnostic ignored "-Wunguarded-availability-new"
 
@@ -18,7 +19,7 @@ JSExportAs(choice, -(void)choice:(NSArray*)items callback:(JSValue*)jsfunc); //�
 @end
 
 //定义插件类
-@interface MyAlert : NSObject <MyJSExport>
+@interface MyAlert : NSObject <MyJSExport, H5GGPluginRPC>
 @property UIWindow* myWindow;
 @property JSValue* jscallback;
 @property NSThread* jsthread;
@@ -26,6 +27,34 @@ JSExportAs(choice, -(void)choice:(NSArray*)items callback:(JSValue*)jsfunc); //�
 
 //实现插件接口函数
 @implementation MyAlert
+
+-(id)h5ggInvoke:(NSString*)method arguments:(NSArray*)arguments error:(NSError**)error {
+    if([method isEqualToString:@"alert0"] && arguments.count == 0) {
+        [self alert0];
+        return @YES;
+    }
+    if([method isEqualToString:@"alert1"] && arguments.count == 1 &&
+       [arguments[0] isKindOfClass:NSString.class]) {
+        [self alert1:arguments[0]];
+        return @YES;
+    }
+    if([method isEqualToString:@"alert2"] && arguments.count == 2 &&
+       [arguments[0] isKindOfClass:NSString.class] &&
+       [arguments[1] isKindOfClass:NSString.class]) {
+        [self alert2:arguments[0] msg:arguments[1]];
+        return @YES;
+    }
+
+    if(error) {
+        *error = [NSError errorWithDomain:@"H5GGPluginRPC"
+                                     code:1
+                                 userInfo:@{
+            NSLocalizedDescriptionKey:
+                @"Supported RPC methods: alert0(), alert1(message), alert2(title, message)"
+        }];
+    }
+    return nil;
+}
 
 -(instancetype)init {
     if (self = [super init])

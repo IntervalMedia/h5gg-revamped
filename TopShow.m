@@ -8,7 +8,6 @@ extern GVData* PGVSharedData;
 
 - (BOOL)shouldAutorotate {
     BOOL should = YES;
-    dumpKeyWindow("TopShow shouldAutorotate");
     return should;
 }
 
@@ -16,19 +15,16 @@ extern GVData* PGVSharedData;
     UIInterfaceOrientationMask mask = (UIInterfaceOrientationMask)(1 << UIApplication.sharedApplication.statusBarOrientation);
     uint64_t mask2 = 1 << UIApplication.sharedApplication.statusBarOrientation;
     mask = self.followOrientationMask | mask2;
-    dumpKeyWindow("TopShow supportedOrientations");
     return mask;
 }
 
 - (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {
     UIInterfaceOrientation preferred = UIApplication.sharedApplication.statusBarOrientation;
-    dumpKeyWindow("TopShow preferredOrientation");
     return preferred;
 }
 
 + (void)present:(UIViewController* (^)(TopShow* controller))alert {
     void (^submit)() = ^() {
-        dumpKeyWindow("TopShow present");
         TopShow* rootVC = [TopShow new];
         rootVC.followOrientationMask = UIApplication.sharedApplication.keyWindow.rootViewController.supportedInterfaceOrientations;
 
@@ -66,28 +62,40 @@ extern GVData* PGVSharedData;
 
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
     NSLog(@"documentPickerWasCancelled=%@", controller);
+    self.pickedfile = nil;
+    if(self.pickedfile_notify) self.pickedfile_notify();
     [self dismiss];
 }
 
 - (void)_documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentAtURL:(NSURL *)url {
     NSLog(@"didPickDocumentAtURL %@", url);
+    if(!url) {
+        self.pickedfile = nil;
+        if(self.pickedfile_notify) self.pickedfile_notify();
+        [self dismiss];
+        return;
+    }
     BOOL canAccessingResource = [url startAccessingSecurityScopedResource];
     NSLog(@"canAccessingResource=%d", canAccessingResource);
     [self dismiss];
     self.pickedfile = [url path];
     self.pickedfile_notify();
+    if(canAccessingResource) [url stopAccessingSecurityScopedResource];
 }
 
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *>*)urls {
     NSLog(@"didPickDocumentAtURLs %@", urls);
-    [self _documentPicker:controller didPickDocumentAtURL:urls[0]];
+    [self _documentPicker:controller didPickDocumentAtURL:urls.firstObject];
 }
 
 + (void)filePicker:(NSArray<NSString*>*)types callback:(void(^)(NSString*))callback {
     [self present:^(TopShow* controller) {
         __weak TopShow* weakPicker = controller;
+        __block BOOL settled = NO;
 
         controller.pickedfile_notify = ^{
+            if(settled) return;
+            settled = YES;
             __strong TopShow* strongPicker = weakPicker;
             if(strongPicker) callback(strongPicker.pickedfile);
         };

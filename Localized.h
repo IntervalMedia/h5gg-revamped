@@ -17,6 +17,10 @@ static NSDictionary* _enDict(void) {
             @"制作失败\n\n无法读取文件:\n%@" : @"Build Failed\n\ncannot read file:\n%@",
             @"制作失败\n\n图标文件超过512KB" : @"Build Failed\n\nIcon file size more than 512KB",
             @"制作失败\n\nH5文件超过2MB" : @"Build Failed\n\nHtml file size more than 2MB",
+            @"制作失败\n\n图标文件不是受支持的图片" : @"Build Failed\n\nThe icon is not a supported image",
+            @"制作失败\n\nH5文件必须是UTF-8文本" : @"Build Failed\n\nThe H5 file must be UTF-8 text",
+            @"制作失败\n\n必须选择图标和H5文件" : @"Build Failed\n\nAn icon and H5 file are required",
+            @"制作失败\n\n代码签名失败" : @"Build Failed\n\nCode signing failed",
             @"制作失败\n\n当前已经是定制版本, 请使用原版H5GG制作插件" : @"Build Failed\n\nthis already is custom dylib, please make by using original H5GG",
             @"制作失败\n\n无法写入文件到%@\n\n%@" : @"Build Failed\n\ncannot write file to %@\n\n%@",
             @"制作成功!\n\n专属H5GG.dylib已生成在当前App的Documents数据目录:\n%@" : @"Build Success!\n\nyour custom H5GG.dylib has been generated in the Documents Directory of the current App:\n%@",
@@ -63,7 +67,7 @@ static inline NSString* Localized(NSString* string) {
     dispatch_once(&once, ^{ llcode = getLLCode(); });
 
     if([llcode isEqualToString:@"zh"]) return string;
-    return _enDict()[string];
+    return _enDict()[string] ?: string;
 }
 
 #endif /* Localization_h */

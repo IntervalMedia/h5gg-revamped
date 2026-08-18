@@ -117,27 +117,27 @@ static UIWindow * _Nullable GVForegroundWindow(void) {
 }
 
 - (void)setIconWithData:(NSData*)data {
-    if(!data) return;
-    self.backgroundColor = [UIColor clearColor];
+    if(data.length < 3) return;
 
     char magic[4] = {0};
     [data getBytes:magic length:3];
     if(magic[0] == 'G' && magic[1] == 'I' && magic[2] == 'F') {
         [self _loadGifWithData:data];
     } else {
-        self.image = [UIImage imageWithData:data];
-        self.animationImages = nil;
-        [self stopAnimating];
+        UIImage* image = [UIImage imageWithData:data];
+        if(!image) return;
+        [self setIcon:image];
     }
 }
 
 - (void)_loadGifWithData:(NSData*)data {
     CGImageSourceRef src = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
-    if(!src) { self.image = [UIImage imageWithData:data]; return; }
+    if(!src) return;
 
     size_t count = CGImageSourceGetCount(src);
     if(count <= 1) {
-        self.image = [UIImage imageWithData:data];
+        UIImage* image = [UIImage imageWithData:data];
+        if(image) [self setIcon:image];
         CFRelease(src);
         return;
     }
@@ -161,6 +161,8 @@ static UIWindow * _Nullable GVForegroundWindow(void) {
     }
     CFRelease(src);
 
+    if(frames.count == 0) return;
+    self.backgroundColor = [UIColor clearColor];
     self.animationImages = frames;
     self.animationDuration = dur > 0 ? dur : 1.0;
     self.animationRepeatCount = 0;

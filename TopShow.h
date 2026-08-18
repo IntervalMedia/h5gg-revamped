@@ -4,8 +4,6 @@
 #import <UIKit/UIKit.h>
 #include "makeWindow.h"
 
-void dumpKeyWindow(const char* _Nonnull tag);
-
 NS_ASSUME_NONNULL_BEGIN
 
 @interface TopShow : UIViewController <UIDocumentPickerDelegate>

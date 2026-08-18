@@ -27,6 +27,11 @@ jobs:
         run: |
           echo "THEOS=$PWD/theos" >> $GITHUB_ENV
           brew install ldid xz
+          # Download SDK
+          curl -L https://github.com/theos/sdks/releases/download/latest/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
+          mkdir -p $PWD/theos/sdks
+          tar xf sdk.tar.xz -C $PWD/theos/sdks
+          rm sdk.tar.xz
 
       - name: Setup Theos (Linux)
         if: runner.os == 'Linux'

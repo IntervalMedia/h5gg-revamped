@@ -1,13 +1,17 @@
-<html>
+<!DOCTYPE html>
 <head>
 <title>H5GG</title>
-<!--设置手机显示模式, 填满宽度,原尺寸显示,禁止双指缩放-->
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="light dark">
 <!--CSS外观样式表-->
 <style>
 :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --ios-control-font-size: 16px;
     --bg-color: rgba(255,255,255,0.8);
     --text-color: #000;
     --btn-bg: #84848450;
@@ -31,6 +35,8 @@
     --border-light: #B8B8B880;
     --checkbox-border: #686868;
     --checkbox-checked-border: #B8B8B8;
+    --radio-border-color: #000000;
+    --radio-dot-color: #000000;
 }
 
 :root.dark {
@@ -57,6 +63,8 @@
     --border-light: #68686880;
     --checkbox-border: #888888;
     --checkbox-checked-border: #888888;
+    --radio-border-color: #D0D0D0;
+    --radio-dot-color: #D0D0D0;
 }
 
 :root.light {
@@ -83,6 +91,8 @@
     --border-light: #B8B8B880;
     --checkbox-border: #686868;
     --checkbox-checked-border: #B8B8B8;
+    --radio-border-color: #000000;
+    --radio-dot-color: #000000;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -110,23 +120,27 @@
         --border-light: #68686880;
         --checkbox-border: #888888;
         --checkbox-checked-border: #888888;
+        --radio-border-color: #D0D0D0;
+        --radio-dot-color: #D0D0D0;
     }
 }
 
-html {
-    zoom:1.2; /*在手机上显示整体放大1.2倍*/
-}
-
+html,
 body {
     width: 100%;
     height: 100%;
+    margin: 0;
+    overflow: hidden;
     background-color: var(--bg-color);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 * {
+    box-sizing: border-box;
     /*默认文字颜色*/
     color: var(--text-color);
-    font-size: 12px;
-    font-family: Arial, sans-serif;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
     
    -webkit-tap-highlight-color: transparent;
    outline: none;
@@ -146,11 +160,15 @@ body {
 
 input {
     background-color: var(--input-bg);
-    height: 30px;
+    height: 34px;
+    min-width: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 0 8px;
 }
 
 button {
-    height: 30px;
+    min-height: 34px;
     color: #3393EF;
     background-color: var(--btn-bg);
     display: inline-block;
@@ -172,18 +190,27 @@ button:active {
 input[type=radio]  {
     width:16px;
     height:16px;
-    margin-right:6px;
-    border:none;
-    outline-style:none;
-    -webkit-appearance:none;
-    vertical-align:middle;
-    border:1px solid var(--border-color);
-    border-radius:50%;
     margin:6px 2px;
+    margin-right:6px;
+    vertical-align:middle;
+    -webkit-appearance:none;
+    appearance:none;
+    border:1px solid var(--radio-border-color);
+    border-radius:50%;
+    background-color:transparent;
+    display:inline-grid;
+    place-content:center;
 }
-input[type=radio]:checked {
-    border:5px solid #2F7DCDF0;
-    background: var(--radio-checked-bg);
+input[type=radio]::before {
+    content:"";
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--radio-dot-color);
+    transform:scale(0);
+}
+input[type=radio]:checked::before {
+    transform:scale(1);
 }
     
 input[type=checkbox]{
@@ -305,12 +332,12 @@ input[type=range]:focus::-webkit-slider-runnable-track {
     text-align: center;
     background-color: var(--popup-bg);
     width:200px;
-    height:150px;
+    /* height:150px; */
     position:absolute;
     left:-100px; top:50px;
     border:1px solid var(--border-light);
     border-radius: 5px;
-    padding: 10px;
+    padding: 1px;
 }
     
 #popup_progress {
@@ -402,10 +429,12 @@ table.datatype {
 
 #listdiv {
     display:block;
+    flex: 1;
+    min-height: 0;
     overflow-x:hidden;
     overflow-y:scroll;
-    height:100%;
-    padding: 4px;
+    height:auto;
+    padding: 0;
 }
 
 #resultList tr.hilight td{
@@ -435,9 +464,442 @@ table.datatype {
     margin: 6px 0;
 }
 
+#titleBar {
+    height: 38px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background-color: var(--title-bg);
+    border-bottom: 1px solid var(--result-border);
+    cursor: move;
+}
+
+.title-brand {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.title-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.title-action {
+    min-height: 30px;
+    height: 30px;
+    margin: 0;
+    padding: 0 9px;
+    background: transparent;
+    color: var(--text-color);
+}
+
+#appShell {
+    height: calc(100% - 38px);
+    display: grid;
+    grid-template-columns: minmax(230px, 42%) minmax(0, 1fr);
+    min-height: 0;
+}
+
+#appShell.controls-collapsed {
+    grid-template-columns: 0 minmax(0, 1fr);
+}
+
+#controlsPanel {
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0px;
+    border-right: 1px solid var(--result-border);
+    transition: opacity 120ms ease;
+}
+
+#appShell.controls-collapsed #controlsPanel {
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.control-section {
+    margin: 0 0 10px;
+    padding: 10px;
+    border: 1px solid var(--result-border);
+    border-radius: 8px;
+    background: rgba(127,127,127,0.05);
+}
+
+.section-title,
+.control-section > summary {
+    display: block;
+    margin: 0 0 8px;
+    font-weight: bold;
+    color: #3393EF;
+}
+
+.control-section > summary {
+    cursor: pointer;
+    min-height: 28px;
+    line-height: 28px;
+}
+
+.field-grid {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 7px 8px;
+    align-items: center;
+}
+
+.field-grid label {
+    color: var(--result-font);
+}
+
+.radio-row,
+.inline-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 7px;
+}
+
+.radio-row label {
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+}
+
+.action-grid,
+.tool-grid,
+.sort-grid {
+    display: grid;
+    gap: 6px;
+}
+
+.action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.action-grid button,
+.tool-grid button,
+.sort-grid button {
+    width: 100%;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.primary-action {
+    color: white;
+    background: #2F7DCD;
+    font-weight: bold;
+}
+
+.compact-input {
+    width: 100%;
+}
+
+.inline-row > input,
+.inline-row > select {
+    flex: 1;
+    min-width: 0;
+}
+
+.inline-row > button {
+    flex: 0 0 auto;
+}
+
+#resultsPanel {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#resultsToolbar {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--result-border);
+    background: rgba(127,127,127,0.05);
+}
+
+.results-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 26px;
+    margin-bottom: 6px;
+}
+
+#results_count {
+    display: none;
+    margin: 0;
+    font-weight: bold;
+}
+
+.filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#filterInput {
+    flex: 1;
+    width: 100%;
+}
+
+.sort-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 6px;
+}
+
+.sort-grid button {
+    min-height: 30px;
+    height: 30px;
+    padding: 0 3px;
+    font-size: 11px;
+}
+
+.empty-state {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--result-font);
+}
+
+#listdiv > div[data-addr] {
+    min-height: 54px;
+}
+
+.result-row {
+    position: relative;
+    min-height: 62px;
+    padding: 10px 76px 10px 12px;
+    border-bottom: 1px solid var(--result-border);
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.result-row:active,
+.result-row.selected {
+    background: rgba(10,132,255,0.16);
+}
+
+.result-address {
+    color: var(--result-font);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    word-break: break-all;
+}
+
+.result-value {
+    margin-top: 3px;
+    color: #0A84FF;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.25;
+    word-break: break-all;
+}
+
+.result-row-actions {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    display: flex;
+    transform: translateY(-50%);
+}
+
+.result-icon-button {
+    width: 32px;
+    min-height: 36px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-size: 18px;
+}
+
+@media (max-width: 520px) {
+    #appShell {
+        grid-template-columns: minmax(210px, 58%) minmax(0, 1fr);
+    }
+
+    .action-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .frozen td { color: #93C5FD !important; }
 .frozen-badge { display: none; font-size: 10px; margin-left: 4px; color: #60A5FA; }
 .frozen .frozen-badge { display: inline; }
+
+#uiTopLayer {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+}
+
+#uiToast {
+    position: absolute;
+    left: 50%;
+    bottom: max(24px, calc(var(--safe-bottom) + 12px));
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.82);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    line-height: 1.3;
+    max-width: min(90vw, 520px);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+}
+
+#uiAlertMask {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.45);
+    pointer-events: auto;
+}
+
+#uiAlertCard {
+    width: min(88vw, 360px);
+    border-radius: 12px;
+    background: var(--popup-bg);
+    border: 1px solid var(--border-light);
+    box-shadow: 0 10px 36px rgba(0,0,0,0.3);
+    overflow: hidden;
+}
+
+#uiAlertBody {
+    padding: 14px 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-align: center;
+    font-size: 13px;
+}
+
+#uiAlertActions {
+    border-top: 1px solid var(--result-border);
+    padding: 8px;
+    display: flex;
+    justify-content: center;
+}
+
+#uiAlertOk {
+    min-width: 96px;
+}
+
+#uiResultActionMask {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: flex-end;
+    padding: 8px 8px max(8px, var(--safe-bottom));
+    background: rgba(0,0,0,0.42);
+    pointer-events: auto;
+}
+
+#uiResultActionSheet {
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+.ui-result-action-group {
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background: var(--popup-bg);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.32);
+}
+
+#uiResultActionTitle {
+    padding: 12px 14px 9px;
+    color: var(--result-font);
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: center;
+    word-break: break-all;
+}
+
+.ui-result-action {
+    width: 100%;
+    min-height: 50px;
+    margin: 0;
+    border-top: 1px solid var(--result-border);
+    border-radius: 0;
+    background: transparent;
+    color: #0A84FF;
+    font-size: 17px;
+}
+
+#uiResultActionCancel {
+    width: 100%;
+    min-height: 50px;
+    margin: 8px 0 0;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background: var(--popup-bg);
+    color: #0A84FF;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+/* iOS/iPadOS WKWebView tuning */
+@supports (-webkit-touch-callout: none) {
+    html,
+    body {
+        min-height: -webkit-fill-available;
+    }
+
+    body {
+        padding-top: var(--safe-top);
+        padding-right: var(--safe-right);
+        padding-bottom: var(--safe-bottom);
+        padding-left: var(--safe-left);
+        overscroll-behavior: none;
+    }
+
+    #appShell {
+        height: calc(100dvh - 38px - var(--safe-top) - var(--safe-bottom));
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+        font-size: var(--ios-control-font-size);
+    }
+
+    input,
+    textarea,
+    select {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+
+    .scrollbar,
+    #controlsPanel,
+    #listdiv,
+    .menuview.current {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+}
 </style>
 
 <script>
@@ -579,14 +1041,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
                     if($("#procname").attr('pid'))
                     {
-                        var procs = await h5gg.getProcList();
-                        var alive = false;
-                        for(var i=0; i<procs.length; i++) {
-                            if(procs[i].pid == $("#procname").attr('pid')) {
-                                alive=true;
-                                break;
-                            }
-                        }
+                        var targetStatus = await h5gg.getTargetStatus();
+                        var alive = targetStatus && targetStatus.available;
                         
                         if(!alive) {
                             alert("Target process terminated\n\nPlease click on the title bar to select a new target");
@@ -750,7 +1206,7 @@ function showPopView(name, action, type, value)
 {
     $("#maskview").show();
     $("#popup_search_edit").show();
-    $("#popup_search_edit").find("B#titleBar").html(name);
+        $("#popup_search_edit").find("#popupTitle").html(name);
     $("#popup_search_edit").find("button#action").html(name);
     
     if(type) {
@@ -820,6 +1276,7 @@ async function loadResults(from, count)
     if(from == 0) {
         gAllResults = results;
         cacheResults(gAllResults);
+        renderResults(gAllResults);
     } else {
         gAllResults = gAllResults.concat(results);
         renderResults(gAllResults);
@@ -922,9 +1379,11 @@ async function onClickMakeTweak()
     console.log('FUNC onClickMakeTweak');
     alert("Make your custom dylib\n\nStep 1: Select a picture file for float button");
     var icon = await h5gg.pickScriptFile(["public.image"]);
+    if(!icon) return;
     
     alert("Step 2: Select a html file that needs to load automatically");
     var html = await h5gg.pickScriptFile(["public.html"]);
+    if(!html) return;
     
     alert(await h5gg.makeTweak(icon, html));
 }
@@ -984,7 +1443,10 @@ async function saveBookmark(addr, type) {
 }
 
 async function freezeResult(addr, val, type) {
-    await h5gg.freezeValue(addr, val, type);
+    if(!await h5gg.freezeValue(addr, val, type)) {
+        showToast('Unable to freeze value');
+        return;
+    }
     var el = document.querySelector('[data-addr="'+addr+'"]');
     if(el) el.classList.add('frozen');
 }
@@ -1005,6 +1467,7 @@ async function openFreezePanel() {
         html += '<div style="display:flex;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
         html += '<div style="flex:1;font-size:12px">';
         html += '<span style="font-weight:bold">'+f.type+'</span> <span>'+f.address+'</span> = <span style="color:#3393EF">'+f.value+'</span>';
+        html += '<div style="font-size:10px;color:'+(f.status == 'active' ? 'green' : 'red')+'">'+f.status+(f.failures ? ' ('+f.failures+' failures)' : '')+(f.lastError ? ': '+f.lastError : '')+'</div>';
         html += '</div>';
         html += '<button onclick="unfreezeAddr(\''+f.address+'\')" style="font-size:16px;color:red;background:none;border:none;padding:4px">&times;</button>';
         html += '</div>';
@@ -1043,6 +1506,15 @@ function toggleTheme() {
         html.classList.add('dark');
         localStorage.setItem('h5gg_theme', 'dark');
     }
+}
+
+function toggleControlPanel() {
+    var shell = document.getElementById('appShell');
+    var button = document.getElementById('controlsToggle');
+    if(!shell || !button) return;
+    var collapsed = shell.classList.toggle('controls-collapsed');
+    button.textContent = collapsed ? 'Show controls' : 'Hide controls';
+    button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
 }
 
 async function loadSearchResults() {
@@ -1100,45 +1572,130 @@ async function clearHistory() {
 
 async function openScriptEditor() {
     console.log('FUNC openScriptEditor');
-    var list = await h5gg.listScripts();
+    if(typeof h5gg == 'undefined' || !h5gg.listScripts) {
+        showToast('Script API is unavailable in this environment');
+        return;
+    }
+
+    var list = [];
+    try {
+        var loaded = await h5gg.listScripts();
+        if(Array.isArray(loaded)) list = loaded;
+    } catch(error) {
+        console.error('openScriptEditor listScripts failed:', error);
+        showToast('Unable to load script list');
+    }
+
     var html = '<div id="scriptOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'scriptOverlay\')">';
     html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
     html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
     html += '<span>Script Editor</span>';
-    html += '<span><button onclick="runCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Run</button><button onclick="saveCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Save</button> <span onclick="closeOverlay(\'scriptOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
+    html += '<span><button onclick="runCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Run JS</button><button onclick="saveCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Save</button><button onclick="deleteCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Delete</button> <span onclick="closeOverlay(\'scriptOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
     html += '</div>';
     html += '<div style="display:flex;flex:1;overflow:hidden">';
     html += '<div class="scrollbar" style="width:100px;border-right:1px solid var(--border-color,#ccc);overflow-y:auto;flex-shrink:0;padding:2px">';
     html += '<button onclick="newScript()" style="width:100%;font-size:11px;margin:2px 0">+ New</button>';
     for(var i=0;i<list.length;i++) {
-        html += '<div onclick="loadScript(\''+list[i]+'\')" style="padding:4px;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border-color,#eee);word-break:break-all">'+list[i]+'</div>';
+        html += '<div data-script="'+encodeURIComponent(list[i])+'" onclick="loadScript(decodeURIComponent(this.dataset.script))" style="padding:4px;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border-color,#eee);word-break:break-all">'+escapeScriptText(list[i])+'</div>';
     }
     html += '</div>';
     html += '<div style="flex:1;display:flex;flex-direction:column;padding:4px">';
     html += '<input id="scriptFileName" value="untitled.js" style="width:100%;margin-bottom:4px;padding:4px;font-size:12px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
-    html += '<textarea id="scriptEditor" style="flex:1;width:100%;font-family:monospace;font-size:11px;padding:4px;resize:none;background:var(--input-bg,transparent);color:var(--text-color,#000);border:1px solid var(--border-color,#ccc);border-radius:3px">// Write your script here</textarea>';
+    html += '<textarea id="scriptEditor" style="flex:1;width:100%;font-family:monospace;font-size:11px;padding:4px;resize:none;background:var(--input-bg,transparent);color:var(--text-color,#000);border:1px solid var(--border-color,#ccc);border-radius:3px">// Explicit save only; there is no autosave.</textarea>';
     html += '</div></div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
+function escapeScriptText(value) {
+    return String(value).replace(/[&<>"']/g, function(character) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];
+    });
+}
+
 async function loadScript(name) {
-    var content = await h5gg.loadScript(name);
+    if(typeof h5gg == 'undefined' || !h5gg.loadScript) {
+        showToast('Script API is unavailable in this environment');
+        return;
+    }
+
+    var content = null;
+    try {
+        content = await h5gg.loadScript(name);
+    } catch(error) {
+        console.error('loadScript failed:', error);
+    }
+
     var input = document.getElementById('scriptFileName');
     var editor = document.getElementById('scriptEditor');
     if(input) input.value = name;
-    if(editor && content) editor.value = content;
+    if(editor && content !== null) editor.value = content;
+    if(content === null) {
+        var err = null;
+        try {
+            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
+        } catch(_) {}
+        showToast(err || 'Unable to load script');
+    }
 }
 
 async function saveCurrentScript() {
     console.log('FUNC saveCurrentScript');
+    if(typeof h5gg == 'undefined' || !h5gg.saveScript) {
+        showToast('Script API is unavailable in this environment');
+        return;
+    }
+
     var input = document.getElementById('scriptFileName');
     var editor = document.getElementById('scriptEditor');
     if(!input || !editor) return;
     var name = input.value.trim();
     var content = editor.value;
     if(!name) return alert('Enter a file name');
-    var ok = await h5gg.saveScript(name, content);
-    if(ok) alert('Saved');
+
+    var ok = false;
+    try {
+        ok = await h5gg.saveScript(name, content);
+    } catch(error) {
+        console.error('saveCurrentScript failed:', error);
+    }
+
+    if(ok) {
+        showToast('Saved');
+    } else {
+        var err = null;
+        try {
+            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
+        } catch(_) {}
+        showToast(err || 'Unable to save script');
+    }
+}
+
+async function deleteCurrentScript() {
+    if(typeof h5gg == 'undefined' || !h5gg.deleteScript) {
+        showToast('Script API is unavailable in this environment');
+        return;
+    }
+
+    var input = document.getElementById('scriptFileName');
+    if(!input || !confirm('Delete '+input.value+'?')) return;
+
+    var ok = false;
+    try {
+        ok = await h5gg.deleteScript(input.value);
+    } catch(error) {
+        console.error('deleteCurrentScript failed:', error);
+    }
+
+    if(ok) {
+        closeOverlay('scriptOverlay');
+        await openScriptEditor();
+    } else {
+        var err = null;
+        try {
+            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
+        } catch(_) {}
+        showToast(err || 'Unable to delete script');
+    }
 }
 
 function newScript() {
@@ -1189,6 +1746,7 @@ function copyCalcResult() {
 var gPointerChain = [];
 var gAllResults = [];
 var gCurrentCount = 0;
+var gSelectedResult = null;
 
 function cacheResults(results) {
     gAllResults = results || [];
@@ -1217,15 +1775,103 @@ function renderResults(results) {
     var html = '';
     for(var i = 0; i < results.length; i++) {
         var r = results[i];
-        html += '<div data-addr="'+r.address+'" onclick="openMemoryEditor(\''+r.address+'\',\''+r.type+'\')" style="cursor:pointer;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
-        html += '<div style="font-size:10px;color:var(--text-color,#888)">'+r.address+' ['+r.type+']</div>';
-        html += '<div class="result-value" style="font-size:12px;font-weight:bold;color:#3393EF">'+r.value+'</div>';
-        html += '<span onclick="event.stopPropagation();saveBookmark(\''+r.address+'\',\''+r.type+'\')" style="cursor:pointer;font-size:14px;margin-right:4px">\u2606</span>';
-        html += '<span onclick="event.stopPropagation();freezeResult(\''+r.address+'\',\''+r.value+'\',\''+r.type+'\')" style="cursor:pointer;font-size:14px">\u2744</span>';
+        var address = escapeScriptText(r.address);
+        var type = escapeScriptText(r.type);
+        var value = escapeScriptText(r.value);
+        html += '<div class="result-row" role="button" tabindex="0" data-addr="'+address+'" data-type="'+type+'" data-value="'+value+'" aria-label="Value '+value+', address '+address+'" onclick="showResultActions(this)" onkeydown="handleResultKeydown(event,this)">';
+        html += '<div class="result-address">'+address+' ['+type+']</div>';
+        html += '<div class="result-value">'+value+'</div>';
+        html += '<div class="result-row-actions">';
+        html += '<button class="result-icon-button" type="button" aria-label="Bookmark '+address+'" onclick="bookmarkResultRow(event,this)">\u2606</button>';
+        html += '<button class="result-icon-button" type="button" aria-label="Freeze '+address+'" onclick="freezeResultRow(event,this)">\u2744</button>';
+        html += '</div>';
         html += '</div>';
     }
     if(results.length == 0) html += '<div style="padding:12px;text-align:center;color:#888">No results</div>';
     display.innerHTML = html;
+}
+
+function bookmarkResultRow(event, button) {
+    event.stopPropagation();
+    var row = button.closest('.result-row');
+    if(row) saveBookmark(row.dataset.addr, row.dataset.type);
+}
+
+function freezeResultRow(event, button) {
+    event.stopPropagation();
+    var row = button.closest('.result-row');
+    if(row) freezeResult(row.dataset.addr, row.dataset.value, row.dataset.type);
+}
+
+function getResultCopyText(result, action) {
+    if(!result) return null;
+    if(action === 'address') return result.address;
+    if(action === 'value') return result.value;
+    if(action === 'both') return result.address + ' = ' + result.value + ' [' + result.type + ']';
+    return null;
+}
+
+function handleResultKeydown(event, row) {
+    if(event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    showResultActions(row);
+}
+
+function showResultActions(row) {
+    if(!row) return;
+    gSelectedResult = {
+        address: row.dataset.addr,
+        value: row.dataset.value,
+        type: row.dataset.type
+    };
+
+    document.querySelectorAll('.result-row.selected').forEach(function(selectedRow) {
+        selectedRow.classList.remove('selected');
+    });
+    row.classList.add('selected');
+
+    var layer = ensureTopLayer();
+    layer.querySelector('#uiResultActionTitle').textContent =
+        gSelectedResult.address + '  \u2022  ' + gSelectedResult.value + ' [' + gSelectedResult.type + ']';
+    layer.querySelector('#uiResultActionMask').style.display = 'flex';
+    setTimeout(function() {
+        try { layer.querySelector('[data-result-copy="value"]').focus(); } catch(_) {}
+    }, 0);
+}
+
+function dismissResultActions() {
+    var layer = ensureTopLayer();
+    layer.querySelector('#uiResultActionMask').style.display = 'none';
+    document.querySelectorAll('.result-row.selected').forEach(function(row) {
+        row.classList.remove('selected');
+    });
+}
+
+async function copySelectedResult(action) {
+    var text = getResultCopyText(gSelectedResult, action);
+    if(text === null) return;
+
+    var copied = false;
+    try {
+        if(typeof h5gg !== 'undefined' && typeof h5gg.copyText === 'function') {
+            copied = await h5gg.copyText(text);
+        } else if(navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+        }
+    } catch(error) {
+        console.error('copySelectedResult failed:', error);
+    }
+
+    dismissResultActions();
+    showToast(copied ? 'Copied to clipboard' : 'Unable to copy');
+}
+
+function editSelectedResult() {
+    if(!gSelectedResult) return;
+    var result = gSelectedResult;
+    dismissResultActions();
+    openMemoryEditor(result.address, result.type);
 }
 
 async function openMemoryEditor(address, type) {
@@ -1262,6 +1908,10 @@ async function openPointerChain() {
 
 async function addPtrStep() {
     console.log('FUNC addPtrStep');
+    if(gPointerChain.length > 32) {
+        showToast('Pointer chains are limited to 32 reads');
+        return;
+    }
     if(gPointerChain.length == 0) {
         var base = document.getElementById('ptrBase').value.trim();
         if(!base) return;
@@ -1272,9 +1922,16 @@ async function addPtrStep() {
     if(!off) return;
     
     var currentAddr = gPointerChain[gPointerChain.length - 1];
-    var offNum = off.startsWith('0x') ? parseInt(off.substring(2), 16) : parseInt(off);
-    var targetAddr = (parseInt(currentAddr.startsWith('0x') ? currentAddr.substring(2) : currentAddr, 16) + offNum).toString(16);
-    targetAddr = '0x' + targetAddr.toUpperCase();
+    var target;
+    try {
+        var offset = off.startsWith('-0x') ? -BigInt('0x'+off.substring(3)) : BigInt(off);
+        target = BigInt(currentAddr) + offset;
+        if(target < 0n || target > 0xFFFFFFFFFFFFFFFFn) throw new Error('range');
+    } catch(error) {
+        showToast('Invalid pointer address or offset');
+        return;
+    }
+    var targetAddr = '0x' + target.toString(16).toUpperCase();
     
     var value = await h5gg.readPointer(targetAddr);
     
@@ -1287,6 +1944,10 @@ async function addPtrStep() {
         display.appendChild(line);
     }
     
+    if(!value) {
+        showToast('Pointer read failed');
+        return;
+    }
     gPointerChain.push(value);
     document.getElementById('ptrOffset').value = '';
     document.getElementById('ptrOffset').focus();
@@ -1296,9 +1957,20 @@ async function doHexSearch() {
     console.log('FUNC doHexSearch');
     var hex = document.getElementById('hexInput').value.trim();
     if(!hex) return;
-    await h5gg.searchHex(hex, '0x0', '0xFFFFFFFF00000000');
+    var start = document.getElementById('range_min').value;
+    var end = document.getElementById('range_max').value;
+    await h5gg.searchHex(hex, start, end);
     await loadSearchResults();
     await h5gg.addSearchHistory(hex, 'Hex', await h5gg.getResultsCount());
+}
+
+async function refineNumericResults() {
+    var value = document.getElementById('refineValue').value.trim();
+    var type = document.getElementById('refineType').value;
+    var mode = Number(document.getElementById('refineMode').value);
+    if(!value) return;
+    await h5gg.searchFilter(value, type, mode);
+    await onClickRefreshResults(true);
 }
 
 async function openDumpPanel() {
@@ -1313,7 +1985,7 @@ async function openDumpPanel() {
     html += '<div style="margin:6px 0"><label>Start Address:</label><br><input id="dumpStart" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
     html += '<div style="margin:6px 0"><label>End Address:</label><br><input id="dumpEnd" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
     html += '<div style="margin:6px 0"><label>File Name:</label><br><input id="dumpName" type="text" value="dump.bin" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<button onclick="doDump()" style="width:100%;margin:6px 0">Dump</button>';
+    html += '<div style="display:flex;gap:4px"><button onclick="doDump()" style="flex:1;margin:6px 0">Dump</button><button onclick="cancelDump()" style="flex:1;margin:6px 0">Cancel</button></div>';
     html += '<div id="dumpStatus" style="font-size:11px;color:#888"></div>';
     html += '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
@@ -1326,10 +1998,29 @@ async function doDump() {
     var name = document.getElementById('dumpName').value.trim();
     if(!start || !end || !name) return;
     var status = document.getElementById('dumpStatus');
-    if(status) status.textContent = 'Dumping...';
-    var ok = await h5gg.dumpMemory(start, end, name);
-    if(status) status.textContent = ok ? 'Saved to Documents/'+name : 'Dump failed';
-    if(ok) setTimeout(function(){ closeOverlay('dumpOverlay'); }, 1500);
+    if(status) status.textContent = 'Dumping... 0%';
+    var poll = setInterval(async function() {
+        var current = await h5gg.getDumpStatus();
+        if(status && current && current.state == 'running') {
+            status.textContent = 'Dumping... ' + Math.floor((current.progress || 0) * 100) + '%';
+        }
+    }, 250);
+    try {
+        var ok = await h5gg.dumpMemory(start, end, name);
+        var finalStatus = await h5gg.getDumpStatus();
+        if(status) status.textContent = ok ? 'Saved to Documents/'+name :
+            (finalStatus.state == 'cancelled' ? 'Dump cancelled' :
+             'Dump failed' + (finalStatus.error ? ': ' + finalStatus.error : ''));
+        if(ok) setTimeout(function(){ closeOverlay('dumpOverlay'); }, 1500);
+    } catch(error) {
+        if(status) status.textContent = 'Dump failed: ' + error;
+    } finally {
+        clearInterval(poll);
+    }
+}
+
+async function cancelDump() {
+    await h5gg.cancelDump();
 }
 
 async function openMemoryEditor(addr, type) {
@@ -1351,6 +2042,9 @@ async function openMemoryEditor(addr, type) {
     html += '<div style="padding:12px;font-size:12px">';
     html += '<div style="margin:4px 0"><b>Address:</b> <span style="color:#3393EF">' + addr + '</span></div>';
     html += '<div style="margin:4px 0"><b>Type:</b> ' + type + ' <b>Value:</b> <span style="color:#3393EF">' + curVal + '</span></div>';
+    html += '<div style="margin:8px 0"><b>Edit Value (Decimal/Typed):</b></div>';
+    html += '<input id="memEditorValue" type="text" value="' + escapeScriptText(curVal) + '" style="width:100%;font-size:12px;padding:6px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin:4px 0">';
+    html += '<button onclick="writeMemoryValue(\'' + addr + '\',\'' + type + '\')" style="width:100%;margin:6px 0;height:32px">Write Value</button>';
     html += '<div style="margin:4px 0"><b>Hex:</b> <span style="font-family:monospace;font-size:11px">' + hex + '</span></div>';
     html += '<div style="margin:8px 0"><b>Edit Hex:</b></div>';
     html += '<input id="memEditorInput" type="text" value="' + hex + '" style="width:100%;font-family:monospace;font-size:12px;padding:6px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin:4px 0">';
@@ -1359,6 +2053,44 @@ async function openMemoryEditor(addr, type) {
     html += '<div id="memEditorStatus" style="font-size:11px;color:#888;text-align:center"></div>';
     html += '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function writeMemoryValue(addr, type) {
+    console.log('FUNC writeMemoryValue');
+    var input = document.getElementById('memEditorValue');
+    var status = document.getElementById('memEditorStatus');
+    if(!input || !status) return;
+
+    var value = input.value.trim();
+    if(value === '') {
+        status.textContent = 'Enter a value';
+        status.style.color = 'red';
+        return;
+    }
+
+    var ok = false;
+    try {
+        ok = await h5gg.setValue(addr, value, h5ggType(type));
+    } catch(error) {
+        console.error('writeMemoryValue failed:', error);
+    }
+
+    if(!ok) {
+        status.textContent = 'Value write failed';
+        status.style.color = 'red';
+        return;
+    }
+
+    var newVal = await h5gg.getValue(addr, h5ggType(type));
+    status.textContent = 'Value written successfully';
+    status.style.color = 'green';
+
+    var rows = document.querySelectorAll('[data-addr="' + addr + '"]');
+    if(rows.length > 0) {
+        var row = rows[0];
+        var valEl = row.querySelector('.result-value');
+        if(valEl) valEl.textContent = newVal;
+    }
 }
 
 async function writeMemoryEditor(addr, type, bytes) {
@@ -1420,18 +2152,141 @@ function sortResults(mode) {
 }
 
 function showToast(msg) {
-    var el = document.getElementById('toastMsg');
-    if(!el) {
-        el = document.createElement('div');
-        el.id = 'toastMsg';
-        el.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:8px 16px;border-radius:20px;font-size:12px;z-index:999999;transition:opacity 0.3s';
-        document.body.appendChild(el);
-    }
-    el.textContent = msg;
-    el.style.opacity = '1';
-    clearTimeout(el._timer);
-    el._timer = setTimeout(function() { el.style.opacity = '0'; }, 2000);
+    gToastQueue.push({
+        message: String(msg == null ? '' : msg),
+        duration: 2000
+    });
+    processToastQueue();
 }
+
+var gToastQueue = [];
+var gToastShowing = false;
+var gAlertQueue = [];
+var gAlertShowing = false;
+
+function processToastQueue() {
+    if(gToastShowing || !gToastQueue.length) return;
+
+    var layer = ensureTopLayer();
+    var el = layer.querySelector('#uiToast');
+    var current = gToastQueue[0];
+
+    gToastShowing = true;
+    el.textContent = current.message;
+    el.style.opacity = '1';
+
+    clearTimeout(el._hideTimer);
+    clearTimeout(el._nextTimer);
+
+    el._hideTimer = setTimeout(function() {
+        el.style.opacity = '0';
+        el._nextTimer = setTimeout(function() {
+            gToastQueue.shift();
+            gToastShowing = false;
+            processToastQueue();
+        }, 240);
+    }, current.duration);
+}
+
+function ensureTopLayer() {
+    var layer = document.getElementById('uiTopLayer');
+    if(layer) return layer;
+
+    layer = document.createElement('div');
+    layer.id = 'uiTopLayer';
+    layer.innerHTML =
+        '<div id="uiToast" aria-live="polite"></div>' +
+        '<div id="uiAlertMask" role="dialog" aria-modal="true">' +
+            '<div id="uiAlertCard">' +
+                '<div id="uiAlertBody"></div>' +
+                '<div id="uiAlertActions">' +
+                    '<button id="uiAlertOk" type="button">OK</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+        '<div id="uiResultActionMask" role="dialog" aria-modal="true" aria-label="Result actions">' +
+            '<div id="uiResultActionSheet">' +
+                '<div class="ui-result-action-group">' +
+                    '<div id="uiResultActionTitle"></div>' +
+                    '<button class="ui-result-action" type="button" data-result-copy="value" onclick="copySelectedResult(\'value\')">Copy Value</button>' +
+                    '<button class="ui-result-action" type="button" data-result-copy="address" onclick="copySelectedResult(\'address\')">Copy Address</button>' +
+                    '<button class="ui-result-action" type="button" data-result-copy="both" onclick="copySelectedResult(\'both\')">Copy Address and Value</button>' +
+                    '<button class="ui-result-action" type="button" onclick="editSelectedResult()">Edit Value</button>' +
+                '</div>' +
+                '<button id="uiResultActionCancel" type="button" onclick="dismissResultActions()">Cancel</button>' +
+            '</div>' +
+        '</div>';
+
+    document.documentElement.appendChild(layer);
+
+    var mask = layer.querySelector('#uiAlertMask');
+    mask.addEventListener('click', function(event) {
+        if(event.target === mask) {
+            dismissActiveAlert();
+        }
+    });
+
+    var resultMask = layer.querySelector('#uiResultActionMask');
+    resultMask.addEventListener('click', function(event) {
+        if(event.target === resultMask) dismissResultActions();
+    });
+
+    return layer;
+}
+
+function dismissActiveAlert() {
+    var layer = ensureTopLayer();
+    var mask = layer.querySelector('#uiAlertMask');
+    if(mask.style.display !== 'flex') return;
+
+    mask.style.display = 'none';
+    gAlertShowing = false;
+    if(gAlertQueue.length) gAlertQueue.shift();
+
+    if(layer._alertKeydownHandler) {
+        document.removeEventListener('keydown', layer._alertKeydownHandler);
+        layer._alertKeydownHandler = null;
+    }
+
+    setTimeout(processAlertQueue, 0);
+}
+
+function processAlertQueue() {
+    if(gAlertShowing || !gAlertQueue.length) return;
+
+    var layer = ensureTopLayer();
+    var mask = layer.querySelector('#uiAlertMask');
+    var body = layer.querySelector('#uiAlertBody');
+    var ok = layer.querySelector('#uiAlertOk');
+
+    gAlertShowing = true;
+    body.textContent = String(gAlertQueue[0]);
+    mask.style.display = 'flex';
+
+    ok.onclick = dismissActiveAlert;
+
+    layer._alertKeydownHandler = function(event) {
+        if(mask.style.display !== 'flex') return;
+        if(event.key === 'Escape' || event.key === 'Enter') {
+            event.preventDefault();
+            dismissActiveAlert();
+        }
+    };
+
+    document.addEventListener('keydown', layer._alertKeydownHandler);
+    setTimeout(function() {
+        try { ok.focus(); } catch(_) {}
+    }, 0);
+}
+
+function showCustomAlert(message) {
+    gAlertQueue.push(message == null ? '' : message);
+    processAlertQueue();
+}
+
+window.alert = function(message) {
+    showCustomAlert(message);
+};
 
 function applyTolerance() {
     console.log('FUNC applyTolerance');
@@ -1445,9 +2300,22 @@ async function loadAutorunList() {
     var sel = document.getElementById('autorunSelect');
     if(!sel) return;
     var saved = localStorage.getItem('h5gg_autorun') || '';
-    var list = await h5gg.listScripts();
+    if(typeof h5gg == 'undefined' || !h5gg.listScripts) {
+        sel.innerHTML = '<option value="">-- Auto-run --</option>';
+        return;
+    }
+
+    var list = [];
+    try {
+        var loaded = await h5gg.listScripts();
+        if(Array.isArray(loaded)) list = loaded;
+    } catch(error) {
+        console.error('loadAutorunList failed:', error);
+    }
+
     sel.innerHTML = '<option value="">-- Auto-run --</option>';
     for(var i=0;i<list.length;i++) {
+        if(!list[i].toLowerCase().endsWith('.js')) continue;
         var opt = document.createElement('option');
         opt.value = list[i];
         opt.textContent = list[i];
@@ -1462,7 +2330,12 @@ function setAutorun() {
 }
 
 function runCurrentScript() {
-    runScript(document.getElementById('scriptEditor').value, document.getElementById('scriptFileName').value);
+    var filename = document.getElementById('scriptFileName').value;
+    if(filename.toLowerCase().endsWith('.html')) {
+        showToast('HTML files can be edited and saved, but only JavaScript files can run here');
+        return;
+    }
+    runScript(document.getElementById('scriptEditor').value, filename);
 }
 
 function runScript(code, filename) {
@@ -1515,8 +2388,18 @@ async function checkAutorun() {
     console.log('FUNC checkAutorun');
     var name = localStorage.getItem('h5gg_autorun');
     if(!name) return;
-    var content = await h5gg.loadScript(name);
-    if(content) runScript(content, name);
+    if(!name.toLowerCase().endsWith('.js')) {
+        localStorage.removeItem('h5gg_autorun');
+        return;
+    }
+    if(typeof h5gg == 'undefined' || !h5gg.loadScript) return;
+
+    try {
+        var content = await h5gg.loadScript(name);
+        if(content) runScript(content, name);
+    } catch(error) {
+        console.error('checkAutorun failed:', error);
+    }
 }
 
 function openSettings() {
@@ -1590,8 +2473,14 @@ function openMemoryViewer() {
 async function viewerGo() {
     var input = document.getElementById('viewerAddr');
     if(!input) return;
-    gViewerAddr = input.value.trim();
-    if(!gViewerAddr.startsWith('0x')) gViewerAddr = '0x' + parseInt(gViewerAddr).toString(16);
+    try {
+        var address = BigInt(input.value.trim());
+        if(address < 0n || address > 0xFFFFFFFFFFFFFFFFn) throw new Error('range');
+        gViewerAddr = '0x' + address.toString(16).toUpperCase();
+    } catch(error) {
+        document.getElementById('viewerDump').textContent = 'Invalid address';
+        return;
+    }
     input.value = gViewerAddr;
     await viewerRefresh();
 }
@@ -1601,22 +2490,32 @@ async function viewerRefresh() {
     var dump = document.getElementById('viewerDump');
     if(!dump || !gViewerAddr) return;
 
-    var addr = parseInt(gViewerAddr, 16);
-    var hex = await h5gg.readBytes(gViewerAddr, 256);
-    if(!hex) { dump.textContent = 'Failed to read memory'; return; }
+    var addr = BigInt(gViewerAddr);
+    var page = await h5gg.readMemoryPage(gViewerAddr, 256);
+    if(!page || page.error) { dump.textContent = 'Failed to read memory'; return; }
 
-    var lines = hex.split('\n');
     var out = '';
-    for(var i = 0; i < lines.length; i++) {
-        var offset = (addr + i * 16).toString(16).toUpperCase().padStart(8, '0');
-        out += offset + '  ' + lines[i] + '\n';
+    for(var line = 0; line < page.bytes.length; line += 16) {
+        var offset = (addr + BigInt(line)).toString(16).toUpperCase().padStart(16, '0');
+        var hex = '';
+        var ascii = '';
+        for(var column = 0; column < 16; column++) {
+            var value = page.bytes[line + column];
+            hex += value === null ? '?? ' : value.toString(16).toUpperCase().padStart(2, '0') + ' ';
+            if(column == 7) hex += ' ';
+            ascii += value === null ? '\u00b7' : (value >= 32 && value <= 126 ? String.fromCharCode(value) : '.');
+        }
+        out += offset + '  ' + hex + ' |' + ascii + '|\n';
     }
+    if(!page.complete) out += '\nUnreadable bytes are shown as ??.';
     dump.textContent = out;
 }
 
 async function viewerStep(delta) {
-    var addr = parseInt(gViewerAddr, 16);
-    addr += delta;
+    var addr = BigInt(gViewerAddr) + BigInt(delta);
+    var maximum = 0xFFFFFFFFFFFFFFFFn - 255n;
+    if(addr < 0n) addr = 0n;
+    if(addr > maximum) addr = maximum;
     gViewerAddr = '0x' + addr.toString(16).toUpperCase();
     var input = document.getElementById('viewerAddr');
     if(input) input.value = gViewerAddr;
@@ -1629,107 +2528,113 @@ async function viewerPage(dir) {
 </script>
 
 </head>
-<body style="margin:0;">
-<!--标题栏-->
-<div id="titleBar" style="background-color:var(--title-bg); padding:5px; margin:0px; height:12px">
-&nbsp;<font style="color:green">H5</font> <font style="color:red">GG</font>&nbsp;v<span id="version"></span>
-<span id="crossproc" style="display:none">
-<font style="color:blue">&nbsp;CrossProc&nbsp;</font><font id="procname">procname</font>
-</span>
-    
-<div id="theme-toggle" onclick="toggleTheme()">&#9790;</div>
-<div id="closeMenu" style="float:right; font-size:16px; line-height:14px; font-family: Arial, sans-serif;" onclick="setWindowVisible(false)">&nbsp;X&nbsp;</div>
-</div>
-<!--用一个表格来布局左右两栏-->
-<table id="bodyView" width="100%" style="table-layout:fixed;height: calc(100% - 22px) ;">
-<tr>
-<td style="vertical-align:top;width:135px;border-right:solid 2px var(--result-border);padding:4px;">
-<div>
-MemStart:<input id="range_min" style="width:76px;padding-left:0" value="0x00000000" />
-<br/>
-MemEnd:<input id="range_max" style="width:80px;padding-left:0"  value="0x200000000" />
-<br/>
-<label><input type=radio name="numtype" value="signed" checked />Signed</label>
-<label><input type=radio name="numtype" value="unsigned" />UnSigned</label>
-<br/>
-<button onclick="onClickSearchNumber()">Search</button>
-<button onclick="onClickSearchNearby()">NearbySearch</button>
-<br/>
-<button onclick="onClickClearResults()">Clear</button>
-<button onclick="onClickEditAll()">EditAll</button>
-<button onclick="onClickRefreshResults()">Refresh</button>
-<br/>
-<button onclick="onShowLoadScript(true)">&nbsp;Scripts&nbsp;</button>
-<button onclick="onClickMakeTweak()">&nbsp;MakeTweak&nbsp;</button>
-<button onclick="openBookmarksPanel()">&nbsp;Bookmarks&nbsp;</button>
-<button onclick="openFreezePanel()">&nbsp;Freeze&nbsp;</button>
-<br/>
-<button onclick="openScriptEditor()">Scripts</button>
-<button onclick="openOffsetCalc()">Calc</button>
-<button onclick="openPointerChain()">Ptr</button>
-<button onclick="openDumpPanel()">Dump</button>
-<button onclick="openHistoryPanel()">Hist</button>
-<button onclick="openMemoryViewer()">Viewer</button>
-<br/>
-<div style="display:flex;align-items:center;padding:2px 0">
-    <select id="autorunSelect" onchange="setAutorun()" style="flex:1;font-size:10px;margin:2px 4px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
-        <option value="">-- Auto-run --</option>
-    </select>
-    <button onclick="openSettings()" style="height:24px;font-size:11px;padding:2px 6px">Settings</button>
-</div>
-NearbyRange:<input id="nearby_range" style="width:55px"  value="0x100"/>
-<br/>
-FloatTolerance:<input id="float_tolerance" style="width:50px" value="0.0"/>
-<br/>
-<div style="display:flex;align-items:center;padding:2px 4px;margin-top:2px">
-    <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#3393EF">Hex</span>
-    <input id="hexInput" type="text" placeholder="90 00 E0 AF" style="flex:1;height:26px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">
-    <button onclick="doHexSearch()" style="height:26px;font-size:11px;padding:2px 6px;margin-left:4px">Search</button>
-</div>
-<div style="display:flex;align-items:center;padding:2px 4px">
-    <span style="font-size:11px;margin-right:4px;color:#888">Tolerance</span>
-    <input id="tolInput" type="text" value="0" placeholder="0.0" style="width:50px;height:24px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin-right:4px">
-    <button onclick="applyTolerance()" style="height:24px;font-size:11px;padding:2px 6px">Set</button>
-</div>
-<div style="display:flex;align-items:center;padding:2px 4px;margin-top:2px">
-    <span style="font-size:11px;font-weight:bold;margin-right:4px;color:#888">Filter</span>
-    <input id="filterInput" type="text" placeholder="filter results..." style="flex:1;height:24px;font-size:11px;padding:2px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px" oninput="filterResults()">
-    <span id="filterCount" style="font-size:10px;color:#888;margin-left:4px;min-width:20px"></span>
-</div>
-<br/>
-<hr class="control-separator"/>
-<p id="results_count" style="display:none">Results Count:<span>0</span></p>
-<button onclick="sortResults('addr')" style="font-size:10px;padding:1px 4px;margin:0 2px">Addr</button>
-<button onclick="sortResults('addrD')" style="font-size:10px;padding:1px 4px;margin:0 2px">Addr↓</button>
-<button onclick="sortResults('val')" style="font-size:10px;padding:1px 4px;margin:0 2px">Val</button>
-<button onclick="sortResults('valD')" style="font-size:10px;padding:1px 4px;margin:0 2px">Val↓</button>
-</div>
-</td>
-<td style="vertical-align:top;">
-<div id="listdiv" class="scrollbar" ontouchend="showMoreResults(this);">
-<table id="resultList" style="width:100%;cursor:hand;">
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>1.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>2.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>3.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>4.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>5.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>6.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>7.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>8.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>9.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>10.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>11.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>12.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>13.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>14.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>15.0x102345678<br/><font>112233</td></tr>
-<tr address="0x012345678" datatype="F64" datavalue="123"><td>16.0x102345678<br/><font>0.112233112233112233112233112233112233</td></tr>
-</table>
-</div>
+<body>
+<header id="titleBar">
+    <div class="title-brand">
+        <span style="color:green">H5</span> <span style="color:red">GG</span>v8.0<span id="version"></span>
+        <span id="crossproc" style="display:none"><span style="color:blue">&nbsp;CrossProc&nbsp;</span><span id="procname">procname</span></span>
+    </div>
+    <div class="title-actions">
+        <button id="controlsToggle" class="title-action" type="button" aria-controls="controlsPanel" aria-expanded="true" onclick="toggleControlPanel()">Hide controls</button>
+        <button id="theme-toggle" class="title-action" type="button" aria-label="Change theme" onclick="toggleTheme()">&#9790;</button>
+        <button id="closeMenu" class="title-action" type="button" aria-label="Close H5GG" onclick="setWindowVisible(false)">&#10005;</button>
+    </div>
+</header>
 
-</td>
-</tr>
-</table>
+<div id="appShell">
+    <aside id="controlsPanel" class="scrollbar" aria-label="Search controls">
+        <section class="control-section">
+            <h2 class="section-title">Memory search</h2>
+            <div class="field-grid">
+                <label for="range_min">Start</label>
+                <input id="range_min" class="compact-input" value="0x00000000" inputmode="text" autocomplete="off" />
+                <label for="range_max">End</label>
+                <input id="range_max" class="compact-input" value="0x200000000" inputmode="text" autocomplete="off" />
+            </div>
+            <div class="radio-row" role="group" aria-label="Number sign">
+                <label><input type="radio" name="numtype" value="signed" checked />Signed</label>
+                <label><input type="radio" name="numtype" value="unsigned" />Unsigned</label>
+            </div>
+            <div class="action-grid">
+                <button class="primary-action" onclick="onClickSearchNumber()">Search</button>
+                <button onclick="onClickSearchNearby()">Nearby</button>
+                <button onclick="onClickRefreshResults()">Refresh</button>
+                <button onclick="onClickClearResults()">Clear</button>
+                <button onclick="onClickEditAll()">Edit all</button>
+            </div>
+        </section>
+
+        <details class="control-section" open>
+            <summary>Search options</summary>
+            <div class="field-grid">
+                <label for="nearby_range">Nearby</label>
+                <input id="nearby_range" class="compact-input" value="0x100" />
+                <label for="float_tolerance">Float tolerance</label>
+                <input id="float_tolerance" class="compact-input" value="0.0" />
+            </div>
+            <div class="inline-row">
+                <input id="hexInput" type="text" placeholder="Hex: 90 ?? E? AF" aria-label="Hex pattern" title="? is a wildcard nibble; searching again refines current results" />
+                <button onclick="doHexSearch()">Hex search</button>
+            </div>
+            <div class="inline-row">
+                <input id="refineValue" type="text" placeholder="Refine value" aria-label="Refine value" />
+                <select id="refineType" aria-label="Refine type"><option>I8</option><option>U8</option><option>I16</option><option>U16</option><option selected>I32</option><option>U32</option><option>I64</option><option>U64</option><option>F32</option><option>F64</option></select>
+                <select id="refineMode" aria-label="Refine comparison"><option value="0">=</option><option value="2">&gt;</option><option value="3">&lt;</option></select>
+                <button onclick="refineNumericResults()">Refine</button>
+            </div>
+            <div class="inline-row">
+                <label for="tolInput">Tolerance</label>
+                <input id="tolInput" type="text" value="0" placeholder="0.0" />
+                <button onclick="applyTolerance()">Apply</button>
+            </div>
+        </details>
+
+        <details class="control-section">
+            <summary>Tools and scripts</summary>
+            <div class="tool-grid">
+                <button onclick="onShowLoadScript(true)">Load script</button>
+                <button onclick="openScriptEditor()">Script editor</button>
+                <button onclick="onClickMakeTweak()">Make tweak</button>
+                <button onclick="openBookmarksPanel()">Bookmarks</button>
+                <button onclick="openFreezePanel()">Frozen values</button>
+                <button onclick="openOffsetCalc()">Calculator</button>
+                <button onclick="openPointerChain()">Pointers</button>
+                <button onclick="openDumpPanel()">Memory dump</button>
+                <button onclick="openHistoryPanel()">History</button>
+                <button onclick="openMemoryViewer()">Memory viewer</button>
+            </div>
+            <div class="inline-row">
+                <select id="autorunSelect" onchange="setAutorun()" aria-label="Auto-run script">
+                    <option value="">-- Auto-run --</option>
+                </select>
+                <button onclick="openSettings()">Settings</button>
+            </div>
+        </details>
+    </aside>
+
+    <main id="resultsPanel" aria-label="Search results">
+        <div id="resultsToolbar">
+            <div class="results-heading">
+                <strong>Results</strong>
+                <p id="results_count">Results Count: 0</p>
+            </div>
+            <div class="filter-row">
+                <input id="filterInput" type="search" placeholder="Filter by address or value" aria-label="Filter results" oninput="filterResults()" />
+                <span id="filterCount" aria-live="polite"></span>
+            </div>
+            <div class="sort-grid" aria-label="Sort results">
+                <button onclick="sortResults('addr')">Address &#8593;</button>
+                <button onclick="sortResults('addrD')">Address &#8595;</button>
+                <button onclick="sortResults('val')">Value &#8593;</button>
+                <button onclick="sortResults('valD')">Value &#8595;</button>
+            </div>
+        </div>
+        <div id="listdiv" class="scrollbar" ontouchend="showMoreResults(this);">
+            <table id="resultList" hidden><tbody></tbody></table>
+            <div class="empty-state">No results yet</div>
+        </div>
+    </main>
+</div>
 
 <!--全局灰色遮罩层(弹出搜索框的时候用)-->
 <div id="maskview" class="maskview"></div>
@@ -1738,7 +2643,7 @@ FloatTolerance:<input id="float_tolerance" style="width:50px" value="0.0"/>
 <div class="popup_container">
     
 <div id="popup_search_edit">
-<B id="titleBar">Search Number</B>
+<B id="popupTitle">Search Number</B>
 <br/><br/>
 <center>
 <table id="datatype" class="datatype">
@@ -1761,7 +2666,7 @@ FloatTolerance:<input id="float_tolerance" style="width:50px" value="0.0"/>
 <center>
 <div class="menubox current" menu="localjs" onclick="refreshLocalSrcipts()">Local ⟳</div>
 <div class="menubox" menu="netjs">Network</div>
-<div style="float:right; font-size:16px; font-family: Arial, sans-serif;" onclick="onShowLoadScript(false)">&nbsp;X&nbsp;</div>
+<div style="float:right; font-size:16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;" onclick="onShowLoadScript(false)">&nbsp;X&nbsp;</div>
 </center>
 <hr/>
 <div id="localjs" class="menuview current scrollbar" style="height:190px">
