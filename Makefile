@@ -14,7 +14,7 @@ endif
 
 ifeq ($(JB_VARIANT),normal)
 	ARCHS = arm64 arm64e
-	TARGET = iphone:clang:15.6:15.0
+	TARGET = iphone:clang:16.5:15.0
 else ifeq ($(JB_VARIANT),rootless)
 	ARCHS = arm64 arm64e
 	TARGET = iphone:clang:16.5:15.0
