@@ -20,10 +20,14 @@ ifeq ($(filter normal rootless roothide,$(JB_VARIANT)),)
 $(error Unsupported jailbreak build variant '$(JB_VARIANT)'. Use normal, rootless or roothide.)
 endif
 
-ARCHS = arm64 arm64e
 ifeq ($(JB_VARIANT),normal)
-TARGET = iphone:clang:15.6:15.0
-else
+ARCHS = arm64 arm64e
+TARGET = iphone:clang:16.5:15.0
+else ifeq ($(JB_VARIANT),rootless)
+ARCHS = arm64 arm64e
+TARGET = iphone:clang:16.5:15.0
+else ifeq ($(JB_VARIANT),roothide)
+ARCHS = arm64 arm64e
 TARGET = iphone:clang:16.5:15.0
 endif
 
