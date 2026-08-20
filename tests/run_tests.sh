@@ -134,6 +134,8 @@ else
   echo "Skipping Foundation contract tests because the macOS SDK is unavailable"
 fi
 node "$repo_root/tests/ResultActionsTests.js"
+node --check "$repo_root/examples-JavaScript/h5ggV8/phase2DeviceValidation.js"
+node "$repo_root/tests/Phase2DeviceValidationTests.js"
 node "$repo_root/tests/check_javascript_api_docs.js"
 bash "$repo_root/tests/check_build_variants.sh"
 bash "$repo_root/tests/check_dylib_generation.sh"

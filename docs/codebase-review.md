@@ -1,6 +1,6 @@
 # Codebase review
 
-Verified against `0571a44` plus the current working tree on 2026-08-20.
+Verified against `c69d0c6` plus the current working tree on 2026-08-20.
 
 ## Executive finding
 
@@ -36,6 +36,10 @@ remain open.
 - Normal, rootless, and roothide `.deb` files pass exact control metadata,
   installed-path, dylib/plist, executable-script, and Mach-O slice assertions
   before `build.sh` publishes them.
+- The validation-only Phase 2 fixture has a host-checked stable layout; its
+  Promise-bridge runner executes all 15 checks against a host mock, is
+  syntax/API checked, compiles for arm64/arm64e when explicitly enabled, and is
+  absent from clean default builds.
 - Every device row remains outstanding.
 - This review does not treat an unrecorded device behavior as complete.
 

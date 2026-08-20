@@ -57,10 +57,16 @@ checker, which asserts:
 - a valid non-empty `Filter.Bundles` plist and exactly arm64/arm64e Mach-O
   slices.
 
-Compile the tweak without producing or replacing package artifacts:
+List the supported commands directly from the root Makefile:
 
 ```sh
-make -j2
+make help
+```
+
+Compile the rootful tweak without producing or replacing package artifacts:
+
+```sh
+make clean all
 ```
 
 Build and validate all package variants with:
@@ -71,38 +77,86 @@ Build and validate all package variants with:
 
 Invalid artifacts are rejected before collection or publication.
 
+## Phase 2 device runner
+
+The validation fixture and runner make the non-interactive Phase 2 memory rows
+repeatable. They are deliberately excluded from default and release builds.
+Build an instrumented package for the scheme installed on the test device; for
+example, the rootful package is:
+
+```sh
+make package-normal FINALPACKAGE=1 H5GG_DEVICE_VALIDATION=1
+```
+
+Use `package-rootless` or `package-roothide` instead when appropriate. Do not
+use `build.sh` for an instrumented build, because `build.sh` is the release
+artifact workflow.
+
+Install the package only on validation hardware, inject it into the chosen test
+application, open the H5GG menu, load
+`examples-JavaScript/h5ggV8/phase2DeviceValidation.js`, then run:
+
+```js
+await runH5GGPhase2DeviceValidation({
+    device: "test device name",
+    ios: "iOS version",
+    jailbreak: "jailbreak/bootstrap and version",
+    scheme: "normal, rootless, or roothide",
+    mode: "injected or standalone",
+});
+```
+
+The runner locates a fixed-layout fixture inside `H5GG.dylib` and records a
+JSON report in `Documents/h5gg.log` and the clipboard. The report includes the
+supplied device metadata, user agent, selected-target status, pointer
+capabilities, and resolved fixture module. Its 15 checks exercise real WK
+unknown-method rejection, numeric searches for every type, grouped/refined
+search, equal/greater/less filters, mixed-case wildcard hex search/refinement,
+typed reads/writes, freezer teardown, exact pointer reads/search, partial page
+reads, dump completion/cancellation/failure, partial-file cleanup, and the
+script-store path policy. Run it once in an injected self-target and again from
+the standalone UI after selecting the same process to cover the cross-process
+adapter.
+
+The file picker, plugin demo, generated-dylib loading, target termination,
+GlobalView/orientation, floating-button presentation, and package
+install/uninstall rows remain interactive checks. A runner report is evidence,
+not an automatic completion marker: record the hardware, iOS version,
+jailbreak/bootstrap, package scheme, mode, and report result below before
+changing a row to complete.
+
 ## Device smoke matrix
 
 Record the device, iOS version, jailbreak/bootstrap, package scheme, and result
 for every row.
 
-| Mode | Scenario | Expected result |
-|---|---|---|
-| Injected dylib | Launch target application | Floating button and menu appear without changing the app's key window |
-| Injected dylib | Search/read/write known local value | Exact search finds the address and write is observable |
-| Standalone | Select a running application | Selection succeeds and the next read uses that application's task port |
-| Standalone | Switch target twice | Results and frozen values do not leak between targets |
-| Standalone | Invalid/terminated target | Operation fails without corrupting the current session |
-| Any | Numeric first/refine search for every type | Counts, values, and types remain consistent |
-| Any | Equal/greater/less result filter | Returned count equals displayed result count |
-| Any | Hex first/refine search with mixed-case and `?` wildcards | Matches refine in place and are returned as byte results |
-| Any | Invalid/odd-length hex search | Search is rejected without changing the current session |
-| Any | Read 256 bytes across a protection boundary | Viewer shows readable bytes and `??` for each unreadable byte |
-| Any | Dump across a readable page | Progress reaches 100%; file length and contents match memory |
-| Any | Cancel a multi-page dump | Promise settles false and no partial file remains |
-| Any | Dump crossing an unreadable page | Status identifies the failure and no partial file remains |
-| Any | Cancel and overlap file pickers | Every Promise settles once with the correct call ID |
-| Any | Post unknown bridge method | Promise rejects and no Objective-C selector is invoked |
-| Any | Save/load/delete script | Valid `.js`/`.html` names work; traversal names are rejected |
-| Any | Load an `H5GGPluginRPC` demo plugin | Handle loads and JSON calls/results cross the WK bridge |
-| Any | Generate and load a custom dylib | Both architecture slices are signed; custom icon/menu load |
-| Any | Terminate selected target with frozen values | Session invalidates and entries report/clear target state safely |
-| Any | Search exact 64-bit pointers | Results stop at documented limits and chains stop at 32 reads |
-| GlobalView | Host/unhost supported application | View and button state synchronize without a SpringBoard crash |
-| GlobalView | Rotate and switch applications | Orientation and configured dismissal behavior apply |
-| Rootful | Install/uninstall normal package | Files use rootful paths and runtime launches |
-| Rootless | Install/uninstall rootless package | Files use rootless paths and runtime launches |
-| Roothide | Install/uninstall roothide package | Paths are translated and runtime launches |
+| Mode | Scenario | Execution | Expected result |
+|---|---|---|---|
+| Injected dylib | Launch target application | Interactive | Floating button and menu appear without changing the app's key window |
+| Injected dylib | Search/read/write known local value | Runner | Exact search finds the address and write is observable |
+| Standalone | Select a running application | Interactive setup + runner | Selection succeeds and the next read uses that application's task port |
+| Standalone | Switch target twice | Interactive | Results and frozen values do not leak between targets |
+| Standalone | Invalid/terminated target | Interactive | Operation fails without corrupting the current session |
+| Any | Numeric first/refine search for every type | Runner | Counts, values, and types remain consistent |
+| Any | Equal/greater/less result filter | Runner | Returned count equals displayed result count |
+| Any | Hex first/refine search with mixed-case and `?` wildcards | Runner | Matches refine in place and are returned as byte results |
+| Any | Invalid/odd-length hex search | Interactive | Search is rejected without changing the current session |
+| Any | Read 256 bytes across a protection boundary | Runner | Viewer shows readable bytes and `??` for each unreadable byte |
+| Any | Dump across a readable page | Runner | Progress reaches 100%; file length and contents match memory |
+| Any | Cancel a multi-page dump | Runner | Promise settles false and no partial file remains |
+| Any | Dump crossing an unreadable page | Runner | Status identifies the failure and no partial file remains |
+| Any | Cancel and overlap file pickers | Interactive | Every Promise settles once with the correct call ID |
+| Any | Post unknown bridge method | Runner | Promise rejects and no Objective-C selector is invoked |
+| Any | Save/load/delete script | Runner | Valid `.js`/`.html` names work; traversal names are rejected |
+| Any | Load an `H5GGPluginRPC` demo plugin | Interactive | Handle loads and JSON calls/results cross the WK bridge |
+| Any | Generate and load a custom dylib | Interactive | Both architecture slices are signed; custom icon/menu load |
+| Any | Terminate selected target with frozen values | Interactive | Session invalidates and entries report/clear target state safely |
+| Any | Search exact 64-bit pointers | Runner + interactive limits | Results stop at documented limits and chains stop at 32 reads |
+| GlobalView | Host/unhost supported application | Interactive | View and button state synchronize without a SpringBoard crash |
+| GlobalView | Rotate and switch applications | Interactive | Orientation and configured dismissal behavior apply |
+| Rootful | Install/uninstall normal package | Interactive | Files use rootful paths and runtime launches |
+| Rootless | Install/uninstall rootless package | Interactive | Files use rootless paths and runtime launches |
+| Roothide | Install/uninstall roothide package | Interactive | Paths are translated and runtime launches |
 
 ## Current evidence
 
@@ -118,5 +172,9 @@ As of 2026-08-20:
 - FreezerController, FilePickerRequest, PreferencesStore, and reader-backed
   PointerSearch host contract tests pass;
 - DumpController lifecycle and real temporary-file contract tests pass;
+- the Phase 2 fixture layout and all 15 runner checks pass through a mocked
+  Promise bridge on host; runner syntax and public API usage are checked;
+- instrumented arm64/arm64e builds include the fixture only when
+  `H5GG_DEVICE_VALIDATION=1`; clean default builds exclude it;
 - plist and entitlement linting passes;
 - device rows remain unverified and must be completed before a stable release.

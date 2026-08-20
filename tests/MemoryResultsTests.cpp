@@ -12,6 +12,7 @@
 #include "../TargetSession.h"
 #include "../ModalRequestQueue.h"
 #include "../ScriptStore.h"
+#include "device/Phase2DeviceFixture.h"
 
 #include <cassert>
 #include <chrono>
@@ -922,6 +923,16 @@ static void findsExactPointersThroughTheMemoryReader() {
                                overflowRegion, reader, options).empty());
 }
 
+static void deviceFixtureLayoutIsStableForTheValidationScript() {
+    assert(H5GGPhase2FixtureMarker == 5212150515364943416ULL);
+    assert(sizeof(H5GGPhase2DeviceFixture) == 128);
+    assert(offsetof(H5GGPhase2DeviceFixture, pointerToMarker) == 64);
+    assert(offsetof(H5GGPhase2DeviceFixture, boundaryAddress) == 72);
+    assert(offsetof(H5GGPhase2DeviceFixture, dumpAddress) == 88);
+    assert(offsetof(H5GGPhase2DeviceFixture, cancelAddress) == 104);
+    assert(offsetof(H5GGPhase2DeviceFixture, hexBytes) == 120);
+}
+
 int main() {
     targetSessionsOwnExactlyOneTargetAndEngine();
     modalRequestsAreRequestScopedAndSerial();
@@ -950,5 +961,6 @@ int main() {
     dylibBuilderOwnsValidationOutputAndSigning();
     streamsMemoryDumpsWithProgressFailureAndCancellation();
     findsExactPointersThroughTheMemoryReader();
+    deviceFixtureLayoutIsStableForTheValidationScript();
     return 0;
 }

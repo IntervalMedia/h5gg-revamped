@@ -1,6 +1,9 @@
-# H5GG root tweak build
+# H5GG root tweak build (requires THEOS with an iOS 15+ SDK)
 #
-# Compile the current (rootful) variant:
+# Run host-side validation:
+#   make test
+#
+# Compile the rootful tweak without packaging it:
 #   make clean all
 #
 # Build one release package:
@@ -8,8 +11,14 @@
 #   make package-rootless FINALPACKAGE=1
 #   make package-roothide FINALPACKAGE=1
 #
-# Build and publish every supported release variant:
+# Build an instrumented rootful package for the Phase 2 device matrix only:
+#   make package-normal FINALPACKAGE=1 H5GG_DEVICE_VALIDATION=1
+#
+# Build, verify, and collect every supported release variant:
 #   ./build.sh all
+#
+# Show these commands after Theos is configured:
+#   make help
 
 JB_VARIANT := normal
 ifneq ($(strip $(THEOS_PACKAGE_SCHEME)),)
@@ -75,6 +84,11 @@ H5GG_FILES = \
     ldid-master/lookup2.c
 H5GG_COMMON_FLAGS =
 
+ifeq ($(H5GG_DEVICE_VALIDATION),1)
+H5GG_FILES += tests/device/Phase2DeviceFixture.cpp
+H5GG_COMMON_FLAGS += -DH5GG_DEVICE_VALIDATION=1
+endif
+
 ifeq ($(JB_VARIANT),normal)
 H5GG_COMMON_FLAGS += -DH5GG_BUILD_NORMAL=1
 else ifeq ($(JB_VARIANT),rootless)
@@ -91,13 +105,28 @@ H5GG_LOGOS_DEFAULT_GENERATOR = internal
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
-.PHONY: test package-normal package-rootless package-roothide package-all
+.PHONY: help test package-normal package-rootless package-roothide package-all
 .NOTPARALLEL: package-all
 
 H5GG_PACKAGE_ARCH_normal = iphoneos-arm
 H5GG_PACKAGE_ARCH_rootless = iphoneos-arm64
 H5GG_PACKAGE_ARCH_roothide = iphoneos-arm64e
 H5GG_TOP_LEVEL_MAKE = env -u MAKELEVEL -u _THEOS_TOP_INVOCATION_DONE $(MAKE) -j1
+
+help:
+	@echo "H5GG build commands (THEOS and an iOS 15+ SDK are required):"
+	@echo "  make test"
+	@echo "      Run the host-side validation suite."
+	@echo "  make clean all"
+	@echo "      Compile the rootful tweak without creating a package."
+	@echo "  make package-normal FINALPACKAGE=1"
+	@echo "  make package-rootless FINALPACKAGE=1"
+	@echo "  make package-roothide FINALPACKAGE=1"
+	@echo "      Build one release package for the selected jailbreak layout."
+	@echo "  ./build.sh all"
+	@echo "      Build, verify, and collect all three release variants."
+	@echo "  make package-normal FINALPACKAGE=1 H5GG_DEVICE_VALIDATION=1"
+	@echo "      Build the instrumented rootful package used only for Phase 2 device validation."
 
 test:
 	bash tests/run_tests.sh

@@ -7,6 +7,14 @@ device verification. The per-capability completion status is maintained in
 until its row in [validation.md](validation.md) is recorded on supported
 hardware.
 
+For repeatable hardware checks, an opt-in fixed-layout fixture can be compiled
+with `H5GG_DEVICE_VALIDATION=1` and exercised through the public Promise bridge
+by `examples-JavaScript/h5ggV8/phase2DeviceValidation.js`. Default builds do not
+contain the fixture. Exact build, execution, evidence, and remaining interactive
+steps are defined in [validation.md](validation.md). A mocked Promise bridge
+executes all 15 runner checks in the host suite so report orchestration is
+verified independently from the still-pending native device evidence.
+
 ## Memory workflows
 
 ### Numeric search
@@ -67,10 +75,10 @@ names are confined to one entry in the app Documents directory.
 The stream, partial-read, progress, cancellation, failure, adapter
 over-reporting, and address-overflow behavior have host tests through the same
 reader interface used by the Mach-backed engine. Reading another process and
-writing its complete output remain device-verified. `DumpController` adds host
-coverage for request validation, one-running-job enforcement, reader-lease
-release, real-file publication, originating Promise completion, and partial
-file removal after read failure or cancellation.
+writing its complete output remain pending device verification.
+`DumpController` adds host coverage for request validation, one-running-job
+enforcement, reader-lease release, real-file publication, originating Promise
+completion, and partial file removal after read failure or cancellation.
 
 ## Target and freezer lifecycle
 

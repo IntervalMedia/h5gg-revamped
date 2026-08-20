@@ -11,18 +11,19 @@ Last verified: 2026-08-20.
 | ⬜ Planned | No material implementation of the roadmap outcome yet |
 
 **Current phase: Phase 2 device exit validation; Phase 3 implementation complete.**
-The Phase 0–2 implementation is largely present, but the project has not met
-the device release gates. Phase 3 now has host/build-verified
-modules for the bridge, value, target/session, reader/pointer policy, modal and
-file-picker lifecycle, freezer ownership, script persistence, plugin loading,
-dylib building, dump orchestration, runtime lifecycle, and GlobalView protocol.
-Phase 4 is partially underway.
+The Phase 0–2 implementation is largely present, and an opt-in device fixture
+and Promise-bridge runner now make the non-interactive Phase 2 rows repeatable,
+but the project has not yet recorded the device release gates. Phase 3 has
+host/build-verified modules for the bridge, value, target/session,
+reader/pointer policy, modal and file-picker lifecycle, freezer ownership,
+script persistence, plugin loading, dylib building, dump orchestration, runtime
+lifecycle, and GlobalView protocol. Phase 4 is partially underway.
 
 ## Phase summary
 
 | Phase | Status | Current outcome |
 |---|---|---|
-| Phase 0 — Freeze and reproduce | 🟡 Partial | Host harness and device matrix exist; native bridge/device repro coverage is incomplete |
+| Phase 0 — Freeze and reproduce | 🟡 Partial | Host harness, opt-in device fixture/runner, and device matrix exist; interactive/native repro evidence is incomplete |
 | Phase 1 — Core correctness | 🟡 Partial | Core fixes, bridge validation, and package layouts are host/CI-verified; device gates remain |
 | Phase 2 — Complete v8 features | 🟡 Partial | Feature implementation is present; hardware-dependent rows remain experimental |
 | Phase 3 — Deepen the modules | ✅ Complete | Planned ownership seams plus preferences/freezer/picker/pointer/dump modules are host/build-verified; UIKit/Mach behavior remains in the Phase 2 device matrix |
@@ -35,7 +36,7 @@ Phase 4 is partially underway.
 |---|---|---|
 | Host suite covers codecs, results, typed/raw/pointer reads, bridge inventory, deferred/freezer lifecycle, persistence, runtime/GlobalView contracts, and dylib building | ✅ Complete | `bash tests/run_tests.sh` passes locally |
 | Host suite is required in CI | ✅ Complete | Build and manual-release workflows run it before packaging |
-| Local and cross-process numeric/byte sessions pass on device | ⬜ Planned | Record [validation.md](validation.md) rows |
+| Local and cross-process numeric/byte sessions pass on device | 🟡 Partial | The fixture/runner is executable; record injected and standalone reports in [validation.md](validation.md) |
 | Every JavaScript Promise settles once | 🟡 Partial | Picker path is implemented; native/device overlap matrix remains |
 | Bridge validates method names, counts, argument kinds, and numeric constraints | ✅ Complete | Shared schema is host-tested and enforced before `NSInvocation` |
 | Normal/rootless/roothide package contents and paths are asserted | ✅ Complete | Every generated `.deb` is unpacked and checked before publication |
@@ -52,7 +53,7 @@ Goal: make failures deterministic before restructuring.
 | Add a host test target and in-memory readers | ✅ Complete | `tests/run_tests.sh`, C++ fixtures, and callback readers exist |
 | Encode result invariants as assertions/tests | ✅ Complete | `MemoryResultsTests.cpp` exercises counts and typed/untyped regions |
 | Add bridge contract fixtures | 🟡 Partial | Portable inventory, count, kind, range, and enum checks exist; a host WK dispatch fixture remains |
-| Capture repeatable device smoke steps | ✅ Complete | Matrix exists in `validation.md` |
+| Capture repeatable device smoke steps | ✅ Complete | Matrix plus the opt-in fixture and Promise-bridge runner exist in `validation.md` |
 | Record supported platform baseline | ✅ Complete | iOS 15.0+, arm64/arm64e is consistent in README, targets, and package description |
 
 Exit status: **partial**. The deterministic host loop exists, but native WK and
@@ -100,6 +101,13 @@ scope.
 Exact contracts and limits are recorded in
 [phase-2-features.md](phase-2-features.md). Exit status: **partial** until the
 hardware-dependent rows are recorded and any failures are resolved.
+
+The non-interactive rows have an executable device path: build with
+`H5GG_DEVICE_VALIDATION=1` and run
+`examples-JavaScript/h5ggV8/phase2DeviceValidation.js` as documented in
+[validation.md](validation.md). The runner and stable fixture layout are
+host-checked, while every device-verification cell remains pending until a
+hardware report is recorded.
 
 ## Phase 3 — Deepen the modules
 

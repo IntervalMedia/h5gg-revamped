@@ -60,3 +60,17 @@ check_variant() {
 check_variant normal H5GG_BUILD_NORMAL 15.6
 check_variant rootless H5GG_BUILD_ROOTLESS 16.5
 check_variant roothide H5GG_BUILD_ROOTHIDE 16.5
+
+default_output="$(make -Bn -C "$repo_root" 2>&1)"
+validation_output="$(make -Bn -C "$repo_root" H5GG_DEVICE_VALIDATION=1 2>&1)"
+
+if grep -q -- 'Phase2DeviceFixture.cpp' <<<"$default_output"; then
+  echo "default builds must not compile the Phase 2 device fixture" >&2
+  exit 1
+fi
+
+if ! grep -q -- 'Phase2DeviceFixture.cpp' <<<"$validation_output" ||
+   ! grep -q -- '-DH5GG_DEVICE_VALIDATION=1' <<<"$validation_output"; then
+  echo "H5GG_DEVICE_VALIDATION=1 did not enable the Phase 2 device fixture" >&2
+  exit 1
+fi

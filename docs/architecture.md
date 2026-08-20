@@ -69,6 +69,12 @@ stage, then `check_package_contents.sh` validates control metadata, the
 variant-specific install root, dylib/plist pairing, executable maintainer
 script, valid filter plist, and both Mach-O slices before publication.
 
+`H5GG_DEVICE_VALIDATION=1` is a separate opt-in test seam. It links the stable
+fixture in `tests/device/` so the Phase 2 Promise-bridge runner can exercise
+real Mach reads and writes. The root Makefile omits this fixture from every
+default build; instrumented packages are validation artifacts and are not
+published by the release workflow.
+
 ### Bootstrap and presentation
 
 `Tweak.mm` detects the run mode and maps the application side of the GlobalView
