@@ -68,7 +68,8 @@ is still required.
 `Tweak.mm` detects the run mode, creates the floating button/window, owns the
 application-side `GVData` mapping, and connects UI actions to the web view.
 `FloatButton`, `FloatWindow`, `TopShow`, `ModalShow`, and `makeWindow` provide
-UIKit behavior.
+UIKit behavior. `ModalRequestQueue` provides the platform-independent FIFO
+lifecycle for synchronous modal requests.
 
 The floating button preserves its initial position when its first window frame
 arrives. In injected dylib mode its default origin is 35 points from the left,
@@ -83,8 +84,11 @@ not started → waiting for application window → button ready → menu ready
                                                   └→ globally hosted
 ```
 
-`ModalShow` also remains outside that interface and uses process-global
-synchronization, so overlapping synchronous dialogs are not safe.
+`ModalShow` adapts that queue to UIKit. Every alert, confirmation, or prompt has
+its own completion state; only the active request is presented, completion is
+accepted once, and cancelling an abandoned request promotes the next request.
+Main-thread callers continue servicing their run loop while queued or waiting,
+while background callers use the same queue's condition-variable seam.
 
 ### Web interface
 
@@ -238,10 +242,10 @@ bash tests/run_tests.sh
 ```
 
 The suite exercises the same internal seams used by production target/session
-ownership, grouped/ranged search parsing and matching, results, raw reads,
-dumps, filenames, bridge schemas, and dylib templates. It also checks JavaScript
-reference coverage and variant compile definitions. The suite is not yet a
-required CI job.
+ownership, modal request serialization, grouped/ranged search parsing and
+matching, results, raw reads, dumps, filenames, bridge schemas, and dylib
+templates. It also checks JavaScript reference coverage and variant compile
+definitions. The suite is not yet a required CI job.
 
 Device tests remain necessary for Mach ports, `vm_remap`, protected writes,
 SpringBoard hosting, UIKit lifecycle/orientation, generated-dylib loading, and

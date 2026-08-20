@@ -20,6 +20,7 @@ trap 'rm -f "$test_output"' EXIT
   "$repo_root/MemoryDump.cpp" \
   "$repo_root/DylibTemplate.cpp" \
   "$repo_root/TargetSession.cpp" \
+  "$repo_root/ModalRequestQueue.cpp" \
   -o "$test_output"
 
 "$test_output"

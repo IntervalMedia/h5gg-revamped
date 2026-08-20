@@ -1,48 +1,82 @@
 #import "ModalShow.h"
 #import "Localized.h"
+#include "ModalRequestQueue.h"
 #import <dlfcn.h>
+
+#include <memory>
 
 @implementation ModalShow
 
-static dispatch_semaphore_t semaphore;
+static ModalRequestQueue requestQueue;
 
-+ (void)present:(UIViewController*(^)(void))alert InWindow:(UIWindow*)window {
++ (void)present:(UIViewController*(^)(dispatch_block_t finish))alert InWindow:(UIWindow*)window {
     NSLog(@"ModalShow present[%d] %@", [NSThread isMainThread], [NSThread currentThread].name);
 
-    semaphore = dispatch_semaphore_create(0);
+    auto request = std::make_shared<ModalRequestQueue::Request>(requestQueue.enqueue());
+    dispatch_block_t finish = ^{
+        request->complete();
+    };
 
     void(^submit)() = ^{
         NSLog(@"ModalShow running[%d] %@", [NSThread isMainThread], [NSThread currentThread].name);
-        [window.rootViewController presentViewController:alert() animated:YES completion:nil];
+        UIViewController* presenter = window.rootViewController;
+        UIViewController* controller = alert(finish);
+        if(!presenter || !controller) {
+            finish();
+            return;
+        }
+        @try {
+            [presenter presentViewController:controller animated:YES completion:nil];
+        } @catch(NSException* exception) {
+            NSLog(@"ModalShow presentation failed: %@", exception.reason);
+            finish();
+        }
     };
 
     if([NSThread isMainThread]) {
+        NSRunLoop* runLoop = NSRunLoop.currentRunLoop;
+        while(!request->active() && !request->completed()) {
+            NSString* mode = runLoop.currentMode ?: NSDefaultRunLoopMode;
+            [runLoop runMode:mode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+        }
+        if(request->completed()) return;
+
         submit();
-        while(dispatch_semaphore_wait(semaphore, DISPATCH_TIME_NOW))
-            [[NSRunLoop currentRunLoop] runMode:[[NSRunLoop currentRunLoop] currentMode] beforeDate:[NSDate distantFuture]];
+        while(!request->completed()) {
+            NSString* mode = runLoop.currentMode ?: NSDefaultRunLoopMode;
+            [runLoop runMode:mode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+        }
     } else {
+        request->waitUntilActive();
+        if(request->completed()) return;
         dispatch_async(dispatch_get_main_queue(), submit);
 
-        void (*WebThreadUnlockFromAnyThread)(void) = dlsym(RTLD_DEFAULT, "WebThreadUnlockFromAnyThread");
+        auto WebThreadUnlockFromAnyThread = reinterpret_cast<void (*)(void)>(
+            dlsym(RTLD_DEFAULT, "WebThreadUnlockFromAnyThread"));
 
         if([[NSThread currentThread].name isEqualToString:@"WebThread"])
             if(WebThreadUnlockFromAnyThread) WebThreadUnlockFromAnyThread();
 
-        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        request->waitUntilCompleted();
     }
 
     NSLog(@"ModalShow dismiss!");
 }
 
-+ (void)dismiss {
-    dispatch_semaphore_signal(semaphore);
+static void H5GGDismissAlert(UIAlertController* alert, dispatch_block_t finish) {
+    if(!alert.presentingViewController) {
+        finish();
+        return;
+    }
+    [alert dismissViewControllerAnimated:YES completion:finish];
 }
 
 + (void)alert:(NSString*)title message:(NSString*)message InWindow:(UIWindow*)window {
-    [self present:^{
+    [self present:^UIViewController*(dispatch_block_t finish) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
+        __weak UIAlertController* weakAlert = alert;
         [alert addAction:[UIAlertAction actionWithTitle:Localized(@"确定") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            [self dismiss];
+            H5GGDismissAlert(weakAlert, finish);
         }]];
         return alert;
     } InWindow:window];
@@ -51,17 +85,18 @@ static dispatch_semaphore_t semaphore;
 + (BOOL)confirm:(NSString*)message InWindow:(UIWindow*)window {
     __block BOOL result = NO;
 
-    [self present:^{
+    [self present:^UIViewController*(dispatch_block_t finish) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:Localized(@"提示") message:message preferredStyle:UIAlertControllerStyleAlert];
+        __weak UIAlertController* weakAlert = alert;
 
         [alert addAction:[UIAlertAction actionWithTitle:Localized(@"确定") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
             result = YES;
-            [self dismiss];
+            H5GGDismissAlert(weakAlert, finish);
         }]];
 
         [alert addAction:[UIAlertAction actionWithTitle:Localized(@"取消") style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
             result = NO;
-            [self dismiss];
+            H5GGDismissAlert(weakAlert, finish);
         }]];
 
         return alert;
@@ -73,16 +108,17 @@ static dispatch_semaphore_t semaphore;
 + (NSString*)prompt:(NSString*)text defaultText:(NSString*)defaultText InWindow:(UIWindow*)window {
     __block NSString* result;
 
-    [self present:^{
+    [self present:^UIViewController*(dispatch_block_t finish) {
         UIAlertController* alert = [UIAlertController alertControllerWithTitle:nil message:text preferredStyle:UIAlertControllerStyleAlert];
+        __weak UIAlertController* weakAlert = alert;
 
         [alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
             textField.text = defaultText;
         }];
 
         [alert addAction:[UIAlertAction actionWithTitle:Localized(@"确定") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            result = alert.textFields.lastObject.text;
-            [self dismiss];
+            result = weakAlert.textFields.lastObject.text;
+            H5GGDismissAlert(weakAlert, finish);
         }]];
 
         return alert;

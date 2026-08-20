@@ -40,20 +40,6 @@ Severity meanings:
 Resolved findings are removed from this active register. Roadmap completion and
 remaining verification are tracked in [roadmap.md](roadmap.md).
 
-### P1 — Runtime correctness and lifecycle
-
-#### H5-012: Dialog synchronization is process-global and non-reentrant
-
-`ModalShow` stores one static semaphore for all presentations. A second dialog
-can replace it while the first caller is waiting
-([ModalShow.m](../ModalShow.m#L7)).
-
-Impact: overlapping alerts, confirms, or prompts can unblock the wrong caller or
-leave a caller waiting indefinitely.
-
-Acceptance: give each presentation its own completion state, serialize or queue
-presentations, and ensure every dismissal completes exactly one request.
-
 ### P2 — Verification, architecture, and delivery debt
 
 #### H5-005: Package variants lack content-level assertions
@@ -139,6 +125,9 @@ path.
 - `TargetProcess` and `MemorySession` make task-port, engine, and search-state
   lifetime explicit; host tests cover moves, replacement, and exactly-once
   release.
+- `ModalRequestQueue` serializes overlapping synchronous dialogs with
+  request-scoped, exactly-once completion; FIFO, cancellation, and blocking
+  waits are host-tested.
 - Numeric typed reads and bounded raw-byte reads are distinct interfaces.
 - Target replacement clears results and frozen values and releases old ports.
 - File-picker callbacks capture independent call IDs and settle cancellation.

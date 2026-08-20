@@ -13,7 +13,8 @@ Last verified: 2026-08-20.
 **Current phase: Phase 2 exit validation with Phase 3 implementation underway.**
 The Phase 0–2 implementation is largely present, but the project has not met
 the device and package release gates. Phase 3 is now actively deepening the
-bridge, value, and target/session ownership seams. Phase 4 is partially underway.
+bridge, value, target/session, and modal lifecycle seams. Phase 4 is partially
+underway.
 
 ## Phase summary
 
@@ -22,7 +23,7 @@ bridge, value, and target/session ownership seams. Phase 4 is partially underway
 | Phase 0 — Freeze and reproduce | 🟡 Partial | Host harness and device matrix exist; native bridge/device repro coverage is incomplete |
 | Phase 1 — Core correctness | 🟡 Partial | Core fixes and bridge validation are host-verified; package and device gates remain |
 | Phase 2 — Complete v8 features | 🟡 Partial | Feature implementation is present; hardware-dependent rows remain experimental |
-| Phase 3 — Deepen the modules | 🟡 Partial | Bridge validation, value rules, and target/session ownership are centralized; service/bootstrap seams remain broad |
+| Phase 3 — Deepen the modules | 🟡 Partial | Bridge validation, value rules, target/session ownership, and modal serialization are centralized; service/bootstrap seams remain broad |
 | Phase 4 — Delivery and repository health | 🟡 Partial | Variant builds/artifact publication improved; tracked artifacts, CI tests, provenance, and logging remain |
 | Phase 5 — New feature candidates | ⬜ Planned | Candidate backlog only |
 
@@ -112,12 +113,12 @@ JavaScript interface.
 | Use one bridge schema for dispatch, injection, validation, and docs | 🟡 Partial | Inventory and argument rules are shared by injection/dispatch; detailed docs generation remains |
 | Add `ScriptStore`, `PluginLoader`, and `DylibBuilder` | 🟡 Partial | Filename and template helpers exist; ownership remains in the façade |
 | Replace bootstrap globals/timers with a runtime coordinator | ⬜ Planned | Active issue H5-015 |
-| Make modal presentation request-scoped and serial | ⬜ Planned | Active issue H5-012 |
+| Make modal presentation request-scoped and serial | ✅ Complete | FIFO request state, exactly-once completion, cancellation promotion, and blocking waits are host-tested; UIKit adapter builds for both slices |
 | Version the `GVData` shared-memory interface | ⬜ Planned | Active issue H5-016 |
 
-Exit status: **active and partial**. The bridge, value, and target/session
-modules now provide real locality, but store/plugin/builder, bootstrap, modal,
-and GlobalView ownership seams remain incomplete.
+Exit status: **active and partial**. The bridge, value, target/session, and modal
+modules now provide real locality, but store/plugin/builder, bootstrap, and
+GlobalView ownership seams remain incomplete.
 
 ## Phase 4 — Delivery and repository health
 
@@ -180,7 +181,7 @@ Required CI + device feedback loops
         ├── close Phase 0/1/2 exits
         └── begin coordinated Phase 3
               ├── ✅ TargetProcess + MemorySession
-              ├── runtime coordinator + modal queue
+              ├── runtime coordinator + ✅ modal queue
               ├── store/plugin/builder ownership modules
               └── versioned GVData
 ```

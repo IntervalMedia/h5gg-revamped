@@ -7,10 +7,13 @@
 #include "../MemoryDump.h"
 #include "../DylibTemplate.h"
 #include "../TargetSession.h"
+#include "../ModalRequestQueue.h"
 
 #include <cassert>
+#include <chrono>
 #include <cstring>
 #include <cstdint>
+#include <future>
 #include <memory>
 #include <limits>
 #include <set>
@@ -70,6 +73,67 @@ static void targetSessionsOwnExactlyOneTargetAndEngine() {
 
     assert(deletedMemoryEngines == 2);
     assert(releasedTargetPorts == 1);
+}
+
+static void modalRequestsAreRequestScopedAndSerial() {
+    ModalRequestQueue queue;
+    auto first = queue.enqueue();
+    auto second = queue.enqueue();
+    auto third = queue.enqueue();
+
+    assert(first.active());
+    assert(!second.active());
+    assert(!third.active());
+    assert(!second.complete());
+    assert(!first.completed());
+    assert(!second.completed());
+
+    assert(first.complete());
+    assert(first.completed());
+    assert(second.active());
+    assert(!first.complete());
+
+    auto movedSecond = std::move(second);
+    assert(movedSecond.active());
+    assert(movedSecond.complete());
+    assert(third.active());
+
+    assert(third.complete());
+    assert(third.completed());
+
+    auto active = queue.enqueue();
+    {
+        auto abandoned = queue.enqueue();
+        assert(!abandoned.active());
+    }
+    auto next = queue.enqueue();
+    assert(active.complete());
+    assert(next.active());
+    assert(next.complete());
+
+    auto blockingFirst = queue.enqueue();
+    auto blockingSecond = queue.enqueue();
+    auto activation = std::async(std::launch::async, [&blockingSecond] {
+        blockingSecond.waitUntilActive();
+        return blockingSecond.active();
+    });
+    assert(activation.wait_for(std::chrono::milliseconds(20)) ==
+           std::future_status::timeout);
+    assert(blockingFirst.complete());
+    assert(activation.wait_for(std::chrono::seconds(1)) ==
+           std::future_status::ready);
+    assert(activation.get());
+
+    auto completion = std::async(std::launch::async, [&blockingSecond] {
+        blockingSecond.waitUntilCompleted();
+        return blockingSecond.completed();
+    });
+    assert(completion.wait_for(std::chrono::milliseconds(20)) ==
+           std::future_status::timeout);
+    assert(blockingSecond.complete());
+    assert(completion.wait_for(std::chrono::seconds(1)) ==
+           std::future_status::ready);
+    assert(completion.get());
 }
 
 static void recountsAddressesAcrossRegions() {
@@ -583,6 +647,7 @@ static void streamsMemoryDumpsWithProgressFailureAndCancellation() {
 
 int main() {
     targetSessionsOwnExactlyOneTargetAndEngine();
+    modalRequestsAreRequestScopedAndSerial();
     recountsAddressesAcrossRegions();
     typedRegionsRequireOneTypePerAddress();
     untypedRegionsUseTheFallbackType();
