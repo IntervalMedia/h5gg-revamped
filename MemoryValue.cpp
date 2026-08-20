@@ -6,7 +6,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <string>
 #include <type_traits>
+#include <utility>
 
 const int JJ_Search_Type_Len[] = {0, 8, 8, 8, 4, 4, 4, 2, 2, 1, 1};
 
@@ -43,6 +45,140 @@ bool JJParseNonnegativeFloat(const char* text, float& output) {
     }
     output = value;
     return true;
+}
+
+static std::string trimSearchToken(const std::string& token) {
+    size_t start = 0;
+    while(start < token.size() &&
+          std::isspace(static_cast<unsigned char>(token[start]))) {
+        start++;
+    }
+    size_t end = token.size();
+    while(end > start &&
+          std::isspace(static_cast<unsigned char>(token[end - 1]))) {
+        end--;
+    }
+    return token.substr(start, end - start);
+}
+
+bool JJParseSearchExpression(const char* text,
+                             int type,
+                             std::vector<JJSearchValue>& values) {
+    values.clear();
+    if(!text || type <= JJ_Search_Type_Error || type >= JJ_Search_Type_Max) {
+        return false;
+    }
+
+    std::vector<JJSearchValue> parsed;
+    std::string expression(text);
+    size_t start = 0;
+    while(start <= expression.size()) {
+        size_t comma = expression.find(',', start);
+        size_t end = comma == std::string::npos ? expression.size() : comma;
+        std::string token = trimSearchToken(expression.substr(start, end - start));
+        if(token.empty()) return false;
+
+        const std::string wideTilde = "\xEF\xBD\x9E";
+        size_t separator = token.find('~');
+        size_t separatorLength = 1;
+        size_t wideSeparator = token.find(wideTilde);
+        if(separator != std::string::npos && wideSeparator != std::string::npos) {
+            return false;
+        }
+        if(separator == std::string::npos) {
+            separator = wideSeparator;
+            separatorLength = wideTilde.size();
+        }
+
+        JJSearchValue value = {};
+        int length = JJ_Search_Type_Len[type];
+        if(separator == std::string::npos) {
+            if(!JJParseValue(token.c_str(), type, value.data())) return false;
+            std::memcpy(value.data() + length, value.data(), length);
+        } else {
+            if(token.find('~', separator + 1) != std::string::npos ||
+               token.find(wideTilde, separator + separatorLength) != std::string::npos) {
+                return false;
+            }
+            std::string lower = trimSearchToken(token.substr(0, separator));
+            std::string upper = trimSearchToken(
+                token.substr(separator + separatorLength));
+            if(lower.empty() || upper.empty() ||
+               !JJParseValue(lower.c_str(), type, value.data()) ||
+               !JJParseValue(upper.c_str(), type, value.data() + length) ||
+               JJValueMatchesFilter(value.data() + length, value.data(),
+                                    type, JJ_Filter_Less)) {
+                return false;
+            }
+        }
+        parsed.push_back(value);
+
+        if(comma == std::string::npos) break;
+        start = comma + 1;
+    }
+
+    if(parsed.empty()) return false;
+    values = std::move(parsed);
+    return true;
+}
+
+template<typename T>
+static bool searchValueMatches(const uint8_t current[8],
+                               const JJSearchValue& value,
+                               int length,
+                               float tolerance) {
+    T currentValue;
+    T lower;
+    T upper;
+    std::memcpy(&currentValue, current, sizeof(T));
+    std::memcpy(&lower, value.data(), sizeof(T));
+    std::memcpy(&upper, value.data() + length, sizeof(T));
+    if constexpr (std::is_floating_point_v<T>) {
+        lower -= tolerance;
+        upper += tolerance;
+    }
+    return currentValue >= lower && currentValue <= upper;
+}
+
+bool JJSearchValueMatchesAny(const uint8_t current[8],
+                             const std::vector<JJSearchValue>& values,
+                             int type,
+                             float tolerance) {
+    if(!current || values.empty() || type <= JJ_Search_Type_Error ||
+       type >= JJ_Search_Type_Max || tolerance < 0) {
+        return false;
+    }
+
+    int length = JJ_Search_Type_Len[type];
+    for(const JJSearchValue& value : values) {
+        bool matches = false;
+        switch(type) {
+            case JJ_Search_Type_Double:
+                matches = searchValueMatches<double>(current, value, length, tolerance); break;
+            case JJ_Search_Type_ULong:
+                matches = searchValueMatches<uint64_t>(current, value, length, tolerance); break;
+            case JJ_Search_Type_SLong:
+                matches = searchValueMatches<int64_t>(current, value, length, tolerance); break;
+            case JJ_Search_Type_Float:
+                matches = searchValueMatches<float>(current, value, length, tolerance); break;
+            case JJ_Search_Type_UInt:
+                matches = searchValueMatches<uint32_t>(current, value, length, tolerance); break;
+            case JJ_Search_Type_SInt:
+                matches = searchValueMatches<int32_t>(current, value, length, tolerance); break;
+            case JJ_Search_Type_UShort:
+                matches = searchValueMatches<uint16_t>(current, value, length, tolerance); break;
+            case JJ_Search_Type_SShort:
+                matches = searchValueMatches<int16_t>(current, value, length, tolerance); break;
+            case JJ_Search_Type_UByte:
+                matches = searchValueMatches<uint8_t>(current, value, length, tolerance); break;
+            case JJ_Search_Type_SByte:
+                matches = searchValueMatches<int8_t>(current, value, length, tolerance); break;
+            default:
+                break;
+        }
+        if(matches) return true;
+    }
+    return false;
 }
 
 template<typename T>

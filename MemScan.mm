@@ -89,6 +89,23 @@ uint64_t JJMemoryEngine::ScanData(uint64_t buffer, uint64_t size, void* target, 
     return p <= end ? p : 0;
 }
 
+uint64_t JJMemoryEngine::ScanDataAny(uint64_t buffer,
+                                     uint64_t size,
+                                     const vector<JJSearchValue>& values,
+                                     int type) {
+    int len = JJ_Search_Type_Len[type];
+    if(size < (uint64_t)len) return 0;
+
+    uint64_t end = buffer + size - len;
+    for(uint64_t current = buffer; current <= end; current += len) {
+        if(JJSearchValueMatchesAny(reinterpret_cast<const uint8_t*>(current),
+                                  values, type, float_tolerance)) {
+            return current;
+        }
+    }
+    return 0;
+}
+
 void* JJMemoryEngine::loadRegion(uint64_t base, uint64_t* psize, bool* remapped) {
     size_t size = *psize;
     for(size_t s = 0; s < size; s += PAGE_SIZE) {
@@ -146,12 +163,16 @@ void JJMemoryEngine::unloadRegion(void* buffer, uint64_t size, bool remapped) {
     }
 }
 
-void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type, vector<result_region*>* outResults) {
-    NSLog(@"ScanRegion ENTER %llx-%llx size=%llx type=%d", base, base+size, size, type);
+void JJMemoryEngine::ScanRegionAny(AddrRange range,
+                                   uint64_t base,
+                                   uint64_t size,
+                                   const vector<JJSearchValue>& values,
+                                   int type,
+                                   vector<result_region*>* outResults) {
+    NSLog(@"ScanRegionAny ENTER %llx-%llx size=%llx type=%d values=%zu",
+          base, base + size, size, type, values.size());
     int len = JJ_Search_Type_Len[type];
-
     result_region* newRegion = nullptr;
-
     bool remapped = false;
     void* buffer = loadRegion(base, &size, &remapped);
 
@@ -159,16 +180,14 @@ void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, v
         uint64_t pcurdata = (uint64_t)buffer;
         uint64_t left_size = size;
         while(left_size >= (uint64_t)len) {
-            uint64_t pfound = ScanData(pcurdata, left_size, target, type);
+            uint64_t pfound = ScanDataAny(pcurdata, left_size, values, type);
             if(!pfound) break;
 
             uint32_t slide = (uint32_t)(pfound - (uint64_t)buffer);
-
             if((base + slide) < range.start || (base + slide) >= range.end) break;
 
             if(!newRegion)
                 newRegion = new result_region(base, size);
-
             newRegion->append(slide);
 
             pcurdata = pfound + len;
@@ -180,7 +199,6 @@ void JJMemoryEngine::ScanRegion(AddrRange range, uint64_t base, uint64_t size, v
         newRegion->slides.shrink_to_fit();
         outResults->push_back(newRegion);
     }
-
     unloadRegion(buffer, size, remapped);
 }
 
@@ -238,9 +256,11 @@ void JJMemoryEngine::enumerateRegions(AddrRange range) {
     NSLog(@"regions enumerated, count=%zu", this->regions.size());
 }
 
-void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
-    NSLog(@"FirstScan ENTER %llx-%llx type=%d", range.start, range.end, type);
-
+void JJMemoryEngine::FirstScanAny(AddrRange range,
+                                  const vector<JJSearchValue>& values,
+                                  int type) {
+    NSLog(@"FirstScanAny ENTER %llx-%llx type=%d values=%zu",
+          range.start, range.end, type, values.size());
     enumerateRegions(range);
 
     for(auto& [base, size] : this->regions) {
@@ -249,11 +269,13 @@ void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
         uint64_t region_end = min(base + size, range.end);
         vector<result_region*> localResult;
         @try {
-            ScanRegion(range, max(base, range.start), region_end - max(base, range.start), target, type, &localResult);
+            ScanRegionAny(range, max(base, range.start),
+                          region_end - max(base, range.start), values, type,
+                          &localResult);
         } @catch(NSException *e) {
-            NSLog(@"ScanRegion exception: %@", e);
+            NSLog(@"ScanRegionAny exception: %@", e);
         } @catch(...) {
-            NSLog(@"ScanRegion unknown exception");
+            NSLog(@"ScanRegionAny unknown exception");
         }
         for(auto* rr : localResult) {
             this->result->add(std::unique_ptr<result_region>(rr));
@@ -261,22 +283,23 @@ void JJMemoryEngine::FirstScan(AddrRange range, void* target, int type) {
     }
 
     firstScanDone = true;
-    saveSnapshot();
 }
 
-void JJMemoryEngine::ScanAgain(AddrRange range, void* target, int type) {
+void JJMemoryEngine::ScanAgainAny(AddrRange range,
+                                  const vector<JJSearchValue>& values,
+                                  int type) {
     int len = JJ_Search_Type_Len[type];
-
     vector<int> activeIndices;
     for(int i = 0; i < this->result->regionCount(); i++) {
         result_region* region = this->result->regionAt(i);
-        if((region->region_base + region->region_size) < range.start || region->region_base > range.end)
+        if((region->region_base + region->region_size) < range.start ||
+           region->region_base > range.end) {
             continue;
+        }
         activeIndices.push_back(i);
     }
 
     vector<result_region*> newRegions(activeIndices.size(), nullptr);
-
     for(size_t idx = 0; idx < activeIndices.size(); idx++) {
         int i = activeIndices[idx];
         result_region* region = this->result->regionAt(i);
@@ -289,35 +312,38 @@ void JJMemoryEngine::ScanAgain(AddrRange range, void* target, int type) {
 
             if(buffer) {
                 for(int j = 0; j < region->slides.size(); j++) {
-                    uint64_t address = region->region_base + region->slides[j];
-                    void* pvalue = (void*)((uint64_t)buffer + region->slides[j]);
-
-                    if(address >= range.start && address < range.end &&
-                       ScanData((uint64_t)pvalue, len, target, type)) {
+                    uint64_t slide = region->slides[j];
+                    uint64_t address = region->region_base + slide;
+                    if(slide + len <= mapsize &&
+                       address >= range.start && address < range.end &&
+                       JJSearchValueMatchesAny(
+                           reinterpret_cast<const uint8_t*>(buffer) + slide,
+                           values, type, float_tolerance)) {
                         if(!newRegion)
-                            newRegion = new result_region(region->region_base, region->region_size);
-                        newRegion->append(region->slides[j]);
+                            newRegion = new result_region(region->region_base,
+                                                          region->region_size);
+                        newRegion->append((uint32_t)slide);
                     }
                 }
             } else {
-                NSLog(@"read mem failed! [%d] %p %zx", i, (void*)region->region_base, region->region_size);
+                NSLog(@"read mem failed! [%d] %p %zx", i,
+                      (void*)region->region_base, region->region_size);
             }
 
             unloadRegion(buffer, mapsize, remapped);
             if(newRegion) newRegion->slides.shrink_to_fit();
         } @catch(NSException *e) {
-            NSLog(@"ScanAgain exception: %@", e);
+            NSLog(@"ScanAgainAny exception: %@", e);
         } @catch(...) {
-            NSLog(@"ScanAgain unknown exception");
+            NSLog(@"ScanAgainAny unknown exception");
         }
         newRegions[idx] = newRegion;
     }
 
     for(size_t idx = 0; idx < activeIndices.size(); idx++) {
-        int i = activeIndices[idx];
-        this->result->replace(i, std::unique_ptr<result_region>(newRegions[idx]));
+        this->result->replace(activeIndices[idx],
+                              std::unique_ptr<result_region>(newRegions[idx]));
     }
-
     this->result->removeEmptyRegions();
 }
 
@@ -326,17 +352,25 @@ void JJMemoryEngine::SetFloatTolerance(float d) {
 }
 
 void JJMemoryEngine::JJScanMemory(AddrRange range, void* target, int type) {
-    if(type <= 0 || type >= JJ_Search_Type_Max) return;
+    if(!target || type <= 0 || type >= JJ_Search_Type_Max) return;
+
+    JJSearchValue value = {};
+    int len = JJ_Search_Type_Len[type];
+    memcpy(value.data(), target, len * 2);
+    JJScanMemoryAny(range, {value}, type);
+}
+
+void JJMemoryEngine::JJScanMemoryAny(AddrRange range,
+                                     const vector<JJSearchValue>& values,
+                                     int type) {
+    if(values.empty() || type <= 0 || type >= JJ_Search_Type_Max) return;
 
     this->lastNumberType = type;
-
     if(this->firstScanDone) {
-        ScanAgain(range, target, type);
+        ScanAgainAny(range, values, type);
     } else {
-        FirstScan(range, target, type);
-        this->firstScanDone = true;
+        FirstScanAny(range, values, type);
     }
-
     saveSnapshot();
 }
 

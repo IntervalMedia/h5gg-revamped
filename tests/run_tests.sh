@@ -19,6 +19,7 @@ trap 'rm -f "$test_output"' EXIT
   "$repo_root/MemoryPage.cpp" \
   "$repo_root/MemoryDump.cpp" \
   "$repo_root/DylibTemplate.cpp" \
+  "$repo_root/TargetSession.cpp" \
   -o "$test_output"
 
 "$test_output"

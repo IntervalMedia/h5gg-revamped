@@ -13,7 +13,7 @@ Last verified: 2026-08-20.
 **Current phase: Phase 2 exit validation with Phase 3 implementation underway.**
 The Phase 0–2 implementation is largely present, but the project has not met
 the device and package release gates. Phase 3 is now actively deepening the
-bridge and value seams. Phase 4 is partially underway.
+bridge, value, and target/session ownership seams. Phase 4 is partially underway.
 
 ## Phase summary
 
@@ -22,7 +22,7 @@ bridge and value seams. Phase 4 is partially underway.
 | Phase 0 — Freeze and reproduce | 🟡 Partial | Host harness and device matrix exist; native bridge/device repro coverage is incomplete |
 | Phase 1 — Core correctness | 🟡 Partial | Core fixes and bridge validation are host-verified; package and device gates remain |
 | Phase 2 — Complete v8 features | 🟡 Partial | Feature implementation is present; hardware-dependent rows remain experimental |
-| Phase 3 — Deepen the modules | 🟡 Partial | Bridge validation and value rules are centralized; ownership seams remain broad |
+| Phase 3 — Deepen the modules | 🟡 Partial | Bridge validation, value rules, and target/session ownership are centralized; service/bootstrap seams remain broad |
 | Phase 4 — Delivery and repository health | 🟡 Partial | Variant builds/artifact publication improved; tracked artifacts, CI tests, provenance, and logging remain |
 | Phase 5 — New feature candidates | ⬜ Planned | Candidate backlog only |
 
@@ -81,6 +81,7 @@ scope.
 | Capability | Implementation | Host verification | Device verification |
 |---|---|---|---|
 | Hex search | ✅ Complete | ✅ Parser, wildcards, refinement | ⬜ Pending |
+| Numeric grouped/ranged search | ✅ Complete | ✅ Atomic parser and OR matcher | ⬜ Pending |
 | Search within results | ✅ Complete | ✅ All numeric kinds and modes | ⬜ Pending |
 | Memory viewer | ✅ Complete | ✅ Partial-page model and JS actions | ⬜ Pending |
 | Memory dump | ✅ Complete | ✅ Streaming, progress, cancel, cleanup | ⬜ Pending |
@@ -104,8 +105,8 @@ JavaScript interface.
 
 | Work item | Status | Current state / outcome |
 |---|---|---|
-| Add `TargetProcess` and `MemorySession` | ⬜ Planned | Correct ownership behavior remains inside `h5ggEngine` |
-| Centralize value/address/type conversion | 🟡 Partial | Type names, tolerance, values, addresses, and hex patterns use `MemoryValue`; search-range orchestration and value formatting remain in the façade |
+| Add `TargetProcess` and `MemorySession` | ✅ Complete | Move-only task ownership, engine-before-port teardown, atomic replacement, and search metadata are host-tested |
+| Centralize value/address/type conversion | 🟡 Partial | Type names, tolerance, values, addresses, grouped/ranged expressions, and hex patterns use `MemoryValue`; value formatting remains in the façade |
 | Add a raw/typed reader seam with in-memory adapters | 🟡 Partial | Page, dump, and filter callbacks exist; the whole engine does not use one adapter interface |
 | Replace ad hoc result mutation with one result module | ✅ Complete | `MemoryResults` owns mutation/count invariants |
 | Use one bridge schema for dispatch, injection, validation, and docs | 🟡 Partial | Inventory and argument rules are shared by injection/dispatch; detailed docs generation remains |
@@ -114,9 +115,9 @@ JavaScript interface.
 | Make modal presentation request-scoped and serial | ⬜ Planned | Active issue H5-012 |
 | Version the `GVData` shared-memory interface | ⬜ Planned | Active issue H5-016 |
 
-Exit status: **active and partial**. The bridge and value modules now provide
-real locality, but target/session, store/plugin/builder, bootstrap, modal, and
-GlobalView ownership seams remain incomplete.
+Exit status: **active and partial**. The bridge, value, and target/session
+modules now provide real locality, but store/plugin/builder, bootstrap, modal,
+and GlobalView ownership seams remain incomplete.
 
 ## Phase 4 — Delivery and repository health
 
@@ -178,7 +179,7 @@ Required CI + device feedback loops
   └── device smoke matrix
         ├── close Phase 0/1/2 exits
         └── begin coordinated Phase 3
-              ├── TargetProcess + MemorySession
+              ├── ✅ TargetProcess + MemorySession
               ├── runtime coordinator + modal queue
               ├── store/plugin/builder ownership modules
               └── versioned GVData

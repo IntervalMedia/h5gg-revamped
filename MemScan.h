@@ -63,14 +63,23 @@ class JJMemoryEngine
     bool writeMemory(void* address, void *target, size_t len);
 
     uint64_t ScanData(uint64_t buffer, uint64_t size, void* target, int type);
+    uint64_t ScanDataAny(uint64_t buffer,
+                         uint64_t size,
+                         const vector<JJSearchValue>& values,
+                         int type);
 
     void* loadRegion(uint64_t base, uint64_t* psize, bool* remapped);
     void unloadRegion(void* buffer, uint64_t size, bool remapped);
 
-    void ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type, vector<result_region*>* outResults);
+    void ScanRegionAny(AddrRange range,
+                       uint64_t base,
+                       uint64_t size,
+                       const vector<JJSearchValue>& values,
+                       int type,
+                       vector<result_region*>* outResults);
     void enumerateRegions(AddrRange range);
-    void FirstScan(AddrRange range, void* target, int type);
-    void ScanAgain(AddrRange range, void* target, int type);
+    void FirstScanAny(AddrRange range, const vector<JJSearchValue>& values, int type);
+    void ScanAgainAny(AddrRange range, const vector<JJSearchValue>& values, int type);
     void saveSnapshot();
 
 public:
@@ -81,6 +90,7 @@ public:
     void SetFloatTolerance(float d);
 
     void JJScanMemory(AddrRange range, void* target, int type);
+    void JJScanMemoryAny(AddrRange range, const vector<JJSearchValue>& values, int type);
     void JJScanHexMemory(AddrRange range, const char* hexStr);
     void JJNearBySearch(size_t range, void *target, int type);
     vector<pair<uint64_t, uint64_t>> JJFindPointers(

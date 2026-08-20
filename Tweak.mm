@@ -3,6 +3,7 @@
 #import <UIKit/UIKit.h>
 #import <pthread.h>
 #include <dlfcn.h>
+#include <mach-o/dyld.h>
 
 #include "Localized.h"
 

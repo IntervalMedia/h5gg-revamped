@@ -2,6 +2,7 @@
 #define H5GG_MEMORY_VALUE_H
 
 #include <cstdint>
+#include <array>
 #include <vector>
 
 enum JJ_Search_Type {
@@ -40,11 +41,20 @@ struct JJHexPattern {
     }
 };
 
+using JJSearchValue = std::array<uint8_t, 16>;
+
 extern const int JJ_Search_Type_Len[];
 
 int JJTypeFromName(const char* name);
 const char* JJTypeName(int type);
 bool JJParseNonnegativeFloat(const char* text, float& output);
+bool JJParseSearchExpression(const char* text,
+                             int type,
+                             std::vector<JJSearchValue>& values);
+bool JJSearchValueMatchesAny(const uint8_t current[8],
+                             const std::vector<JJSearchValue>& values,
+                             int type,
+                             float tolerance);
 bool JJParseValue(const char* text, int type, uint8_t output[8]);
 bool JJParseAddress(const char* text, int base, uint64_t& output);
 bool JJValueMatchesFilter(const uint8_t current[8],

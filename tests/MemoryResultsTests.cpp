@@ -6,6 +6,7 @@
 #include "../MemoryPage.h"
 #include "../MemoryDump.h"
 #include "../DylibTemplate.h"
+#include "../TargetSession.h"
 
 #include <cassert>
 #include <cstring>
@@ -15,6 +16,61 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+
+static int releasedTargetPorts = 0;
+static int deletedMemoryEngines = 0;
+
+static void releaseFakeTargetPort(mach_port_t) {
+    releasedTargetPorts++;
+}
+
+static void deleteFakeMemoryEngine(JJMemoryEngine*) {
+    deletedMemoryEngines++;
+}
+
+static void targetSessionsOwnExactlyOneTargetAndEngine() {
+    releasedTargetPorts = 0;
+    deletedMemoryEngines = 0;
+
+    {
+        TargetProcess borrowed(7, static_cast<mach_port_t>(70));
+        assert(borrowed.valid());
+        assert(!borrowed.ownsPort());
+    }
+    assert(releasedTargetPorts == 0);
+
+    {
+        TargetProcess owned(42, static_cast<mach_port_t>(420), releaseFakeTargetPort);
+        assert(owned.valid());
+        assert(owned.ownsPort());
+
+        TargetProcess moved(std::move(owned));
+        assert(!owned.valid());
+        assert(moved.pid() == 42);
+        assert(moved.port() == static_cast<mach_port_t>(420));
+
+        auto* firstEngine = reinterpret_cast<JJMemoryEngine*>(0x1000);
+        auto* secondEngine = reinterpret_cast<JJMemoryEngine*>(0x2000);
+        MemorySession session(std::move(moved), firstEngine, deleteFakeMemoryEngine);
+        assert(session.target().pid() == 42);
+        assert(session.engine() == firstEngine);
+        assert(!session.firstSearchDone());
+        assert(session.lastSearchType() == JJ_Search_Type_Error);
+
+        session.markSearchDone(JJ_Search_Type_SInt);
+        assert(session.firstSearchDone());
+        assert(session.lastSearchType() == JJ_Search_Type_SInt);
+
+        session.replaceEngine(secondEngine, deleteFakeMemoryEngine);
+        assert(deletedMemoryEngines == 1);
+        assert(session.engine() == secondEngine);
+        assert(!session.firstSearchDone());
+        assert(session.lastSearchType() == JJ_Search_Type_Error);
+    }
+
+    assert(deletedMemoryEngines == 2);
+    assert(releasedTargetPorts == 1);
+}
 
 static void recountsAddressesAcrossRegions() {
     Result results;
@@ -159,6 +215,34 @@ static void centralizesTypeNamesAndToleranceParsing() {
     assert(!JJParseNonnegativeFloat("1garbage", tolerance));
     assert(!JJParseNonnegativeFloat("nan", tolerance));
     assert(!JJParseNonnegativeFloat("", tolerance));
+}
+
+static void parsesGroupedSearchExpressionsAtomically() {
+    std::vector<JJSearchValue> values;
+    assert(JJParseSearchExpression("1, 2, 3~4", JJ_Search_Type_SInt, values));
+    assert(values.size() == 3);
+
+    uint8_t current[8] = {};
+    assert(JJParseValue("2", JJ_Search_Type_SInt, current));
+    assert(JJSearchValueMatchesAny(current, values, JJ_Search_Type_SInt, 0));
+    assert(JJParseValue("4", JJ_Search_Type_SInt, current));
+    assert(JJSearchValueMatchesAny(current, values, JJ_Search_Type_SInt, 0));
+    assert(JJParseValue("5", JJ_Search_Type_SInt, current));
+    assert(!JJSearchValueMatchesAny(current, values, JJ_Search_Type_SInt, 0));
+
+    assert(JJParseSearchExpression("1.0～2.0, 4.0", JJ_Search_Type_Float, values));
+    assert(JJParseValue("2.05", JJ_Search_Type_Float, current));
+    assert(!JJSearchValueMatchesAny(current, values, JJ_Search_Type_Float, 0));
+    assert(JJSearchValueMatchesAny(current, values, JJ_Search_Type_Float, 0.1f));
+
+    assert(!JJParseSearchExpression("1,,2", JJ_Search_Type_SInt, values));
+    assert(values.empty());
+    assert(!JJParseSearchExpression("1~", JJ_Search_Type_SInt, values));
+    assert(values.empty());
+    assert(!JJParseSearchExpression("4~3", JJ_Search_Type_SInt, values));
+    assert(values.empty());
+    assert(!JJParseSearchExpression("1,garbage", JJ_Search_Type_SInt, values));
+    assert(values.empty());
 }
 
 static void parsesStrictHexPatterns() {
@@ -474,6 +558,7 @@ static void streamsMemoryDumpsWithProgressFailureAndCancellation() {
 }
 
 int main() {
+    targetSessionsOwnExactlyOneTargetAndEngine();
     recountsAddressesAcrossRegions();
     typedRegionsRequireOneTypePerAddress();
     untypedRegionsUseTheFallbackType();
@@ -482,6 +567,7 @@ int main() {
     filtersEveryNumericTypeInEveryDocumentedMode();
     parsesValuesAccordingToTheirDeclaredType();
     centralizesTypeNamesAndToleranceParsing();
+    parsesGroupedSearchExpressionsAtomically();
     parsesStrictHexPatterns();
     parsesAndMatchesHexWildcards();
     parsesAddressesWithFullConsumptionAndRangeChecks();

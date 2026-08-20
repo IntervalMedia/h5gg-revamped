@@ -4,11 +4,12 @@ Verified against `02b818d` plus the current working tree on 2026-08-20.
 
 ## Executive finding
 
-The stabilization and Phase 2 implementation work is present. Target changes
-replace the memory session atomically, typed and raw reads are separate, result
-mutations are centralized, bridge method names are allowlisted, file names are
-confined, plugins use a JSON RPC contract under WKWebView, and customized dylib
-templates are embedded and host-tested.
+The stabilization and Phase 2 implementation work is present. Target and
+session ownership is move-only and atomically replaceable, grouped numeric
+searches use OR semantics through one scan, typed and raw reads are separate,
+result mutations are centralized, bridge method names are allowlisted, file
+names are confined, plugins use a JSON RPC contract under WKWebView, and
+customized dylib templates are embedded and host-tested.
 
 The code is not release-verified. Hardware-dependent behavior is still pending
 in [validation.md](validation.md), package contents are not asserted, and
@@ -17,7 +18,8 @@ several architecture and repository-health items remain open.
 ## Evidence and validation
 
 - `bash tests/run_tests.sh`: passed on 2026-08-20.
-- The host suite covers result invariants, value parsing, numeric filtering,
+- The host suite covers target/session lifetime, result invariants, value and
+  grouped-search parsing/matching, numeric filtering,
   masked hex matching, partial raw reads, dump streaming, filename confinement,
   bridge allowlisting/argument schemas, JavaScript documentation coverage, build-variant
   definitions, and dylib template replacement/signing when a built dylib and
@@ -72,12 +74,13 @@ manual-release workflows call `build.sh` without running that suite first.
 Acceptance: run the host suite as a required CI job, make skipped integration
 checks visible, and keep device results in the checked validation matrix.
 
-#### H5-015: `h5ggEngine` and bootstrap remain high-coupling modules
+#### H5-015: Façade services and bootstrap remain high-coupling modules
 
-The extracted result, codec, bridge-schema, filename, memory-page, memory-dump,
-and dylib-template modules improve locality. `h5ggEngine` still coordinates
-process ownership, persistence, plugins, files, dumps, freezing, and searches;
-`Tweak.mm` still coordinates lifecycle through globals and polling timers.
+The extracted target/session, result, codec, bridge-schema, filename,
+memory-page, memory-dump, and dylib-template modules improve locality.
+`h5ggEngine` still coordinates persistence, plugins, files, dumps, freezing,
+and search use cases; `Tweak.mm` still coordinates lifecycle through globals
+and polling timers.
 
 Acceptance: continue the internal module work described in
 [architecture.md](architecture.md) behind the unchanged JavaScript interface,
@@ -131,7 +134,11 @@ path.
 - Bridge names, counts, JSON kinds, integer rules, numeric ranges, and filter
   modes are rejected centrally before native invocation.
 - `MemoryValue` owns type-name mapping and strict tolerance/value/address
-  parsing instead of duplicating those rules in the Objective-C façade.
+  parsing, including atomic grouped/ranged search expressions, instead of
+  duplicating those rules in the Objective-C façade.
+- `TargetProcess` and `MemorySession` make task-port, engine, and search-state
+  lifetime explicit; host tests cover moves, replacement, and exactly-once
+  release.
 - Numeric typed reads and bounded raw-byte reads are distinct interfaces.
 - Target replacement clears results and frozen values and releases old ports.
 - File-picker callbacks capture independent call IDs and settle cancellation.

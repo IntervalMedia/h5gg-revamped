@@ -7,11 +7,14 @@
 #include "FileNames.h"
 #include "MemoryPage.h"
 #include "MemoryDump.h"
+#include "MemScan.h"
+#include "TargetSession.h"
 
 #include <libgen.h>
 #include <mach-o/dyld.h>
 #include <dlfcn.h>
 #include <new>
+#include <utility>
 #import <UIKit/UIKit.h>
 
 #define CS_VALID                    0x00000001
@@ -30,30 +33,42 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 @end
 
 @interface h5ggEngine ()
+@property MemorySession* session;
 -(NSString*)formatValue:(void*)value byType:(int)type;
 -(int)parseValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type;
--(int)parseSearchValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type;
 -(void)threadcall:(void(^)())block;
 -(void)_freezerTick;
 -(BOOL)_targetIsAvailable;
 -(void)_invalidateTargetSession;
 @end
 
+static void H5GGReleaseTaskPort(mach_port_t port) {
+    mach_port_deallocate(mach_task_self(), port);
+}
+
+static void H5GGDeleteMemoryEngine(JJMemoryEngine* engine) {
+    delete engine;
+}
+
+static MemorySession* H5GGCreateMemorySession(TargetProcess target) {
+    JJMemoryEngine* engine = new(std::nothrow) JJMemoryEngine(target.port());
+    if(!engine) return nullptr;
+
+    MemorySession* session = new(std::nothrow) MemorySession(
+        std::move(target), engine, H5GGDeleteMemoryEngine);
+    if(!session) delete engine;
+    return session;
+}
+
 @implementation h5ggEngine
 
 -(instancetype)init {
     if (self = [super init]) {
-        _firstSearchDone = NO;
-
-        if(g_standalone_runmode) {
-            _targetpid = 0;
-            _targetport = MACH_PORT_NULL;
-        } else {
-            _targetpid = getpid();
-            _targetport = mach_task_self();
-        }
-
-        _engine = new JJMemoryEngine(_targetport);
+        TargetProcess target = g_standalone_runmode
+            ? TargetProcess()
+            : TargetProcess(getpid(), mach_task_self());
+        _session = H5GGCreateMemorySession(std::move(target));
+        if(!_session) return nil;
         _frozenValues = [NSMutableDictionary dictionary];
         _pluginObjects = [NSMutableDictionary dictionary];
         _dumpStatus = @{@"state": @"idle", @"progress": @0};
@@ -67,15 +82,8 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
     _freezerTimer = nil;
     [_frozenValues removeAllObjects];
 
-    if(_engine) {
-        delete _engine;
-        _engine = nullptr;
-    }
-
-    if(_targetport != MACH_PORT_NULL && _targetport != mach_task_self()) {
-        mach_port_deallocate(mach_task_self(), _targetport);
-        _targetport = MACH_PORT_NULL;
-    }
+    delete _session;
+    _session = nullptr;
 }
 
 -(BOOL)require:(double)minver {
@@ -138,7 +146,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 
 -(BOOL)setTargetProc:(pid_t)pid {
     if(pid <= 0) return NO;
-    if(pid == _targetpid && _targetport != MACH_PORT_NULL) {
+    if(pid == _session->target().pid() && _session->target().valid()) {
         if([self _targetIsAvailable]) return YES;
         [self _invalidateTargetSession];
     }
@@ -153,56 +161,41 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return NO;
     }
 
-    JJMemoryEngine* newEngine = new(std::nothrow) JJMemoryEngine(targetTask);
-    if(!newEngine) {
-        mach_port_deallocate(mach_task_self(), targetTask);
+    TargetProcess target(pid, targetTask, H5GGReleaseTaskPort);
+    MemorySession* newSession = H5GGCreateMemorySession(std::move(target));
+    if(!newSession) {
         [floatH5 alert:Localized(@"错误:内存不足!")];
         return NO;
     }
 
-    task_port_t previousPort = _targetport;
-    JJMemoryEngine* previousEngine = _engine;
-
-    _targetpid = pid;
-    _targetport = targetTask;
-    _engine = newEngine;
-    _firstSearchDone = NO;
-    _lastSearchType = nil;
+    MemorySession* previousSession = _session;
+    _session = newSession;
     [self clearFrozenValues];
-
-    delete previousEngine;
-    if(previousPort != MACH_PORT_NULL && previousPort != mach_task_self()) {
-        mach_port_deallocate(mach_task_self(), previousPort);
-    }
+    delete previousSession;
     return YES;
 }
 
 -(BOOL)_targetIsAvailable {
-    if(_targetport == MACH_PORT_NULL) return NO;
-    if(_targetpid <= 0 || _targetpid == getpid()) return YES;
+    const TargetProcess& target = _session->target();
+    if(!target.valid()) return NO;
+    if(target.pid() == getpid()) return YES;
     char path[PROC_PIDPATHINFO_MAXSIZE] = {};
-    return proc_pidpath(_targetpid, path, sizeof(path)) > 0;
+    return proc_pidpath(target.pid(), path, sizeof(path)) > 0;
 }
 
 -(void)_invalidateTargetSession {
-    task_port_t previousPort = _targetport;
-    JJMemoryEngine* previousEngine = _engine;
-    _targetpid = 0;
-    _targetport = MACH_PORT_NULL;
-    _engine = new JJMemoryEngine(MACH_PORT_NULL);
-    _firstSearchDone = NO;
-    _lastSearchType = nil;
+    MemorySession* emptySession = H5GGCreateMemorySession(TargetProcess());
+    if(!emptySession) return;
+    MemorySession* previousSession = _session;
+    _session = emptySession;
     [self clearFrozenValues];
-    delete previousEngine;
-    if(previousPort != MACH_PORT_NULL && previousPort != mach_task_self()) {
-        mach_port_deallocate(mach_task_self(), previousPort);
-    }
+    delete previousSession;
 }
 
 -(NSDictionary<NSString*,id>*)getTargetStatus {
     BOOL available = [self _targetIsAvailable];
-    pid_t pid = _targetpid;
-    if(!available && _targetport != MACH_PORT_NULL) {
+    pid_t pid = _session->target().pid();
+    if(!available && _session->target().port() != MACH_PORT_NULL) {
         [self _invalidateTargetSession];
     }
     return @{
@@ -219,13 +212,16 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return;
     }
     NSLog(@"SetFloatTolerance=%f", d);
-    _engine->SetFloatTolerance(d);
+    _session->engine()->SetFloatTolerance(d);
 }
 
 -(void)clearResults {
-    _firstSearchDone = NO;
-    if(_engine) delete _engine;
-    _engine = new JJMemoryEngine(_targetport);
+    JJMemoryEngine* engine = new(std::nothrow) JJMemoryEngine(_session->target().port());
+    if(!engine) {
+        [floatH5 alert:Localized(@"错误:内存不足!")];
+        return;
+    }
+    _session->replaceEngine(engine, H5GGDeleteMemoryEngine);
 }
 
 -(void)searchChange:(NSString*)type {
@@ -239,17 +235,17 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return;
     }
 
-    if(self.engine->getResultsCount() == 0) {
+    if(_session->engine()->getResultsCount() == 0) {
         [floatH5 alert:Localized(@"当前列表为空, 请先执行搜索")];
         return;
     }
 
-    self.engine->JJRefineByChange(changeType);
-    self.firstSearchDone = YES;
+    _session->engine()->JJRefineByChange(changeType);
+    _session->markSearchDone(_session->lastSearchType());
 }
 
 -(long)getResultsCount {
-    return _engine->getResultsCount();
+    return _session->engine()->getResultsCount();
 }
 
 -(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getResults:(int)maxCount param1:(int)skipCount {
@@ -258,7 +254,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     map<void*, int8_t> results;
 
     try {
-        results = _engine->getResultsAndTypes(maxCount, skipCount);
+        results = _session->engine()->getResultsAndTypes(maxCount, skipCount);
     } catch(std::bad_alloc) {
         [floatH5 alert:Localized(@"错误:内存不足!")];
     }
@@ -266,12 +262,12 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     for(const auto& [address, jjtype] : results) {
         int8_t resolvedType = jjtype;
         if(resolvedType == 0)
-            resolvedType = JJTypeFromName(_lastSearchType.UTF8String);
+            resolvedType = _session->lastSearchType();
 
         NSString* ggtype = [NSString stringWithUTF8String:JJTypeName(resolvedType)];
 
         UInt8 valuebuf[8] = {0};
-        _engine->JJReadMemory(valuebuf, (UInt64)address, resolvedType);
+        _session->engine()->JJReadMemory(valuebuf, (UInt64)address, resolvedType);
 
         [resultArr addObject:@{
             @"address": [NSString stringWithFormat:@"0x%llX", (uint64_t)address],
@@ -328,42 +324,6 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     return JJType;
 }
 
--(int)parseSearchValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type {
-    NSString* pattern = @"^([^~～]+)[~～]([^~～]+)$";
-    NSRegularExpression* regex = [[NSRegularExpression alloc] initWithPattern:pattern options:0 error:nil];
-    NSTextCheckingResult* result = [regex firstMatchInString:value options:0 range:NSMakeRange(0, value.length)];
-    NSLog(@"firstMatchInString rangeCount=%lu %@", (unsigned long)result.numberOfRanges, result);
-
-    if(result.numberOfRanges != 3) {
-        int jjtype = [self parseValue:valuebuf from:value byType:type];
-        if(!jjtype) return 0;
-        int len = JJ_Search_Type_Len[jjtype];
-        void* valuebuf2 = (void*)((uint64_t)valuebuf + len);
-        memcpy(valuebuf2, valuebuf, len);
-        return jjtype;
-    }
-
-    NSString* value1 = [value substringWithRange:[result rangeAtIndex:1]];
-    NSString* value2 = [value substringWithRange:[result rangeAtIndex:2]];
-
-    NSLog(@"value1=%@ value2=%@", value1, value2);
-
-    int jjtype = JJTypeFromName(type.UTF8String);
-    if(!jjtype) return 0;
-
-    int len = JJ_Search_Type_Len[jjtype];
-
-    if(![self parseValue:valuebuf from:value1 byType:type])
-        return 0;
-
-    void* valuebuf2 = (void*)((uint64_t)valuebuf + len);
-
-    if(![self parseValue:valuebuf2 from:value2 byType:type])
-        return 0;
-
-    return jjtype;
-}
-
 -(void)searchNumber:(NSString*)value param2:(NSString*)type param3:(NSString*)memoryFrom param4:(NSString*)memoryTo {
     NSLog(@"searchNumber=%@:%@ [%@:%@]", type, value, memoryFrom, memoryTo);
 
@@ -372,10 +332,17 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return;
     }
 
-    UInt8 valuebuf[8*2];
+    int jjtype = JJTypeFromName(type.UTF8String);
+    if(!jjtype) {
+        [floatH5 alert:Localized(@"不支持的数值类型")];
+        return;
+    }
 
-    int jjtype = [self parseSearchValue:valuebuf from:value byType:type];
-    if(!jjtype) return;
+    vector<JJSearchValue> values;
+    if(!JJParseSearchExpression(value.UTF8String, jjtype, values)) {
+        [floatH5 alert:Localized(@"数值格式错误或与类型不匹配")];
+        return;
+    }
 
     if(![memoryFrom hasPrefix:@"0x"] || ![memoryTo hasPrefix:@"0x"]) {
         [floatH5 alert:Localized(@"搜索范围需以0x开头十六进制数")];
@@ -390,34 +357,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return;
     }
 
-    NSArray *parts = [value componentsSeparatedByString:@","];
-    if(parts.count > 1) {
-        if(_firstSearchDone && _engine->getResultsCount() == 0) {
-            [floatH5 alert:Localized(@"改善搜索失败: 当前列表为空, 请清除后再重新开始搜索")];
-            return;
-        }
-
-        BOOL firstGroup = !_firstSearchDone;
-
-        for(NSString *part in parts) {
-            NSString *trimmed = [part stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-            if(trimmed.length == 0) continue;
-
-            UInt8 valuebuf[8*2];
-            int jjtype = [self parseSearchValue:valuebuf from:trimmed byType:type];
-            if(!jjtype) continue;
-
-            _engine->JJScanMemory(range, valuebuf, jjtype);
-            if(firstGroup) {
-                _firstSearchDone = YES;
-                firstGroup = NO;
-            }
-        }
-        _lastSearchType = type;
-        return;
-    }
-
-    if(_firstSearchDone && _engine->getResultsCount() == 0) {
+    if(_session->firstSearchDone() && _session->engine()->getResultsCount() == 0) {
         [floatH5 alert:Localized(@"改善搜索失败: 当前列表为空, 请清除后再重新开始搜索")];
         return;
     }
@@ -425,14 +365,13 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     NSLog(@"searchNumber=%d [%p:%p]", jjtype, (void*)range.start, (void*)range.end);
 
     try {
-        _engine->JJScanMemory(range, valuebuf, jjtype);
+        _session->engine()->JJScanMemoryAny(range, values, jjtype);
     } catch(std::bad_alloc) {
         [floatH5 alert:Localized(@"错误:内存不足!")];
     }
 
-    [self addSearchHistory:value type:type count:(int)_engine->getResultsCount()];
-    _firstSearchDone = YES;
-    _lastSearchType = type;
+    [self addSearchHistory:value type:type count:(int)_session->engine()->getResultsCount()];
+    _session->markSearchDone(jjtype);
 }
 
 -(void)searchNearby:(NSString*)value param2:(NSString*)type param3:(NSString*)range {
@@ -448,10 +387,18 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return;
     }
 
-    UInt8 valuebuf[8*2];
+    int jjtype = JJTypeFromName(type.UTF8String);
+    if(!jjtype) {
+        [floatH5 alert:Localized(@"不支持的数值类型")];
+        return;
+    }
 
-    int jjtype = [self parseSearchValue:valuebuf from:value byType:type];
-    if(!jjtype) return;
+    vector<JJSearchValue> values;
+    if(!JJParseSearchExpression(value.UTF8String, jjtype, values) ||
+       values.size() != 1) {
+        [floatH5 alert:Localized(@"数值格式错误或与类型不匹配")];
+        return;
+    }
 
     uint64_t parsedSearchRange = 0;
     if(!JJParseAddress(range.UTF8String, 16, parsedSearchRange) ||
@@ -466,18 +413,18 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return;
     }
 
-    if(_engine->getResultsCount() == 0) {
+    if(_session->engine()->getResultsCount() == 0) {
         [floatH5 alert:Localized(@"邻近搜索错误: 当前列表为空, 请清除后再重新开始搜索")];
         return;
     }
 
     try {
-        _engine->JJNearBySearch(searchRange, valuebuf, jjtype);
+        _session->engine()->JJNearBySearch(searchRange, values[0].data(), jjtype);
     } catch(std::bad_alloc) {
         [floatH5 alert:Localized(@"错误:内存不足!")];
     }
 
-    _lastSearchType = type;
+    _session->markSearchDone(jjtype);
 }
 
 -(nullable NSString*)getValue:(NSString*)address param2:(NSString*)type {
@@ -494,7 +441,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     }
 
     UInt8 valuebuf[8];
-    if(!_engine->JJReadMemory(valuebuf, addr, jjtype))
+    if(!_session->engine()->JJReadMemory(valuebuf, addr, jjtype))
         return @"";
 
     return [self formatValue:valuebuf byType:jjtype];
@@ -513,7 +460,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return NO;
     }
 
-    return _engine->JJWriteMemory((void*)addr, valuebuf, jjtype);
+    return _session->engine()->JJWriteMemory((void*)addr, valuebuf, jjtype);
 }
 
 -(int)editAll:(NSString*)value param3:(NSString*)type {
@@ -522,18 +469,19 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     int jjtype = [self parseValue:valuebuf from:value byType:type];
     if(!jjtype) return 0;
 
-    if(_engine->getResultsCount() == 0) {
+    if(_session->engine()->getResultsCount() == 0) {
         [floatH5 alert:Localized(@"修改全部: 结果列表为空!")];
         return 0;
     }
 
-    return _engine->JJWriteAll(valuebuf, jjtype);
+    return _session->engine()->JJWriteAll(valuebuf, jjtype);
 }
 
 -(nullable NSArray<NSDictionary<NSString*,NSString*>*>*)getRangesList:(nullable id)filter {
     NSString* filterString = H5GGStringArgument(filter);
-    if(_targetpid != getpid())
-        return getRangesList2(_targetpid, _targetport, filterString);
+    const TargetProcess& target = _session->target();
+    if(target.pid() != getpid())
+        return getRangesList2(target.pid(), target.port(), filterString);
 
     NSMutableArray* results = [[NSMutableArray alloc] init];
 
@@ -549,7 +497,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
             || [filterString isEqual:[NSString stringWithUTF8String:basename((char*)name)]];
 
         if(matches) {
-            uint64_t size = getMachoVMSize(_targetpid, _targetport, (uint64_t)baseaddr);
+            uint64_t size = getMachoVMSize(target.pid(), target.port(), (uint64_t)baseaddr);
             uint64_t end = size ? ((uint64_t)baseaddr + size) : 0;
 
             [results addObject:@{
@@ -811,7 +759,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         @"address": canonicalAddress,
         @"value": value,
         @"type": type,
-        @"targetPid": @(_targetpid),
+        @"targetPid": @(_session->target().pid()),
         @"status": @"active",
         @"failures": @0,
         @"lastError": NSNull.null,
@@ -858,7 +806,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 -(void)_freezerTick {
     BOOL targetAvailable = [self _targetIsAvailable];
     for(NSMutableDictionary* entry in [_frozenValues allValues]) {
-        if(![entry[@"targetPid"] isEqual:@(_targetpid)] || !targetAvailable) {
+        if(![entry[@"targetPid"] isEqual:@(_session->target().pid())] || !targetAvailable) {
             entry[@"status"] = @"target-unavailable";
             entry[@"lastError"] = @"Target process is no longer available";
             continue;
@@ -879,7 +827,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
             entry[@"lastError"] = @"Stored address is invalid";
             continue;
         }
-        if(_engine->JJWriteMemory((void*)addr, valuebuf, jjtype)) {
+        if(_session->engine()->JJWriteMemory((void*)addr, valuebuf, jjtype)) {
             entry[@"status"] = @"active";
             entry[@"failures"] = @0;
             entry[@"lastError"] = NSNull.null;
@@ -948,10 +896,8 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         return;
     }
 
-    _engine->JJScanHexMemory(range, [hex UTF8String]);
-
-    _firstSearchDone = YES;
-    _lastSearchType = @"Hex";
+    _session->engine()->JJScanHexMemory(range, [hex UTF8String]);
+    _session->markSearchDone(JJ_Search_Type_UByte);
 }
 
 -(BOOL)dumpMemory:(NSString*)start end:(NSString*)end filename:(NSString*)filename {
@@ -966,7 +912,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 
     if([self.dumpStatus[@"state"] isEqualToString:@"running"]) return NO;
 
-    task_port_t dumpPort = _targetport;
+    task_port_t dumpPort = _session->target().port();
     if(dumpPort == MACH_PORT_NULL) return NO;
     BOOL ownsPortReference = dumpPort != mach_task_self();
     if(ownsPortReference &&
@@ -1097,7 +1043,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
        !addr) return @"";
 
     UInt8 val[8] = {0};
-    if(!_engine->JJReadMemory(val, addr, JJ_Search_Type_ULong))
+    if(!_session->engine()->JJReadMemory(val, addr, JJ_Search_Type_ULong))
         return @"";
 
     UInt64 ptr = *(UInt64*)val;
@@ -1115,7 +1061,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     NSMutableString *hex = [NSMutableString string];
     UInt8 buf[4096] = {0};
     size_t readLen = min((size_t)length, sizeof(buf));
-    size_t bytesRead = _engine->JJReadBytes(buf, addr, readLen);
+    size_t bytesRead = _session->engine()->JJReadBytes(buf, addr, readLen);
 
     for(int i = 0; i < (int)bytesRead; i++) {
         if(i > 0 && i % 16 == 0) [hex appendString:@"\n"];
@@ -1137,7 +1083,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     if((uint64_t)(length - 1) > UINT64_MAX - addr) {
         return @{@"error": @"address-range-overflow"};
     }
-    JJMemoryEngine* engine = _engine;
+    JJMemoryEngine* engine = _session->engine();
     JJMemoryPage page = JJReadMemoryPage(
         addr, (size_t)length,
         [engine](void* output, uint64_t readAddress, size_t readLength) {
@@ -1168,7 +1114,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
        !addr || start >= endAddr) return @[];
 
     AddrRange range = {start, endAddr};
-    auto ptrs = _engine->JJFindPointers(addr, range);
+    auto ptrs = _session->engine()->JJFindPointers(addr, range);
 
     NSMutableArray *result = [NSMutableArray array];
     for(auto& p : ptrs) {
@@ -1276,7 +1222,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 
 -(int)searchFilter:(NSString*)value type:(NSString*)type mode:(int)mode {
     if(!value || !type) return 0;
-    if(_engine->getResultsCount() == 0) {
+    if(_session->engine()->getResultsCount() == 0) {
         [floatH5 alert:Localized(@"当前列表为空")];
         return 0;
     }
@@ -1288,7 +1234,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         [floatH5 alert:Localized(@"数值格式错误或筛选模式无效")];
         return 0;
     }
-    return (int)_engine->JJFilterResults([value UTF8String], jjtype, mode);
+    return (int)_session->engine()->JJFilterResults([value UTF8String], jjtype, mode);
 }
 
 @end

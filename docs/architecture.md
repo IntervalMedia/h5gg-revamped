@@ -36,8 +36,9 @@ FloatMenu — WKWebView and allowlisted JavaScript message dispatch
           ├── BridgeMethods — names, selectors, and argument schemas
           │
           ▼
-h5ggEngine — JavaScript-facing use cases and process/session ownership
+h5ggEngine — JavaScript-facing use-case coordination
           │
+          ├── TargetProcess / MemorySession — target and search lifetime
           ├── JJMemoryEngine — scan and target-memory operations
           ├── MemoryResults / MemoryFilter / MemoryValue
           ├── MemoryPage / MemoryDump
@@ -120,7 +121,11 @@ freezing, plugins, files, dumps, and dylib generation.
 Several internal implementation modules now provide locality:
 
 - `MemoryValue` owns H5GG type-name mapping and validates values, addresses,
-  non-negative float tolerance, and masked-hex text;
+  non-negative float tolerance, grouped/ranged numeric search expressions, and
+  masked-hex text;
+- `TargetProcess` is the move-only owner of an acquired non-self Mach task port;
+- `MemorySession` owns the target, memory engine, and façade-visible search
+  metadata as one replaceable unit;
 - `MemoryResults` owns result regions, counts, and type-vector invariants;
 - `MemoryFilter` performs typed result refinement through a reader callback;
 - `MemoryPage` and `MemoryDump` implement bounded raw-read workflows through
@@ -129,12 +134,9 @@ Several internal implementation modules now provide locality:
 - `BridgeMethods` owns the callable native method inventory and argument rules;
 - `DylibTemplate` performs fixed-size template replacement.
 
-The façade still directly owns the target task port/session and implements
-plugin, persistence, freezer, file, and dump orchestration. Proposed deeper
-modules remain:
+The façade owns one `MemorySession` and still implements plugin, persistence,
+freezer, file, and dump orchestration. Proposed deeper modules remain:
 
-- `TargetProcess`: owns a PID, Mach task port, and its lifetime;
-- `MemorySession`: owns one target's search results and snapshots;
 - `ScriptStore`: owns the Documents root, atomic I/O, and filename policy;
 - `PluginLoader`: owns loaded handles and the WK RPC contract;
 - `DylibBuilder`: owns validation, replacement, output, and signing.
@@ -177,9 +179,10 @@ device.
 
 `crossproc` lists processes, reads dyld image metadata, and calculates mapped
 Mach-O sizes. It is an adapter over private and low-level platform interfaces.
-Target selection currently lives in `h5ggEngine`: it acquires a new port and
-constructs a new engine before swapping state, then clears target-bound frozen
-values and releases the old session.
+Target selection is coordinated by `h5ggEngine`: it acquires a new port and
+constructs a complete `MemorySession` before swapping state, then clears
+target-bound frozen values. Destruction releases the old engine first and its
+owned non-self port exactly once; the self task port is represented as borrowed.
 
 ### GlobalView
 
@@ -196,8 +199,9 @@ compatible migration strategy is implemented.
 
 | State | Current owner | Required lifetime |
 |---|---|---|
-| Target PID/task port | `h5ggEngine` | One selected process |
-| Regions/results/snapshot | `JJMemoryEngine` and `Result` | One target and search session |
+| Target PID/task port | `TargetProcess` inside `MemorySession` | One selected process |
+| Search engine/type/state | `MemorySession` | One target and search session |
+| Regions/results/snapshot | `JJMemoryEngine` and `Result` | One memory session |
 | Floating UI objects | Globals in `Tweak.mm` | Injected runtime |
 | Current bridge invocation | `FloatMenu` | Synchronous native dispatch |
 | Deferred bridge call ID | Operation callback closure | Until that Promise settles |
@@ -233,10 +237,11 @@ Run the host suite with:
 bash tests/run_tests.sh
 ```
 
-The suite exercises the same internal seams used by production result, codec,
-raw-read, dump, filename, bridge-schema, and dylib-template code. It also
-checks JavaScript reference coverage and variant compile definitions. The suite
-is not yet a required CI job.
+The suite exercises the same internal seams used by production target/session
+ownership, grouped/ranged search parsing and matching, results, raw reads,
+dumps, filenames, bridge schemas, and dylib templates. It also checks JavaScript
+reference coverage and variant compile definitions. The suite is not yet a
+required CI job.
 
 Device tests remain necessary for Mach ports, `vm_remap`, protected writes,
 SpringBoard hosting, UIKit lifecycle/orientation, generated-dylib loading, and

@@ -14,7 +14,6 @@ extern FloatMenu* _Nullable floatH5;
 #include <sys/stat.h>
 #include <sys/mount.h>
 #import <JavaScriptCore/JavaScriptCore.h>
-#include "MemScan.h"
 #include "TopShow.h"
 #include "crossproc.h"
 #include "version.h"
@@ -116,11 +115,6 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 @end
 
 @interface h5ggEngine : NSObject <h5ggJSExport>
-@property JJMemoryEngine* engine;
-@property (nullable) NSString* lastSearchType;
-@property BOOL firstSearchDone;
-@property pid_t targetpid;
-@property task_port_t targetport;
 @property (nonatomic, strong) NSMutableDictionary<NSString*, NSMutableDictionary*>* frozenValues;
 @property (nonatomic, strong) NSTimer* freezerTimer;
 @property (atomic) BOOL dumpCancelled;

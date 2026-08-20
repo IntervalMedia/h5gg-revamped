@@ -9,6 +9,20 @@ hardware.
 
 ## Memory workflows
 
+### Numeric search
+
+- `searchNumber` accepts one exact value, an inclusive `a~b` range, or a
+  comma-separated group containing either form.
+- A group is one OR query: a location is retained when it matches any member.
+  It is not implemented as a sequence of refinements.
+- The full expression is parsed before scanning. Empty members, invalid values,
+  repeated range separators, and inverted ranges are rejected without changing
+  the current results.
+- Float tolerance applies consistently to every exact value and range member.
+
+Expression parsing and match-any comparison have host tests. Mach region
+enumeration and result mutation remain pending device verification.
+
 ### Hex search
 
 - The first `searchHex(pattern, start, end)` call scans writable regions.
