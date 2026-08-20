@@ -459,9 +459,13 @@ void initFloatButton(void (^callback)(void))
     
     //创建悬浮按钮
     floatBtn = [[FloatButton alloc] init];
-    
-    if(g_testapp_runmode)
-        floatBtn.center = CGPointMake(25, 25);
+
+    if(g_dylib_runmode) {
+        CGRect buttonFrame = floatBtn.frame;
+        buttonFrame.origin.x = 35.0;
+        buttonFrame.origin.y = CGRectGetMidY(window.bounds) - CGRectGetHeight(buttonFrame) / 2.0;
+        floatBtn.frame = buttonFrame;
+    }
     
     NSData* customIcon = H5GGEmbeddedCustomIcon();
     UIImage* iconImage = customIcon ? [[UIImage alloc] initWithData:customIcon] : nil;

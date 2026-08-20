@@ -34,6 +34,7 @@ static UIWindow * _Nullable GVForegroundWindow(void) {
         self.keepWindow = NO;
 
         __weak __typeof(self) weakSelf = self;
+        __block CGRect lastFrame = CGRectZero;
         self.frontTimer = [NSTimer scheduledTimerWithTimeInterval:0.2 repeats:YES block:^(NSTimer* t) {
             __strong __typeof(weakSelf) strongSelf = weakSelf;
             if(!strongSelf || strongSelf.hidden) return;
@@ -46,8 +47,12 @@ static UIWindow * _Nullable GVForegroundWindow(void) {
             }
 
             CGRect newFrame = strongSelf.superview.frame;
-            static CGRect lastFrame = {0};
             if(!CGRectEqualToRect(lastFrame, newFrame)) {
+                if(CGRectIsEmpty(lastFrame)) {
+                    lastFrame = newFrame;
+                    return;
+                }
+
                 float newX = newFrame.size.width * strongSelf.frame.origin.x / lastFrame.size.width;
                 float newY = newFrame.size.height * strongSelf.frame.origin.y / lastFrame.size.height;
 

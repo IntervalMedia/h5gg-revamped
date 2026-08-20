@@ -1,292 +1,160 @@
 # Codebase review
 
-Reviewed at `5049f71` on 2026-07-31. The working tree already contained a user
-change in `Tweak.mm`; it was inspected but not modified.
+Verified against `02b818d` plus the working-tree floating-button fix on
+2026-08-19.
 
 ## Executive finding
 
-The v8 rewrite has a coherent direction—WKWebView, a JavaScript-facing engine
-façade, a C++ memory engine, and multi-variant packaging—but it is not ready to
-describe all advertised features as complete. The numeric in-process path is
-the most mature. Cross-process selection, hex/filter/raw-memory features,
-native plugins through the WK bridge, customized dylib generation, and package
-variant selection all have blocking defects.
+The stabilization and Phase 2 implementation work is present. Target changes
+replace the memory session atomically, typed and raw reads are separate, result
+mutations are centralized, bridge method names are allowlisted, file names are
+confined, plugins use a JSON RPC contract under WKWebView, and customized dylib
+templates are embedded and host-tested.
 
-The immediate priority is to stabilize interfaces and add a deterministic test
-harness before adding more UI features.
+The code is not release-verified. Hardware-dependent behavior is still pending
+in [validation.md](validation.md), bridge schemas validate argument counts but
+not argument kinds, package contents are not asserted, and several architecture
+and repository-health items remain open.
 
 ## Evidence and validation
 
-- `bash -n build.sh`: passed.
-- Six plist/entitlement files checked with `plutil -lint`: passed.
-- A clean `make -j2` in an isolated worktree produced `H5GG.dylib` for arm64
-  and arm64e.
-- The build emitted only the obsolete `-multiply_defined` linker warning.
-- Dry runs for normal, rootless, and roothide contained none of the documented
-  `H5GG_BUILD_*` compiler definitions.
-- No automated test target exists, so runtime findings below are static unless
-  explicitly described as build evidence.
-- Device behavior was not validated.
+- `bash tests/run_tests.sh`: passed on 2026-08-19.
+- The host suite covers result invariants, value parsing, numeric filtering,
+  masked hex matching, partial raw reads, dump streaming, filename confinement,
+  bridge allowlisting/counts, JavaScript documentation coverage, build-variant
+  definitions, and dylib template replacement/signing when a built dylib and
+  `ldid` are available.
+- The root tweak currently compiles for arm64 and arm64e. The rootful package
+  step passes when run after compilation.
+- Build/package validation for all three jailbreak layouts and every device row
+  remains outstanding.
+- This review does not treat an unrecorded device behavior as complete.
 
-## Issue register
+## Active issue register
 
 Severity meanings:
 
-- **P0**: corrupts core behavior, exposes an unsafe capability, or blocks a
-  primary advertised mode;
-- **P1**: advertised feature is broken or lifecycle behavior is unreliable;
-- **P2**: maintainability, performance, packaging, or documentation debt.
+- **P1**: runtime correctness, safety, or lifecycle behavior is incomplete;
+- **P2**: verification, maintainability, delivery, or documentation debt.
 
-### P0 — Fix before feature work
+Resolved findings are removed from this active register. Roadmap completion and
+remaining verification are tracked in [roadmap.md](roadmap.md).
 
-#### H5-001: Target-process selection leaves the scanner on a null task port
+### P1 — Runtime correctness and lifecycle
 
-`setTargetProc` clears results while `_targetport` is `MACH_PORT_NULL`, which
-constructs the replacement `JJMemoryEngine`; it then stores the successful task
-port without rebuilding the engine
-([h5gg.mm](../h5gg.mm#L92), [h5gg.mm](../h5gg.mm#L127)).
+#### H5-003: Bridge argument kinds are not declared or validated centrally
 
-Impact: standalone cross-process reads/searches can report successful process
-selection while all memory operations use the wrong port.
+`BridgeMethods` is now the native allowlist and validates argument counts, so a
+posted message can no longer derive an arbitrary Objective-C selector. The
+table does not describe argument kinds or ranges, however, and `FloatMenu`
+still converts values according to the Objective-C method encoding.
 
-Acceptance: acquire the new port first; atomically create a new session for it;
-only then release the old port. Failure must preserve or explicitly clear the
-old target according to a documented rule.
+Impact: malformed but correctly sized argument arrays can be coerced at the
+invocation seam and fail inconsistently inside individual methods.
 
-#### H5-002: Raw reads pass byte counts to a typed-read interface
-
-`dumpMemory` and `readBytes` pass lengths such as 4096 or 8 as the `type`
-argument to `JJReadMemory`; that method accepts only `JJ_Search_Type` values and
-maps them back to type widths
-([h5gg.mm](../h5gg.mm#L810), [h5gg.mm](../h5gg.mm#L867),
-[MemScan.mm](../MemScan.mm#L670)).
-
-Impact: dumps usually fail immediately; the memory viewer reads the wrong
-number of bytes and can format uninitialized stack data.
-
-Acceptance: add a bounded raw-byte read interface, return the actual byte count,
-and cover zero, partial-page, unreadable-page, and maximum-size cases.
-
-#### H5-003: JavaScript messages can derive arbitrary Objective-C selectors
-
-The bridge advertises a method list in JavaScript, but native dispatch falls
-back to constructing selectors from any `method` string supplied in a posted
-message
-([FloatMenu.mm](../FloatMenu.mm#L317),
-[FloatMenu.mm](../FloatMenu.mm#L374), [FloatMenu.mm](../FloatMenu.mm#L431)).
-
-Impact: any loaded page can probe or invoke selectors outside the intended
-`window.h5gg` interface. This is especially dangerous because pages may be
-loaded from local files or the network and the engine exposes memory, file, and
-plugin operations.
-
-Acceptance: reject every method not in one native allowlist; validate argument
-count/types; return structured errors; add negative dispatch tests.
-
-#### H5-004: Memory result invariants are violated by filter/hex paths
-
-`JJFilterResults` parses most enum values as floats due to ordinal comparisons,
-supports greater/less only for signed integers, indexes `region->types[i]` even
-when the vector is empty, and never updates `Result.count`
-([MemScan.mm](../MemScan.mm#L814)).
-
-`JJScanHexMemory` scans `regions`, but a fresh engine has no enumerated regions.
-The façade creates a fresh engine for repeat hex searches without deleting the
-old one
-([MemScan.mm](../MemScan.mm#L329), [h5gg.mm](../h5gg.mm#L772)).
-
-Impact: search-within-results can crash or return inconsistent counts; hex
-search commonly returns no results and leaks a memory engine on subsequent use.
-
-Acceptance: centralize region enumeration, preserve the documented result
-invariant after every mutation, validate hex syntax, define numeric-to-byte
-refinement behavior, and test all value types and filter modes.
-
-#### H5-005: Build variants do not receive their advertised compile definitions
-
-The Makefiles assign `*_ADDITIONAL_CCFLAGS`, but Theos dry runs for all three
-schemes include no `H5GG_BUILD_NORMAL`, `H5GG_BUILD_ROOTLESS`, or
-`H5GG_BUILD_ROOTHIDE` definition
-([Makefile](../Makefile#L23),
-[globalview/Makefile](../globalview/Makefile#L19)).
-
-Impact: roothide/rootless source branches and path handling are not selected,
-even though `build.sh` publishes separately named artifacts.
-
-Acceptance: each scheme's compile command contains exactly one variant
-definition; CI asserts this and inspects final package paths/dependencies.
-
-### P1 — Broken or incomplete advertised capabilities
-
-#### H5-006: WK bridge cannot return a native plugin object
-
-`loadPlugin` returns an Objective-C instance, but bridge results are serialized
-with `NSJSONSerialization`. Arbitrary plugin instances are not JSON values, so
-the Promise resolves to `null`; the existing WebUDID example still treats
-`loadPlugin` as synchronous
-([h5gg.mm](../h5gg.mm#L600), [FloatMenu.mm](../FloatMenu.mm#L331),
-[h5ggWebUDID.js](../examples-HTML5/get-device-UDID/h5ggWebUDID.js#L3)).
-
-Acceptance: choose and document either a plugin RPC/proxy protocol that can
-cross WKWebView or remove object-returning plugins from the WK interface. Update
-examples and compatibility/version behavior.
-
-#### H5-007: Customized dylib generation no longer embeds its replacement stubs
-
-`makeDYLIB` loads `H5ICON_STUB_FILE` and `H5MENU_STUB_FILE` from the host bundle
-or process working directory, but the root build neither embeds nor packages
-them. Its fallback placeholder is not present in the produced dylib
-([makeDYLIB.mm](../makeDYLIB.mm#L12), [Makefile](../Makefile#L22)).
-
-Acceptance: restore compile-time embedding or package the exact stubs; verify
-offset, capacity, zero-fill, output signature, and a second customization
-failure in an integration test.
-
-#### H5-008: File-picker Promises can remain pending or resolve the wrong call
-
-Cancellation dismisses the picker without invoking the callback. `FloatMenu`
-stores only one global `pendingCallId`, so overlapping calls overwrite each
-other
-([TopShow.m](../TopShow.m#L67), [h5gg.mm](../h5gg.mm#L573),
-[FloatMenu.h](../FloatMenu.h#L18)).
-
-Acceptance: callbacks are keyed by call ID, cancellation settles with a defined
-result/error, and every completion removes its entry.
-
-#### H5-009: Script and dump filenames are not confined to Documents
-
-String concatenation accepts absolute-looking components and `../` traversal
-for save/load/delete/dump operations
-([h5gg.mm](../h5gg.mm#L834), [h5gg.mm](../h5gg.mm#L920)).
-
-Acceptance: a single `ScriptStore` resolves standardized filenames under an
-explicit root, rejects traversal/separators, handles extensions consistently,
-and has temporary-directory tests.
-
-#### H5-010: Engine and freezer lifetimes are incomplete
-
-`h5ggEngine` owns a C++ pointer but has no `dealloc`; the repeating freezer timer
-captures `self` strongly. Target changes also leave frozen target-relative
-addresses active
-([h5gg.h](../h5gg.h#L112), [h5gg.mm](../h5gg.mm#L697)).
-
-Acceptance: explicit teardown deletes the memory session, invalidates timers,
-and deallocates non-self task ports. Target changes clear or namespace frozen
-values.
-
-#### H5-011: GlobalView writes through immutable `NSString.UTF8String`
-
-Both constructors turn a dylib path into an `NSString`, cast its UTF-8 buffer to
-mutable memory, and overwrite the suffix with `strcpy`
-([Tweak.mm](../Tweak.mm#L568),
-[globalview.mm](../globalview/globalview.mm#L479)).
-
-Impact: undefined behavior and a launch-time crash in GlobalView paths.
-
-Acceptance: derive the plist path with NSString path operations and cover paths
-with unexpected extensions.
+Acceptance: extend the method schema with argument/result kinds and applicable
+ranges; reject invalid values before `NSInvocation`; add negative fixtures for
+every kind; use the same schema for dispatch and reference documentation.
 
 #### H5-012: Dialog synchronization is process-global and non-reentrant
 
-`ModalShow` uses one static semaphore for all presentations. A second dialog can
-replace it while the first caller is waiting
+`ModalShow` stores one static semaphore for all presentations. A second dialog
+can replace it while the first caller is waiting
 ([ModalShow.m](../ModalShow.m#L7)).
 
-Acceptance: use per-presentation state and serialize/queue presentations; every
-dismissal resolves the correct request exactly once.
+Impact: overlapping alerts, confirms, or prompts can unblock the wrong caller or
+leave a caller waiting indefinitely.
 
-#### H5-013: Floating button can jump on first layout tick and short icon data can throw
+Acceptance: give each presentation its own completion state, serialize or queue
+presentations, and ensure every dismissal completes exactly one request.
 
-The first resize calculation divides by zero-sized `lastFrame`; `setIconWithData`
-reads three bytes without checking the data length
-([FloatButton.m](../FloatButton.m#L48),
-[FloatButton.m](../FloatButton.m#L119)).
+### P2 — Verification, architecture, and delivery debt
 
-Acceptance: initialize the baseline before scaling and safely reject invalid or
-short image data.
+#### H5-005: Package variants lack content-level assertions
 
-### P2 — Architecture, delivery, and documentation debt
+Normal, rootless, and roothide now receive exactly one compile definition and
+the host test checks the compiler commands. CI builds the three artifacts but
+does not inspect their installed paths, dependencies, or translated roothide
+locations.
 
-#### H5-014: Core behavior has no automated tests
+Acceptance: unpack each generated package in CI and assert its control metadata,
+install paths, dylib/plist pairing, and variant-specific path behavior.
 
-There is no test target despite recent changes to scanning, bridge dispatch,
-packaging, and file behavior.
+#### H5-014: The host suite is not enforced by CI
 
-Acceptance: host-runnable tests cover codecs/result transforms/bridge dispatch;
-CI includes package smoke assertions; device validation has a checked matrix.
+`tests/run_tests.sh` provides a deterministic host suite, but the build and
+manual-release workflows call `build.sh` without running that suite first.
 
-#### H5-015: `h5ggEngine` and bootstrap are shallow, high-coupling modules
+Acceptance: run the host suite as a required CI job, make skipped integration
+checks visible, and keep device results in the checked validation matrix.
 
-The engine façade owns unrelated persistence, filesystem, plugin, process, and
-memory behavior. `Tweak.mm` coordinates lifecycle through global variables,
-shared mutable structs, and polling timers.
+#### H5-015: `h5ggEngine` and bootstrap remain high-coupling modules
 
-Acceptance: introduce the internal modules described in
-[architecture.md](architecture.md) behind the unchanged JavaScript interface.
+The extracted result, codec, bridge-schema, filename, memory-page, memory-dump,
+and dylib-template modules improve locality. `h5ggEngine` still coordinates
+process ownership, persistence, plugins, files, dumps, freezing, and searches;
+`Tweak.mm` still coordinates lifecycle through globals and polling timers.
+
+Acceptance: continue the internal module work described in
+[architecture.md](architecture.md) behind the unchanged JavaScript interface,
+with tests crossing the same seams used by callers.
 
 #### H5-016: GlobalView shared memory has no version or size guard
 
-`GVData` is used as a cross-process binary interface but has no magic/version
-field and contains a 512 KiB inline image buffer
+`GVData` is a cross-process binary interface with no magic, schema version, or
+total-size header and includes a 512 KiB inline image buffer
 ([globalview.h](../globalview/globalview.h#L4)).
 
-Acceptance: validate a versioned header before use; move large payload transfer
-behind an explicit mechanism or capability.
+Acceptance: validate a versioned header before either process uses the mapping;
+represent optional capabilities explicitly; move large payload transfer behind
+a separate bounded mechanism before changing the layout.
 
-#### H5-017: Build/package metadata contradicts the documented platform baseline
+#### H5-018: Generated artifacts, IDE state, and large dependencies are tracked
 
-The README says iOS 15+, the root and GlobalView targets specify iOS 15.6, the
-standalone target specifies 15.0, and GlobalView's control description says it
-was tested on iOS 11–14
-([README.md](../README.md#L29), [Makefile](../Makefile#L3),
-[appstand/Makefile](../appstand/Makefile#L5),
-[globalview/control](../globalview/control#L5)).
+The repository still tracks `.deb`/`.tipa` outputs, prebuilt application and
+plugin binaries, Xcode `xcuserdata`, and the nested Dobby source snapshot. The
+ignore rules prevent some new outputs but do not remove existing tracked files
+or document dependency provenance.
 
-Acceptance: select one support matrix and make targets, package metadata,
-dead compatibility branches, and validation devices agree.
+Acceptance: classify required binaries, record versions/checksums and licenses,
+remove regenerable outputs and user state from source history, and choose an
+explicit policy for the Dobby snapshot.
 
-#### H5-018: Release artifacts and IDE user state are tracked
+#### H5-019: Legacy examples do not all follow the WK Promise/RPC contract
 
-The repository includes generated `.deb`/`.tipa` files, prebuilt app bundles,
-Xcode `xcuserdata`, large vendored binaries, and an entire nested Dobby source
-tree. Tracked content is roughly 347 MB and obscures first-party review.
+The complete 52-method bridge inventory is documented and checked against
+`BridgeMethods.cpp`. At least the WebUDID example still calls `loadPlugin`
+synchronously and expects a native object
+([h5ggWebUDID.js](../examples-HTML5/get-device-UDID/h5ggWebUDID.js#L1)).
 
-Acceptance: document which binaries are legally/operationally required,
-checksum/version external dependencies, remove regenerated user state and
-ordinary release outputs, and publish release artifacts outside source control.
-
-#### H5-019: Documentation does not cover the expanded JavaScript interface
-
-`h5gg-js-doc-en.js` documents the original core operations but not bookmarks,
-freezing, hex/filter, scripts, dumps, bytes, histories, or Promise error
-semantics. Some examples still use the pre-WK synchronous contract.
-
-Acceptance: generate or validate docs from one native method schema and run
-examples as bridge contract fixtures.
+Acceptance: migrate or clearly label every legacy example; add representative
+examples to bridge contract fixtures; keep the checked method inventory in sync.
 
 #### H5-020: Debug logging is unconditional and may expose target details
 
-Process paths, addresses, mapped regions, values, and UI state are logged
-throughout release builds while `DEBUG=0`.
+Release builds still emit process paths, addresses, mapped regions, values, and
+UI state through unconditional `NSLog` calls while `DEBUG=0`.
 
 Acceptance: centralize log levels, compile verbose region/value logging out of
-release packages, and document the user-controlled diagnostics path.
+release packages, redact sensitive fields, and document an opt-in diagnostics
+path.
 
-## Positive findings
+## Positive current state
 
-- First-party implementation files are now separated from headers.
-- ARC and C++17 are applied consistently enough for the main target to compile.
-- Mach-O load-command parsing includes useful bounds checks.
-- Process enumeration correctly handles `realloc` failure without losing the
-  original allocation.
-- The WK bridge has moved the built-in UI to Promise-based calls.
-- Plists and entitlements are syntactically valid.
-- `build.sh` uses strict shell options, isolated artifact collection, and fails
-  when expected artifacts are absent.
+- `Result` owns count/type invariants and is exercised by host tests.
+- Numeric typed reads and bounded raw-byte reads are distinct interfaces.
+- Target replacement clears results and frozen values and releases old ports.
+- File-picker callbacks capture independent call IDs and settle cancellation.
+- Script and dump names are confined to a single safe Documents entry.
+- WK plugins use JSON-compatible descriptors and `H5GGPluginRPC` calls.
+- The floating button establishes its first layout baseline before rescaling;
+  injected dylibs default to 35 points from the left and vertical center.
+- All build adapters use an iOS 15.0 deployment baseline and explicit variant
+  definitions.
 
 ## Review limits
 
-This was an overall static/design review, not an exploit audit of vendored
-Frida/Dobby/ldid code. Those trees and prebuilt binaries were treated as
-dependencies. Private iOS interfaces and SpringBoard hosting require device
-validation on the selected support matrix.
+This is a source, host-test, and build-evidence review, not an exploit audit of
+vendored Frida/Dobby/ldid code. Private iOS interfaces, Mach task operations,
+SpringBoard hosting, orientation, signing acceptance, and jailbreak layouts
+still require the device evidence listed in [validation.md](validation.md).

@@ -1,163 +1,167 @@
 # Stabilization and feature roadmap
 
-This roadmap converts the review into ordered outcomes. It intentionally puts
-correctness and verification before additional user-facing features.
+Last verified: 2026-08-19.
 
-## Implementation status
+## Status legend and current phase
 
-The initial stabilization slice was implemented on 2026-07-31:
-host-runnable result/filter/codec/schema/path tests, a raw-read engine API,
-atomic target sessions, result invariants, strict hex first-search behavior,
-bridge allowlisting, Promise error settlement, and distinct compiler
-definitions for each package variant. The host suite covers the bridge schema
-and the in-memory reader seam; native WK dispatch, raw Mach reads, package
-layouts, and the device checks in [validation.md](validation.md) remain release
-gates. Phases 3–5 remain planned work.
+| Status | Meaning |
+|---|---|
+| ✅ Complete | Implemented and covered by the available host/build verification |
+| 🟡 Partial | Implemented in part or awaiting a required verification gate |
+| ⬜ Planned | No material implementation of the roadmap outcome yet |
 
-Phase 2 code and host verification were completed on 2026-07-31. The exact
-contracts and explicit limits are recorded in
-[phase-2-features.md](phase-2-features.md). Hardware-dependent rows remain
-experimental until recorded in [validation.md](validation.md).
+**Current phase: Phase 2 exit validation.** The Phase 0–2 implementation is
+largely present, but the project has not met the device and package release
+gates. Phase 3 has some opportunistic extractions but has not started as a
+coordinated architecture phase. Phase 4 is partially underway.
+
+## Phase summary
+
+| Phase | Status | Current outcome |
+|---|---|---|
+| Phase 0 — Freeze and reproduce | 🟡 Partial | Host harness and device matrix exist; native bridge/device repro coverage is incomplete |
+| Phase 1 — Core correctness | 🟡 Partial | Core fixes are implemented and host-verified; argument-kind, package, and device gates remain |
+| Phase 2 — Complete v8 features | 🟡 Partial | Feature implementation is present; hardware-dependent rows remain experimental |
+| Phase 3 — Deepen the modules | ⬜ Planned | A few supporting modules exist, but ownership seams remain broad |
+| Phase 4 — Delivery and repository health | 🟡 Partial | Variant builds/artifact publication improved; tracked artifacts, CI tests, provenance, and logging remain |
+| Phase 5 — New feature candidates | ⬜ Planned | Candidate backlog only |
 
 ## Release gates
 
-A release is not considered stable until:
+| Gate | Status | Evidence or next action |
+|---|---|---|
+| Host suite covers codecs, results, raw reads, bridge inventory, and file confinement | ✅ Complete | `bash tests/run_tests.sh` passes locally |
+| Host suite is required in CI | ⬜ Planned | Add it before variant builds/releases |
+| Local and cross-process numeric/byte sessions pass on device | ⬜ Planned | Record [validation.md](validation.md) rows |
+| Every JavaScript Promise settles once | 🟡 Partial | Picker path is implemented; native/device overlap matrix remains |
+| Bridge validates method names, counts, and argument kinds | 🟡 Partial | Names/counts pass; kinds/ranges remain H5-003 |
+| Normal/rootless/roothide package contents and paths are asserted | 🟡 Partial | Compile definitions pass; unpacked package assertions remain H5-005 |
+| Standalone, injected, and GlobalView modes pass smoke tests | ⬜ Planned | Record device matrix |
 
-- one automated suite exercises value parsing, result invariants, raw reads,
-  bridge dispatch, and file confinement;
-- numeric and byte search sessions pass on one local-process and one
-  cross-process device scenario;
-- every JavaScript Promise resolves or rejects exactly once;
-- normal, rootless, and roothide packages prove their variant paths and install
-  layouts;
-- the standalone, injected, and GlobalView modes pass a documented smoke matrix.
+No stable release should be declared until every gate above is complete.
 
 ## Phase 0 — Freeze and reproduce
 
 Goal: make failures deterministic before restructuring.
 
-1. Add a small test target and an in-memory adapter for memory regions.
-2. Encode the result invariants from `architecture.md` as assertions/tests.
-3. Add bridge contract fixtures for every advertised method.
-4. Capture device smoke steps for target selection, numeric search, read/write,
-   window display, and package installation.
-5. Decide the supported iOS/jailbreak matrix and record it in README/package
-   metadata.
+| Work item | Status | Evidence / remaining work |
+|---|---|---|
+| Add a host test target and in-memory readers | ✅ Complete | `tests/run_tests.sh`, C++ fixtures, and callback readers exist |
+| Encode result invariants as assertions/tests | ✅ Complete | `MemoryResultsTests.cpp` exercises counts and typed/untyped regions |
+| Add bridge contract fixtures | 🟡 Partial | Inventory, unknown-name, and argument-count checks exist; argument kinds and native WK dispatch remain |
+| Capture repeatable device smoke steps | ✅ Complete | Matrix exists in `validation.md` |
+| Record supported platform baseline | ✅ Complete | iOS 15.0+, arm64/arm64e is consistent in README, targets, and package description |
 
-Exit: each P0 defect has a failing automated or repeatable device check.
+Exit status: **partial**. The deterministic host loop exists, but native WK and
+hardware-dependent failures do not yet have recorded device results.
 
 ## Phase 1 — Core correctness
 
-Goal: make the existing primary workflows trustworthy.
+Goal: make primary workflows trustworthy.
 
-Work order:
+| Work item | Status | Evidence / remaining work |
+|---|---|---|
+| Atomic target process/session replacement | ✅ Complete | New task and engine are acquired before state replacement; old ports are released |
+| Separate typed and raw memory interfaces | ✅ Complete | `JJReadMemory` and `JJReadBytes`; host page/dump readers |
+| Central result model and invariant-safe filtering | ✅ Complete | `Result`, `MemoryFilter`, and masked-hex refinement tests |
+| Native bridge allowlist | ✅ Complete | `BridgeMethods` is required before selector creation |
+| Bridge argument-kind/range validation | ⬜ Planned | Active issue H5-003 |
+| Variant compiler definitions | ✅ Complete | One definition per normal/rootless/roothide dry run |
+| Variant package content assertions | ⬜ Planned | Active issue H5-005 |
+| Device verification of search/read/write and target switching | ⬜ Planned | Use `validation.md` |
 
-1. **Target process/session ownership** — fix H5-001 and H5-010.
-2. **Typed and raw memory interfaces** — fix H5-002.
-3. **Result model and enumeration** — fix H5-004, including counts/types.
-4. **Bridge allowlist and validation** — fix H5-003.
-5. **Variant compiler flags and package assertions** — fix H5-005.
-
-Recommended tracer slices:
-
-- switch target, read one known value, switch back;
-- raw read across one readable page;
-- exact numeric first/refine search for each type;
-- filter one deterministic result set and verify count/types;
-- hex first search with valid/invalid patterns;
-- reject one unknown bridge method;
-- prove exactly one variant macro in each build.
-
-Exit: numeric search/read/write and cross-process selection are device-verified;
-hex/filter/raw byte tests pass against the memory adapter; all package variants
-have distinct verified configuration.
+Exit status: **partial**. Core implementation and host checks pass; schema,
+package-content, and device checks prevent the phase from being closed.
 
 ## Phase 2 — Complete partially implemented v8 features
 
-Goal: finish features already present in the UI or README before expanding scope.
+Goal: finish features already exposed by the UI or documentation before adding
+scope.
 
-| Capability | Current state | Completion outcome |
-|---|---|---|
-| Hex search | Complete | First/refine semantics; nibble wildcards; parser/refinement tests |
-| Search within results | Complete | Every numeric type; equal/greater/less; invariant-safe filtering |
-| Memory viewer | Complete | Partial reads; `??` markers; bounded 64-bit paging |
-| Memory dump | Complete | Streaming; progress/cancel; partial-file cleanup; safe filename |
-| Cross-process mode | Complete | Atomic target sessions; termination invalidation; dump port ownership |
-| Value freezer | Complete | Target PID binding; visible failures; safe timer teardown |
-| Script editor | Complete | Sandboxed names; explicit `.js`/`.html` policy; errors; explicit save |
-| Native plugins | Complete, new contract | JSON RPC for WK; legacy object compatibility only in JavaScriptCore |
-| Dylib generation | Host-verified; device experimental | Embedded per-slice stubs; replacement/signing integration check |
-| File picker | Complete | Once-only cancellation/success; independent call IDs; scope cleanup |
-| Pointer tools | Complete with limits | 64-bit/8-byte; 4,096 results; 512 MiB scan; 32-step chains |
+| Capability | Implementation | Host verification | Device verification |
+|---|---|---|---|
+| Hex search | ✅ Complete | ✅ Parser, wildcards, refinement | ⬜ Pending |
+| Search within results | ✅ Complete | ✅ All numeric kinds and modes | ⬜ Pending |
+| Memory viewer | ✅ Complete | ✅ Partial-page model and JS actions | ⬜ Pending |
+| Memory dump | ✅ Complete | ✅ Streaming, progress, cancel, cleanup | ⬜ Pending |
+| Cross-process mode | ✅ Complete | 🟡 Ownership logic inspected; no real Mach target on host | ⬜ Pending |
+| Value freezer | ✅ Complete | 🟡 Target binding and teardown inspected; no UIKit timer fixture | ⬜ Pending |
+| Script editor/store policy | ✅ Complete | ✅ Names/extensions and JS actions | ⬜ Pending |
+| Native plugin RPC | ✅ Complete | 🟡 Contract/docs/demo present; no loaded WK plugin host test | ⬜ Pending |
+| Dylib generation | ✅ Complete | ✅ Multi-slice replacement and host signing | ⬜ Pending |
+| File picker | ✅ Complete | 🟡 Independent IDs/cancel path inspected; no UIKit fixture | ⬜ Pending |
+| Pointer tools | ✅ Complete with documented limits | 🟡 Capability and UI logic present; Mach scan not host-tested | ⬜ Pending |
+| Injected floating-button default | ✅ Complete | ✅ Source regression check and arm64/arm64e compile | ⬜ Pending |
 
-Exit: every capability is either verified and documented, marked experimental
-with explicit limits, or removed from the stable UI.
+Exact contracts and limits are recorded in
+[phase-2-features.md](phase-2-features.md). Exit status: **partial** until the
+hardware-dependent rows are recorded and any failures are resolved.
 
 ## Phase 3 — Deepen the modules
 
-Goal: improve locality and make future work safer.
+Goal: improve locality and make future work safer without changing the
+JavaScript interface.
 
-1. Add `TargetProcess` and `MemorySession`; make task-port ownership explicit.
-2. Add `ValueCodec`; remove scattered `strto*` and enum conversions.
-3. Add a raw/typed memory adapter seam with a deterministic in-memory adapter.
-4. Replace ad hoc `result_region` mutation with one invariant-preserving result
-   module.
-5. Make `FloatMenu` table-driven from one method schema used for native
-   dispatch, JavaScript injection, and documentation.
-6. Add `ScriptStore`, `PluginLoader`, and `DylibBuilder` behind the existing
-   engine façade.
-7. Replace bootstrap globals/timer knowledge with a runtime coordinator.
-8. Version the `GVData` shared-memory interface.
+| Work item | Status | Current state / outcome |
+|---|---|---|
+| Add `TargetProcess` and `MemorySession` | ⬜ Planned | Correct ownership behavior remains inside `h5ggEngine` |
+| Centralize value/address/type conversion | 🟡 Partial | `MemoryValue` exists; façade conversion methods and direct parsing remain |
+| Add a raw/typed reader seam with in-memory adapters | 🟡 Partial | Page, dump, and filter callbacks exist; the whole engine does not use one adapter interface |
+| Replace ad hoc result mutation with one result module | ✅ Complete | `MemoryResults` owns mutation/count invariants |
+| Use one bridge schema for dispatch, injection, validation, and docs | 🟡 Partial | Inventory and counts are shared; argument kinds and docs generation remain |
+| Add `ScriptStore`, `PluginLoader`, and `DylibBuilder` | 🟡 Partial | Filename and template helpers exist; ownership remains in the façade |
+| Replace bootstrap globals/timers with a runtime coordinator | ⬜ Planned | Active issue H5-015 |
+| Make modal presentation request-scoped and serial | ⬜ Planned | Active issue H5-012 |
+| Version the `GVData` shared-memory interface | ⬜ Planned | Active issue H5-016 |
 
-Exit: tests and callers use the same small interfaces, and deleting any of
-these modules would force its complexity back into multiple callers—the
-modules are earning their seam.
+Exit status: **not started as a coordinated phase**. Existing extractions are
+foundational work, not completion of the ownership seams.
 
 ## Phase 4 — Delivery and repository health
 
 Goal: make releases reproducible and the repository navigable.
 
-1. Stop tracking regenerated packages and Xcode user state.
-2. Inventory/checksum prebuilt dependencies and document their provenance.
-3. Decide whether the nested Dobby source belongs as a submodule, fetched
-   dependency, or maintained vendored snapshot.
-4. Split build, package, and release verification; do not rely on artifact
-   names alone to prove a variant.
-5. Remove the hardcoded local `THEOS_DEVICE_IP`.
-6. Gate verbose logs and add a support bundle with explicit user consent.
-7. Generate complete JavaScript reference documentation from the bridge schema.
+| Work item | Status | Current state / outcome |
+|---|---|---|
+| Stop tracking generated packages and Xcode user state | 🟡 Partial | Ignore rules improved; already tracked files remain (H5-018) |
+| Inventory/checksum prebuilt dependencies and provenance | ⬜ Planned | H5-018 |
+| Choose a policy for the nested Dobby source | ⬜ Planned | H5-018 |
+| Separate build, package, and release verification | 🟡 Partial | `build.sh` isolates artifacts; package-content checks remain |
+| Remove hardcoded local device addresses | ✅ Complete | Only a commented example remains |
+| Run host verification in CI before packaging | ⬜ Planned | H5-014 |
+| Gate/redact verbose logs and add opt-in diagnostics | ⬜ Planned | H5-020 |
+| Maintain complete JavaScript reference documentation | 🟡 Partial | All 52 methods are checked; legacy examples remain H5-019 |
 
-Exit: a clean checkout can reproduce each supported artifact, while releases
-and local IDE state are kept out of source history.
+Exit status: **partial**. Artifact publication improved, but repository hygiene
+and release assurance are not complete.
 
 ## Phase 5 — New feature candidates
 
-These are candidates, not commitments. Run a design/spec pass after Phases 0–2
-have produced reliable foundations.
+These remain uncommitted candidates. Do not schedule them ahead of the release
+gates and active P1 issues.
 
-### Search quality
+### Search quality — ⬜ Planned
 
-- wildcard/masked byte patterns;
+- wildcard/masked byte patterns beyond current nibble wildcards;
 - aligned/unaligned scan options;
 - readable/writable/executable region filters;
 - saved search sessions with explicit target/module identity;
 - cancellable scans and progress reporting.
 
-### Pointer analysis
+### Pointer analysis — ⬜ Planned
 
 - configurable pointer width and offset bounds;
 - multi-level chain search with deduplication and cancellation;
 - module-relative chain persistence;
 - revalidation after application restart/ASLR changes.
 
-### Script and plugin platform
+### Script and plugin platform — ⬜ Planned
 
 - versioned capability manifest;
 - scoped permissions for memory, files, network, and native plugins;
-- structured plugin RPC rather than Objective-C object exposure;
 - script import/export with provenance and compatibility metadata.
 
-### Diagnostics
+### Diagnostics — ⬜ Planned
 
 - opt-in structured logs with redacted addresses/paths;
 - memory/session statistics;
@@ -167,23 +171,14 @@ have produced reliable foundations.
 ## Dependency order
 
 ```text
-Test harness
-  ├── TargetProcess + MemorySession
-  │     ├── cross-process mode
-  │     └── target-aware freezer
-  ├── raw/typed memory seam
-  │     ├── memory viewer
-  │     └── memory dump
-  ├── invariant result module
-  │     ├── hex search
-  │     ├── result filters
-  │     └── pointer analysis
-  └── bridge method schema
-        ├── security allowlist
-        ├── complete API docs
-        ├── file-picker lifecycle
-        └── plugin RPC decision
+Required CI + device feedback loops
+  ├── bridge argument schema
+  ├── package content assertions
+  └── device smoke matrix
+        ├── close Phase 0/1/2 exits
+        └── begin coordinated Phase 3
+              ├── TargetProcess + MemorySession
+              ├── runtime coordinator + modal queue
+              ├── store/plugin/builder ownership modules
+              └── versioned GVData
 ```
-
-Build-variant repair can proceed in parallel with the runtime work, but no
-variant should be released before the common core release gates pass.

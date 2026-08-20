@@ -1,8 +1,11 @@
 # Phase 2 feature contracts
 
-This document is the support boundary for the partially implemented v8
-features completed in Phase 2. Device-dependent behavior remains experimental
-until its row in `validation.md` has been recorded on supported hardware.
+This document is the support boundary for the v8 features implemented through
+Phase 2. "Implemented" describes the current source contract; it does not imply
+device verification. The per-capability completion status is maintained in
+[roadmap.md](roadmap.md), and device-dependent behavior remains experimental
+until its row in [validation.md](validation.md) is recorded on supported
+hardware.
 
 ## Memory workflows
 
@@ -16,7 +19,7 @@ until its row in `validation.md` has been recorded on supported hardware.
   changing the current results.
 
 The parser, wildcard matcher, and result-refinement adapter have host tests.
-Mach region enumeration remains device-verified.
+Mach region enumeration remains pending device verification.
 
 ### Search within results
 
@@ -53,9 +56,12 @@ device-verified.
 ## Target and freezer lifecycle
 
 Target selection constructs a new engine before atomically replacing the old
-task port. `getTargetStatus` detects a terminated target, invalidates its
-engine, and clears target-bound frozen values. A dump retains its own task-port
-right, so switching targets cannot invalidate an in-flight dump.
+task port. A failed selection preserves the current target. A successful
+selection resets search state and frozen values before releasing the previous
+engine and non-self port. `getTargetStatus` detects a terminated target,
+invalidates its engine, and clears target-bound frozen values. A dump retains
+its own task-port right, so switching targets cannot invalidate an in-flight
+dump.
 
 Frozen entries contain the selected PID, canonical address, status, failure
 count, and last error. Invalid values are rejected before scheduling. Timer
@@ -86,10 +92,13 @@ from WKWebView must implement `H5GGPluginRPC`:
           error:(NSError**)error;
 ```
 
-`loadPlugin` returns a JSON handle, and `callPlugin(handle, method, arguments)`
+`loadPlugin` returns a JSON-compatible descriptor containing `loaded`, `id`,
+`className`, and `rpc` when loading succeeds. `callPlugin(id, method, arguments)`
 returns `{ok, result}` or `{ok: false, error}`. Arguments and results must be
 JSON-compatible. Legacy JavaScriptCore callers may still receive the native
-object. The custom-alert demo shows the RPC form.
+object. The custom-alert demo shows the RPC form. Older examples that expect a
+synchronous native object are not part of this WK contract and are tracked for
+migration in the active review.
 
 ## Dylib generation
 
@@ -99,10 +108,12 @@ every slice without changing Mach-O offsets, writes the output, and requires
 `ldid` signing to succeed. The generated tweak consumes the customized regions
 before bundle or built-in resources.
 
-`tests/check_dylib_generation.sh` transforms the built universal dylib with the
-same replacement module, signs it, verifies the signature can be read, and
-checks that it remains a universal Mach-O. Loading the generated dylib remains
-experimental until the device validation row passes.
+When a built universal dylib and `ldid` are available,
+`tests/check_dylib_generation.sh` transforms the dylib with the same replacement
+module, signs it, verifies the signature can be read, and checks that it remains
+a universal Mach-O. The check reports a skip when either prerequisite is
+missing. Loading the generated dylib remains experimental until the device
+validation row passes.
 
 ## Pointer tools
 
@@ -110,3 +121,14 @@ Pointers are unsigned 64-bit, exact, and 8-byte aligned. Pointer searches
 enumerate the selected range and stop at 4,096 results or 512 MiB of mapped
 memory scanned. UI pointer chains use `BigInt` and stop at 32 reads.
 `getPointerCapabilities` exposes these limits to scripts.
+
+## Floating presentation
+
+In injected dylib mode, the 50-point floating button starts with its frame 35
+points from the left edge and centered vertically in the active window. The
+first observed window frame establishes the resize baseline without rescaling
+the initial position. Later window-size changes scale and clamp its origin.
+
+This behavior is source-checked and compiles for arm64/arm64e. Orientation and
+window-lifecycle behavior remain part of the injected and GlobalView device
+matrix.

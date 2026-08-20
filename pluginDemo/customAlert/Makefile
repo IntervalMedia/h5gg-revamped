@@ -1,7 +1,5 @@
 ARCHS = arm64
-TARGET = iphone:13.7:11.4
-
-THEOS_DEVICE_IP = iphoneX.local
+TARGET = iphone:15.6:15.0
 
 THEOS_PLATFORM_DEB_COMPRESSION_TYPE = gzip
 
@@ -11,7 +9,7 @@ endif
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = customAlert
+TWEAK_NAME = customAlertv8
 
 customAlert_FILES = Tweak.mm
 customAlert_CFLAGS = -fobjc-arc -fvisibility=hidden 
