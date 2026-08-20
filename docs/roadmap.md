@@ -10,13 +10,13 @@ Last verified: 2026-08-20.
 | 🟡 Partial | Implemented in part or awaiting a required verification gate |
 | ⬜ Planned | No material implementation of the roadmap outcome yet |
 
-**Current phase: Phase 2 device exit validation and Phase 3 final façade extraction.**
+**Current phase: Phase 2 device exit validation; Phase 3 implementation complete.**
 The Phase 0–2 implementation is largely present, but the project has not met
 the device release gates. Phase 3 now has host/build-verified
 modules for the bridge, value, target/session, reader/pointer policy, modal and
 file-picker lifecycle, freezer ownership, script persistence, plugin loading,
-dylib building, runtime lifecycle, and GlobalView protocol. Dump orchestration
-still remains in the façade, so Phase 3 is not closed. Phase 4 is partially underway.
+dylib building, dump orchestration, runtime lifecycle, and GlobalView protocol.
+Phase 4 is partially underway.
 
 ## Phase summary
 
@@ -25,7 +25,7 @@ still remains in the façade, so Phase 3 is not closed. Phase 4 is partially und
 | Phase 0 — Freeze and reproduce | 🟡 Partial | Host harness and device matrix exist; native bridge/device repro coverage is incomplete |
 | Phase 1 — Core correctness | 🟡 Partial | Core fixes, bridge validation, and package layouts are host/CI-verified; device gates remain |
 | Phase 2 — Complete v8 features | 🟡 Partial | Feature implementation is present; hardware-dependent rows remain experimental |
-| Phase 3 — Deepen the modules | 🟡 Partial | Planned modules plus preferences/freezer/picker/pointer seams are host/build-verified; dump orchestration remains H5-015 |
+| Phase 3 — Deepen the modules | ✅ Complete | Planned ownership seams plus preferences/freezer/picker/pointer/dump modules are host/build-verified; UIKit/Mach behavior remains in the Phase 2 device matrix |
 | Phase 4 — Delivery and repository health | 🟡 Partial | Variant builds, artifact assertions, and CI host tests are present; tracked artifacts, provenance, and logging remain |
 | Phase 5 — New feature candidates | ⬜ Planned | Candidate backlog only |
 
@@ -120,13 +120,12 @@ JavaScript interface.
 | Replace bootstrap globals/timers with a runtime coordinator | ✅ Complete | Modes, exactly-once readiness, owned monitoring timers, floating UI retention, and teardown use `RuntimeCoordinator`; its Foundation contract test crosses the production interface |
 | Make modal presentation request-scoped and serial | ✅ Complete | FIFO request state, exactly-once completion, cancellation promotion, and blocking waits are host-tested; UIKit adapter builds for both slices |
 | Extract freezer and file-picker lifecycle | ✅ Complete | `FreezerController` owns target-bound writes and one scheduler token; `FilePickerRequest` owns the originating call ID and exactly-once completion; deterministic Foundation tests cross both production interfaces |
-| Extract dump orchestration from the façade | ⬜ Planned | Streaming is in `MemoryDump`, but request state, target-port retention, file publication, async completion, and cancellation still live in `h5ggEngine` (H5-015) |
+| Extract dump orchestration from the façade | ✅ Complete | `DumpController` owns validation, one-job state, progress, cancellation, target-reader lease release, partial-file cleanup, and originating deferred completion; injected adapters and real temporary files cover it on host |
 | Version the `GVData` shared-memory interface | ✅ Complete | Fixed-width magic/version/size/capability headers are validated by both peers; incompatible hosts fail closed and images use a separate bounded single-slot transfer |
 
-Exit status: **active and partial**. The planned modules and newly identified
-preference/freezer/picker/pointer seams are implemented and covered by available
-host/build verification. Dump orchestration still prevents Phase 3 closure;
-cross-process Mach and UIKit behavior remains gated by the Phase 2 device matrix.
+Exit status: **complete**. Every planned or audit-identified Phase 3 ownership
+seam is implemented and covered by available host/build verification.
+Cross-process Mach and UIKit behavior remains gated by the Phase 2 device matrix.
 
 ## Phase 4 — Delivery and repository health
 
@@ -187,11 +186,11 @@ Required CI + device feedback loops
   ├── ✅ package content assertions
   └── device smoke matrix
         ├── close Phase 0/1/2 exits
-        └── Phase 3 module implementation
+        └── ✅ Phase 3 module implementation
               ├── ✅ TargetProcess + MemorySession
               ├── ✅ runtime coordinator + modal queue
               ├── ✅ store/plugin/builder ownership modules
               ├── ✅ preferences/freezer/picker/pointer modules
-              ├── ⬜ dump orchestration module
+              ├── ✅ dump orchestration module
               └── ✅ versioned GVData + bounded image transfer
 ```

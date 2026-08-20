@@ -4,9 +4,7 @@
 #include "FloatMenu.h"
 #include "crossproc.h"
 #include "version.h"
-#include "FileNames.h"
 #include "MemoryPage.h"
-#include "MemoryDump.h"
 #include "MemScan.h"
 #include "TargetSession.h"
 #include "ScriptStore.h"
@@ -15,6 +13,7 @@
 #include "FreezerController.h"
 #include "FilePickerRequest.h"
 #include "PreferencesStore.h"
+#include "DumpControllerInternal.h"
 
 #include <libgen.h>
 #include <mach-o/dyld.h>
@@ -41,6 +40,7 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 @property (nonatomic, strong) H5GGPluginLoader* pluginLoader;
 @property (nonatomic, strong) H5GGFreezerController* freezer;
 @property (nonatomic, strong) H5GGPreferencesStore* preferences;
+@property (nonatomic, strong) H5GGDumpController* dumpController;
 -(NSString*)formatValue:(void*)value byType:(int)type;
 -(int)parseValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type;
 -(void)threadcall:(void(^)())block;
@@ -128,13 +128,71 @@ static MemorySession* H5GGCreateMemorySession(TargetProcess target) {
             _session = nullptr;
             return nil;
         }
-        _dumpStatus = @{@"state": @"idle", @"progress": @0};
+        _dumpController = [[H5GGDumpController alloc]
+            initWithDocumentsPath:documents
+            targetProvider:^H5GGDumpTargetLease* {
+                __strong __typeof(weakSelf) strongSelf = weakSelf;
+                if(!strongSelf || !strongSelf.session) return nil;
+                task_port_t dumpPort = strongSelf.session->target().port();
+                if(dumpPort == MACH_PORT_NULL) return nil;
+                BOOL ownsPortReference = dumpPort != mach_task_self();
+                if(ownsPortReference &&
+                   mach_port_mod_refs(mach_task_self(), dumpPort,
+                                      MACH_PORT_RIGHT_SEND, 1) != KERN_SUCCESS) {
+                    return nil;
+                }
+                JJMemoryEngine* dumpEngine = new(std::nothrow) JJMemoryEngine(dumpPort);
+                if(!dumpEngine) {
+                    if(ownsPortReference) mach_port_deallocate(mach_task_self(), dumpPort);
+                    return nil;
+                }
+                H5GGDumpTargetLease* lease = [[H5GGDumpTargetLease alloc]
+                    initWithReader:^size_t(void* output,
+                                           uint64_t address,
+                                           size_t length) {
+                        return dumpEngine->readBytes(output, address, length);
+                    }
+                    release:^{
+                        delete dumpEngine;
+                        if(ownsPortReference) {
+                            mach_port_deallocate(mach_task_self(), dumpPort);
+                        }
+                    }];
+                if(!lease) {
+                    delete dumpEngine;
+                    if(ownsPortReference) mach_port_deallocate(mach_task_self(), dumpPort);
+                }
+                return lease;
+            }
+            completionProvider:^H5GGDumpCompletion {
+                FloatMenu* sourceMenu = H5GGCurrentMenu();
+                NSNumber* callId = [sourceMenu deferCurrentCall];
+                if(!callId) return nil;
+                __weak FloatMenu* weakSourceMenu = sourceMenu;
+                return ^(BOOL success) {
+                    [weakSourceMenu resolveCallId:callId
+                                           result:@(success)
+                                            error:nil];
+                };
+            }];
+        if(!_dumpController) {
+            [_freezer clear];
+            _freezer = nil;
+            _pluginLoader = nil;
+            _preferences = nil;
+            delete _scriptStore;
+            _scriptStore = nullptr;
+            delete _session;
+            _session = nullptr;
+            return nil;
+        }
     }
     return self;
 }
 
 -(void)dealloc {
-    self.dumpCancelled = YES;
+    [_dumpController cancel];
+    _dumpController = nil;
     [_freezer clear];
     _freezer = nil;
     _preferences = nil;
@@ -167,12 +225,6 @@ static NSString* _Nullable H5GGStringArgument(id _Nullable value) {
         return jsValue.isUndefined || jsValue.isNull ? nil : jsValue.toString;
     }
     return [value description];
-}
-
-static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
-    if(!name || !H5GGIsSafeFileName(name.UTF8String)) return nil;
-    NSString* documents = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
-    return [documents stringByAppendingPathComponent:name];
 }
 
 -(NSArray<NSDictionary<NSString*,id>*>*)getProcList:(nullable id)filter {
@@ -738,124 +790,15 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 }
 
 -(BOOL)dumpMemory:(NSString*)start end:(NSString*)end filename:(NSString*)filename {
-    NSString* outputPath = H5GGDocumentsPathForName(filename);
-    if(!outputPath) return NO;
-
-    UInt64 addr = 0;
-    UInt64 endAddr = 0;
-    if(!JJParseAddress([start UTF8String], [start hasPrefix:@"0x"] ? 16 : 10, addr) ||
-       !JJParseAddress([end UTF8String], [end hasPrefix:@"0x"] ? 16 : 10, endAddr) ||
-       !addr || addr >= endAddr || endAddr - addr > SIZE_MAX) return NO;
-
-    if([self.dumpStatus[@"state"] isEqualToString:@"running"]) return NO;
-
-    task_port_t dumpPort = _session->target().port();
-    if(dumpPort == MACH_PORT_NULL) return NO;
-    BOOL ownsPortReference = dumpPort != mach_task_self();
-    if(ownsPortReference &&
-       mach_port_mod_refs(mach_task_self(), dumpPort, MACH_PORT_RIGHT_SEND, 1) != KERN_SUCCESS) {
-        return NO;
-    }
-
-    NSNumber* callId = [H5GGCurrentMenu() deferCurrentCall];
-    if(!callId) {
-        if(ownsPortReference) mach_port_deallocate(mach_task_self(), dumpPort);
-        return NO;
-    }
-
-    size_t totalSize = (size_t)(endAddr - addr);
-    self.dumpCancelled = NO;
-    self.dumpStatus = @{
-        @"state": @"running",
-        @"progress": @0,
-        @"written": @0,
-        @"total": @(totalSize),
-        @"path": outputPath,
-    };
-
-    __weak __typeof(self) weakSelf = self;
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-        BOOL success = NO;
-        BOOL cancelled = NO;
-        NSString* failure = nil;
-        size_t totalWritten = 0;
-        JJMemoryEngine dumpEngine(dumpPort);
-
-        [[NSFileManager defaultManager] createFileAtPath:outputPath contents:nil attributes:nil];
-        NSFileHandle* handle = [NSFileHandle fileHandleForWritingAtPath:outputPath];
-        if(!handle) {
-            failure = @"Unable to create dump file";
-        } else {
-            @try {
-                JJMemoryDumpResult dumpResult = JJStreamMemoryDump(
-                    addr, totalSize, dumpEngine,
-                    [handle](const void* bytes, size_t length) {
-                        [handle writeData:[NSData dataWithBytes:bytes length:length]];
-                        return YES;
-                    },
-                    [weakSelf]() {
-                        __strong __typeof(weakSelf) strongSelf = weakSelf;
-                        return !strongSelf || strongSelf.dumpCancelled;
-                    },
-                    [weakSelf, outputPath](size_t written, size_t total) {
-                        __strong __typeof(weakSelf) strongSelf = weakSelf;
-                        strongSelf.dumpStatus = @{
-                            @"state": @"running",
-                            @"progress": @((double)written / (double)total),
-                            @"written": @(written),
-                            @"total": @(total),
-                            @"path": outputPath,
-                        };
-                    });
-                totalWritten = dumpResult.bytesWritten;
-                cancelled = dumpResult.status == JJMemoryDumpStatus::Cancelled;
-                if(dumpResult.status == JJMemoryDumpStatus::ReadFailed) {
-                    failure = [NSString stringWithFormat:
-                        @"Unreadable memory at 0x%llX", dumpResult.failureAddress];
-                } else if(dumpResult.status == JJMemoryDumpStatus::WriteFailed) {
-                    failure = @"Unable to write dump file";
-                } else if(dumpResult.status == JJMemoryDumpStatus::InvalidInput) {
-                    failure = @"Invalid dump request";
-                }
-                success = dumpResult.status == JJMemoryDumpStatus::Completed;
-            } @catch(NSException* exception) {
-                failure = exception.reason ?: @"File write failed";
-            }
-            [handle closeFile];
-        }
-
-        if(ownsPortReference) {
-            mach_port_deallocate(mach_task_self(), dumpPort);
-        }
-        if(!success) {
-            [[NSFileManager defaultManager] removeItemAtPath:outputPath error:nil];
-        }
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            __strong __typeof(weakSelf) strongSelf = weakSelf;
-            NSString* state = success ? @"completed" : (cancelled ? @"cancelled" : @"failed");
-            strongSelf.dumpStatus = @{
-                @"state": state,
-                @"progress": @(success ? 1.0 : (totalSize ? (double)totalWritten / (double)totalSize : 0)),
-                @"written": @(totalWritten),
-                @"total": @(totalSize),
-                @"path": outputPath,
-                @"error": failure ?: NSNull.null,
-            };
-            [H5GGCurrentMenu() resolveCallId:callId result:@(success) error:nil];
-        });
-    });
-    return YES;
+    return [_dumpController startFrom:start end:end filename:filename];
 }
 
 -(NSDictionary<NSString*,id>*)getDumpStatus {
-    return self.dumpStatus ?: @{@"state": @"idle", @"progress": @0};
+    return _dumpController.status;
 }
 
 -(BOOL)cancelDump {
-    if(![self.dumpStatus[@"state"] isEqualToString:@"running"]) return NO;
-    self.dumpCancelled = YES;
-    return YES;
+    return [_dumpController cancel];
 }
 
 -(void)appendLog:(NSString*)message {

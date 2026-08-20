@@ -44,7 +44,7 @@ h5ggEngine — JavaScript-facing use-case coordination
           ├── TargetProcess / MemorySession — target and search lifetime
           ├── JJMemoryEngine — scan and target-memory operations
           ├── MemoryResults / MemoryFilter / MemoryValue / MemoryReader
-          ├── MemoryPage / MemoryDump / PointerSearch
+          ├── MemoryPage / MemoryDump / DumpController / PointerSearch
           ├── FreezerController / FilePickerRequest — deferred lifecycle ownership
           ├── ScriptStore / FileNames — confined script persistence and policy
           ├── crossproc — process and Mach-O discovery
@@ -159,6 +159,9 @@ Several internal implementation modules now provide locality:
 - `PreferencesStore` owns input/search history caps, bookmark uniqueness,
   malformed persisted-value filtering, and timestamp creation over an injected
   `NSUserDefaults` adapter;
+- `DumpController` owns request/range/path validation, one-running-job state,
+  progress, cancellation, partial-file cleanup, target-reader lease release,
+  and deferred completion; `MemoryDump` remains its streaming implementation;
 - `ScriptStore` owns the Documents root, confined regular-file access, strict
   UTF-8 and size validation, atomic writes, deterministic listing, and errors;
 - `FileNames` contains the shared filename and script-extension policy;
@@ -176,9 +179,11 @@ Several internal implementation modules now provide locality:
   compatibility checks, and bounded single-slot image transfer.
 
 The façade owns one `MemorySession`, `ScriptStore`, `PluginLoader`,
-`FreezerController`, and `PreferencesStore`; it still implements search and
-dump orchestration. The `makeDYLIB` adapter supplies UIKit image validation,
-the embedded templates, and the linked `ldid` signer to `DylibBuilder`.
+`FreezerController`, `PreferencesStore`, and `DumpController`. Its remaining
+role is JavaScript compatibility, argument/result translation, and routing
+search/process use cases to their owners. The `makeDYLIB` adapter supplies UIKit
+image validation, the embedded templates, and the linked `ldid` signer to
+`DylibBuilder`.
 
 These are internal modules, not new JavaScript concepts.
 
@@ -250,7 +255,8 @@ mapping small while retaining a bounded icon handoff.
 | Bookmarks/history | `PreferencesStore` over `NSUserDefaults` | App installation |
 | Frozen values and timer | `FreezerController` | One selected target process |
 | Scripts | `ScriptStore` over the Documents directory | App installation |
-| Dumps/log | Documents directory | App installation |
+| Active dump job and status | `DumpController` with one target-reader lease | Until completion/cancellation settles |
+| Dump/log files | Documents directory | App installation |
 | Generated dylib build | `DylibBuilder` request | One atomic build attempt |
 | Plugin RPC objects/handles | `PluginLoader` | Loader lifetime |
 | Dynamically loaded plugin images | `PluginLoader` production adapter | Process lifetime; Objective-C images are not unloaded |
@@ -286,13 +292,14 @@ bash tests/run_tests.sh
 
 The suite exercises the same internal seams used by production target/session
 ownership, modal request serialization, grouped/ranged search parsing and
-matching, results, raw reads, dumps, pointer matching, freezer and file-picker
-lifecycle, filenames, script/preference persistence, bridge schemas, plugin
+matching, results, raw reads, dump streaming/orchestration, pointer matching,
+freezer and file-picker lifecycle, filenames, script/preference persistence, bridge schemas, plugin
 loading/RPC, dylib building, runtime lifecycle, and the GlobalView binary contract. Raw,
 exact, typed, partial, filter, page, dump, and pointer reads use buffer/callback
 adapters to the production reader interface. Freezer tests inject target,
 writer, and scheduler adapters; picker tests exercise request IDs and racing
-completion through the production request interface. The plugin contract test
+completion through the production request interface. Dump tests inject reader
+leases and executors while using real temporary files. The plugin contract test
 uses injected image/class adapters with macOS Foundation; the dylib integration
 uses the production builder interface with real temporary files and host
 `ldid`.

@@ -10,7 +10,8 @@ runtime_test_output="$(mktemp "${TMPDIR:-/tmp}/h5gg-runtime-coordinator.XXXXXX")
 freezer_test_output="$(mktemp "${TMPDIR:-/tmp}/h5gg-freezer-controller.XXXXXX")"
 picker_test_output="$(mktemp "${TMPDIR:-/tmp}/h5gg-file-picker-request.XXXXXX")"
 preferences_test_output="$(mktemp "${TMPDIR:-/tmp}/h5gg-preferences-store.XXXXXX")"
-trap 'rm -f "$test_output" "$bridge_docs_output" "$plugin_test_output" "$gv_protocol_output" "$runtime_test_output" "$freezer_test_output" "$picker_test_output" "$preferences_test_output"' EXIT
+dump_test_output="$(mktemp "${TMPDIR:-/tmp}/h5gg-dump-controller.XXXXXX")"
+trap 'rm -f "$test_output" "$bridge_docs_output" "$plugin_test_output" "$gv_protocol_output" "$runtime_test_output" "$freezer_test_output" "$picker_test_output" "$preferences_test_output" "$dump_test_output"' EXIT
 
 "${CXX:-c++}" \
   -std=c++17 \
@@ -102,6 +103,22 @@ if command -v xcrun >/dev/null 2>&1 &&
     -framework Foundation \
     -o "$preferences_test_output"
   "$preferences_test_output"
+  xcrun --sdk macosx clang++ \
+    -std=c++17 \
+    -fobjc-arc \
+    -fblocks \
+    -Wall \
+    -Wextra \
+    -Werror \
+    "$repo_root/tests/DumpControllerTests.mm" \
+    "$repo_root/DumpController.mm" \
+    "$repo_root/MemoryDump.cpp" \
+    "$repo_root/MemoryReader.cpp" \
+    "$repo_root/MemoryValue.cpp" \
+    "$repo_root/FileNames.cpp" \
+    -framework Foundation \
+    -o "$dump_test_output"
+  "$dump_test_output"
   xcrun --sdk macosx clang \
     -fobjc-arc \
     -fblocks \

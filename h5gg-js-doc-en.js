@@ -32,7 +32,7 @@ await h5gg.getRangesList('module file name'); //Return module array with start, 
 const plugin = await h5gg.loadPlugin('Objective-C Class Name','dylib file path'); //WK plugins implement H5GGPluginRPC and return a JSON handle
 const reply = await h5gg.callPlugin(plugin.id, 'method name', ['JSON argument']); //Returns {ok,result} or {ok:false,error}
 
-await h5gg.searchHex('DE AD ?? E?', '0x0', '0x200000000'); //First call searches; later calls refine. ? is a wildcard nibble.
+await h5gg.searchHex('DE AD ?? E?', '0x0', '0x300000000'); //First call searches; later calls refine. ? is a wildcard nibble.
 await h5gg.searchFilter('100', 'I32', 0); //Filter current results: 0 equal, 2 greater, 3 less
 await h5gg.readMemoryPage('0x1000', 256); //Returns byte numbers/null markers, readable count, and complete flag
 await h5gg.dumpMemory('0x1000', '0x2000', 'dump.bin'); //Streams asynchronously; inspect getDumpStatus() or call cancelDump()

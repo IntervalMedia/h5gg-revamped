@@ -22,6 +22,8 @@ The host suite covers:
 - wildcard hex matching and result refinement;
 - partial memory pages with unreadable-byte markers;
 - streaming dump progress, cancellation, and failure behavior;
+- dump-controller validation, overlap rejection, reader-lease release,
+  real-file publication/removal, and deferred completion;
 - exact aligned 64-bit pointer matching with range, result, byte, and overflow
   limits through the production reader-backed scanner;
 - freezer validation, target binding, typed writes, failure/recovery, and
@@ -115,5 +117,6 @@ As of 2026-08-20:
 - RuntimeCoordinator and GlobalView protocol host contract tests pass;
 - FreezerController, FilePickerRequest, PreferencesStore, and reader-backed
   PointerSearch host contract tests pass;
+- DumpController lifecycle and real temporary-file contract tests pass;
 - plist and entitlement linting passes;
 - device rows remain unverified and must be completed before a stable release.

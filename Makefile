@@ -59,6 +59,7 @@ H5GG_FILES = \
     FreezerController.mm \
     FilePickerRequest.m \
     PreferencesStore.m \
+    DumpController.mm \
     ModalRequestQueue.cpp \
     ScriptStore.cpp \
     PluginLoader.m \

@@ -67,7 +67,10 @@ names are confined to one entry in the app Documents directory.
 The stream, partial-read, progress, cancellation, failure, adapter
 over-reporting, and address-overflow behavior have host tests through the same
 reader interface used by the Mach-backed engine. Reading another process and
-writing its complete output remain device-verified.
+writing its complete output remain device-verified. `DumpController` adds host
+coverage for request validation, one-running-job enforcement, reader-lease
+release, real-file publication, originating Promise completion, and partial
+file removal after read failure or cancellation.
 
 ## Target and freezer lifecycle
 

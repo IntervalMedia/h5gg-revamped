@@ -51,18 +51,6 @@ remaining verification are tracked in [roadmap.md](roadmap.md).
 
 ### P2 — Verification, architecture, and delivery debt
 
-#### H5-015: The façade still coordinates unrelated use cases
-
-The extracted target/session, result, codec, reader, pointer-search,
-bridge-schema, freezer, file-picker, preferences, script-store, plugin-loader,
-memory-page, memory-dump, and dylib-builder modules improve locality. `RuntimeCoordinator`
-owns bootstrap modes, readiness and GlobalView timers, and floating UI
-lifetime. `h5ggEngine` still coordinates dump jobs and several search use cases.
-
-Acceptance: continue the internal module work described in
-[architecture.md](architecture.md) behind the unchanged JavaScript interface,
-with tests crossing the same seams used by callers.
-
 #### H5-018: Generated artifacts, IDE state, and large dependencies are tracked
 
 The repository still tracks `.deb`/`.tipa` outputs, prebuilt application and
@@ -111,6 +99,10 @@ path.
 - `PreferencesStore` owns capped input/search histories and unique bookmarks,
   filters malformed persisted values, and is tested with isolated defaults and
   an injected timestamp provider.
+- `DumpController` owns validation, one-running-job state, cancellation,
+  progress, target-reader lease release, file cleanup/publication, and deferred
+  completion; injected executors/readers and real temporary files cover its
+  production interface.
 - `RuntimeCoordinator` replaces bootstrap mode/UI globals and detached-thread
   polling with exactly-once readiness and owned monitoring timers; the same
   interface has Foundation host coverage.

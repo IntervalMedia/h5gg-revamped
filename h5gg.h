@@ -112,8 +112,6 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 @end
 
 @interface h5ggEngine : NSObject <h5ggJSExport>
-@property (atomic) BOOL dumpCancelled;
-@property (atomic, strong) NSDictionary<NSString*,id>* dumpStatus;
 -(NSArray<NSString*>*)getInputHistory;
 -(void)addInputHistory:(NSString*)value;
 -(void)clearInputHistory;
