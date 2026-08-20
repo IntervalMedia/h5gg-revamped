@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <array>
+#include <string>
 #include <vector>
 
 enum JJ_Search_Type {
@@ -56,6 +57,7 @@ bool JJSearchValueMatchesAny(const uint8_t current[8],
                              int type,
                              float tolerance);
 bool JJParseValue(const char* text, int type, uint8_t output[8]);
+bool JJFormatValue(const uint8_t value[8], int type, std::string& output);
 bool JJParseAddress(const char* text, int base, uint64_t& output);
 bool JJValueMatchesFilter(const uint8_t current[8],
                           const uint8_t target[8],

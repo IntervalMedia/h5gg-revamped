@@ -280,33 +280,12 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 }
 
 - (NSString*)formatValue:(void*)value byType:(int)type {
-    if(type == JJ_Search_Type_SByte)
-        return [NSString stringWithFormat:@"%d", (int)*(int8_t*)value];
-    if(type == JJ_Search_Type_UByte)
-        return [NSString stringWithFormat:@"%u", (unsigned int)*(UInt8*)value];
-    if(type == JJ_Search_Type_SShort)
-        return [NSString stringWithFormat:@"%d", (int)*(int16_t*)value];
-    if(type == JJ_Search_Type_UShort)
-        return [NSString stringWithFormat:@"%u", (unsigned int)*(UInt16*)value];
-    if(type == JJ_Search_Type_SInt)
-        return [NSString stringWithFormat:@"%d", *(int32_t*)value];
-    if(type == JJ_Search_Type_UInt)
-        return [NSString stringWithFormat:@"%u", *(UInt32*)value];
-    if(type == JJ_Search_Type_SLong)
-        return [NSString stringWithFormat:@"%lld", *(int64_t*)value];
-    if(type == JJ_Search_Type_ULong)
-        return [NSString stringWithFormat:@"%llu", *(UInt64*)value];
-    if(type == JJ_Search_Type_Float) {
-        NSString* fmt = (*(uint32_t*)value && fabs(*(float*)value) < 1.0) ? @"%g" : @"%f";
-        return [NSString stringWithFormat:fmt, *(float*)value];
+    std::string formatted;
+    if(!JJFormatValue((const uint8_t*)value, type, formatted)) {
+        [floatH5 alert:Localized(@"不支持的数值类型")];
+        return nil;
     }
-    if(type == JJ_Search_Type_Double) {
-        NSString* fmt = (*(uint64_t*)value && fabs(*(double*)value) < 1.0) ? @"%g" : @"%f";
-        return [NSString stringWithFormat:fmt, *(double*)value];
-    }
-
-    [floatH5 alert:Localized(@"不支持的数值类型")];
-    return nil;
+    return [NSString stringWithUTF8String:formatted.c_str()];
 }
 
 -(int)parseValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type {

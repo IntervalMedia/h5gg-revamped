@@ -194,6 +194,30 @@ static void parsesValuesAccordingToTheirDeclaredType() {
     assert(!JJParseValue("999", JJ_Search_Type_UByte, value));
 }
 
+static void formatsValuesAccordingToTheirDeclaredType() {
+    uint8_t value[8] = {};
+    std::string formatted;
+
+    assert(JJParseValue("-42", JJ_Search_Type_SLong, value));
+    assert(JJFormatValue(value, JJ_Search_Type_SLong, formatted));
+    assert(formatted == "-42");
+
+    assert(JJParseValue("4294967295", JJ_Search_Type_UInt, value));
+    assert(JJFormatValue(value, JJ_Search_Type_UInt, formatted));
+    assert(formatted == "4294967295");
+
+    assert(JJParseValue("0.5", JJ_Search_Type_Float, value));
+    assert(JJFormatValue(value, JJ_Search_Type_Float, formatted));
+    assert(formatted == "0.5");
+
+    assert(JJParseValue("1.5", JJ_Search_Type_Double, value));
+    assert(JJFormatValue(value, JJ_Search_Type_Double, formatted));
+    assert(formatted == "1.500000");
+
+    assert(!JJFormatValue(value, JJ_Search_Type_Error, formatted));
+    assert(formatted.empty());
+}
+
 static void centralizesTypeNamesAndToleranceParsing() {
     const char* names[] = {
         "F64", "U64", "I64", "F32", "U32",
@@ -566,6 +590,7 @@ int main() {
     filtersAllSupportedValueKinds();
     filtersEveryNumericTypeInEveryDocumentedMode();
     parsesValuesAccordingToTheirDeclaredType();
+    formatsValuesAccordingToTheirDeclaredType();
     centralizesTypeNamesAndToleranceParsing();
     parsesGroupedSearchExpressionsAtomically();
     parsesStrictHexPatterns();

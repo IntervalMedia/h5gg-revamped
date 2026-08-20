@@ -106,7 +106,7 @@ JavaScript interface.
 | Work item | Status | Current state / outcome |
 |---|---|---|
 | Add `TargetProcess` and `MemorySession` | ✅ Complete | Move-only task ownership, engine-before-port teardown, atomic replacement, and search metadata are host-tested |
-| Centralize value/address/type conversion | 🟡 Partial | Type names, tolerance, values, addresses, grouped/ranged expressions, and hex patterns use `MemoryValue`; value formatting remains in the façade |
+| Centralize value/address/type conversion | ✅ Complete | Type names, tolerance, parsing, formatting, addresses, grouped/ranged expressions, and hex patterns use host-tested `MemoryValue` rules |
 | Add a raw/typed reader seam with in-memory adapters | 🟡 Partial | Page, dump, and filter callbacks exist; the whole engine does not use one adapter interface |
 | Replace ad hoc result mutation with one result module | ✅ Complete | `MemoryResults` owns mutation/count invariants |
 | Use one bridge schema for dispatch, injection, validation, and docs | 🟡 Partial | Inventory and argument rules are shared by injection/dispatch; detailed docs generation remains |

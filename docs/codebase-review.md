@@ -134,8 +134,8 @@ path.
 - Bridge names, counts, JSON kinds, integer rules, numeric ranges, and filter
   modes are rejected centrally before native invocation.
 - `MemoryValue` owns type-name mapping and strict tolerance/value/address
-  parsing, including atomic grouped/ranged search expressions, instead of
-  duplicating those rules in the Objective-C façade.
+  parsing, typed formatting, and atomic grouped/ranged search expressions
+  instead of duplicating those rules in the Objective-C façade.
 - `TargetProcess` and `MemorySession` make task-port, engine, and search-state
   lifetime explicit; host tests cover moves, replacement, and exactly-once
   release.

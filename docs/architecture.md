@@ -122,7 +122,7 @@ Several internal implementation modules now provide locality:
 
 - `MemoryValue` owns H5GG type-name mapping and validates values, addresses,
   non-negative float tolerance, grouped/ranged numeric search expressions, and
-  masked-hex text;
+  masked-hex text; it also formats typed result values;
 - `TargetProcess` is the move-only owner of an acquired non-self Mach task port;
 - `MemorySession` owns the target, memory engine, and façade-visible search
   metadata as one replaceable unit;

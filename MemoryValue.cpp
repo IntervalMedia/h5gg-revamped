@@ -3,6 +3,7 @@
 #include <cerrno>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
@@ -272,6 +273,70 @@ bool JJParseValue(const char* text, int type, uint8_t output[8]) {
         default:
             return false;
     }
+}
+
+bool JJFormatValue(const uint8_t value[8], int type, std::string& output) {
+    output.clear();
+    if(!value || type <= JJ_Search_Type_Error || type >= JJ_Search_Type_Max) {
+        return false;
+    }
+
+    char formatted[128] = {};
+    int length = -1;
+    switch(type) {
+        case JJ_Search_Type_SByte:
+            length = std::snprintf(formatted, sizeof(formatted), "%d",
+                                   (int)loadValue<int8_t>(value));
+            break;
+        case JJ_Search_Type_UByte:
+            length = std::snprintf(formatted, sizeof(formatted), "%u",
+                                   (unsigned int)loadValue<uint8_t>(value));
+            break;
+        case JJ_Search_Type_SShort:
+            length = std::snprintf(formatted, sizeof(formatted), "%d",
+                                   (int)loadValue<int16_t>(value));
+            break;
+        case JJ_Search_Type_UShort:
+            length = std::snprintf(formatted, sizeof(formatted), "%u",
+                                   (unsigned int)loadValue<uint16_t>(value));
+            break;
+        case JJ_Search_Type_SInt:
+            length = std::snprintf(formatted, sizeof(formatted), "%d",
+                                   loadValue<int32_t>(value));
+            break;
+        case JJ_Search_Type_UInt:
+            length = std::snprintf(formatted, sizeof(formatted), "%u",
+                                   loadValue<uint32_t>(value));
+            break;
+        case JJ_Search_Type_SLong:
+            length = std::snprintf(formatted, sizeof(formatted), "%lld",
+                                   (long long)loadValue<int64_t>(value));
+            break;
+        case JJ_Search_Type_ULong:
+            length = std::snprintf(formatted, sizeof(formatted), "%llu",
+                                   (unsigned long long)loadValue<uint64_t>(value));
+            break;
+        case JJ_Search_Type_Float: {
+            float number = loadValue<float>(value);
+            uint32_t bits = loadValue<uint32_t>(value);
+            const char* format = bits && std::fabs(number) < 1.0f ? "%g" : "%f";
+            length = std::snprintf(formatted, sizeof(formatted), format, number);
+            break;
+        }
+        case JJ_Search_Type_Double: {
+            double number = loadValue<double>(value);
+            uint64_t bits = loadValue<uint64_t>(value);
+            const char* format = bits && std::fabs(number) < 1.0 ? "%g" : "%f";
+            length = std::snprintf(formatted, sizeof(formatted), format, number);
+            break;
+        }
+        default:
+            return false;
+    }
+
+    if(length < 0 || (size_t)length >= sizeof(formatted)) return false;
+    output.assign(formatted, (size_t)length);
+    return true;
 }
 
 bool JJParseAddress(const char* text, int base, uint64_t& output) {
