@@ -54,7 +54,7 @@ Goal: make failures deterministic before restructuring.
 | Encode result invariants as assertions/tests | ✅ Complete | `MemoryResultsTests.cpp` exercises counts and typed/untyped regions |
 | Add bridge contract fixtures | 🟡 Partial | Portable inventory, count, kind, range, and enum checks exist; a host WK dispatch fixture remains |
 | Capture repeatable device smoke steps | ✅ Complete | Matrix plus the opt-in fixture and Promise-bridge runner exist in `validation.md` |
-| Record supported platform baseline | ✅ Complete | iOS 15.0+, arm64/arm64e is consistent in README, targets, and package description |
+| Record supported platform baseline | ✅ Complete | iOS 15.0+, arm64/arm64e is consistent in README, every adapter/Xcode target, packaged-host metadata, and regression checks |
 
 Exit status: **partial**. The deterministic host loop exists, but native WK and
 hardware-dependent failures do not yet have recorded device results.

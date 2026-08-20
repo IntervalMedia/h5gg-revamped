@@ -33,6 +33,9 @@ remain open.
   transfer behavior, build-variant definitions, and dylib build/sign/publish
   behavior when a built dylib and `ldid` are available.
 - The normal, rootless, and roothide root tweaks compile for arm64 and arm64e.
+- The standalone Xcode host builds unsigned for arm64 with an iOS 15.0 minimum;
+  a host check rejects deployment-target drift in the Xcode project, standalone
+  and GlobalView Makefiles, and both packaged application plists.
 - Normal, rootless, and roothide `.deb` files pass exact control metadata,
   installed-path, dylib/plist, executable-script, and Mach-O slice assertions
   before `build.sh` publishes them.

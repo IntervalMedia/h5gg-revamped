@@ -176,5 +176,9 @@ As of 2026-08-20:
   Promise bridge on host; runner syntax and public API usage are checked;
 - instrumented arm64/arm64e builds include the fixture only when
   `H5GG_DEVICE_VALIDATION=1`; clean default builds exclude it;
+- the root, standalone, GlobalView, Xcode, and packaged-host metadata are
+  regression-checked at the iOS 15.0 deployment baseline;
+- the standalone Xcode host builds unsigned for arm64 with a 15.0 Mach-O and
+  application minimum;
 - plist and entitlement linting passes;
 - device rows remain unverified and must be completed before a stable release.

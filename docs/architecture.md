@@ -75,6 +75,11 @@ real Mach reads and writes. The root Makefile omits this fixture from every
 default build; instrumented packages are validation artifacts and are not
 published by the release workflow.
 
+The standalone Xcode host, standalone and GlobalView Theos adapters, and both
+packaged host plists share the iOS 15.0 minimum. The host suite checks those
+settings together so the application metadata cannot advertise support below
+the dylib's deployment target.
+
 ### Bootstrap and presentation
 
 `Tweak.mm` detects the run mode and maps the application side of the GlobalView
