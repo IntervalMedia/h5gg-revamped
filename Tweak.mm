@@ -3,8 +3,10 @@
 #import <UIKit/UIKit.h>
 #import <pthread.h>
 #include <dlfcn.h>
+#include <mach-o/dyld.h>
 
 #include "Localized.h"
+#include "RuntimeCoordinator.h"
 
 #ifdef H5GG_BUILD_ROOTHIDE
 #import <roothide.h>
@@ -16,17 +18,13 @@
 
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
-bool g_dylib_runmode = false;
-bool g_testapp_runmode = false;
-bool g_commonapp_runmode = false;
-bool g_systemapp_runmode = false;
-bool g_standalone_runmode = false;
-
 #include "globalview/globalview.h"
 #include "globalview/ContextHostManager.h"
 
 GVData StaticGVSharedData = GVDataDefaultMake();
 GVData* PGVSharedData = &StaticGVSharedData;
+GVImageTransfer StaticGVSharedImage = GVImageTransferDefaultMake();
+GVImageTransfer* PGVSharedImage = &StaticGVSharedImage;
 
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "incbin.h"
@@ -53,35 +51,25 @@ INCTXT(MenuEn, "Index-en.html");
 
 INCTXT(H5GG_JQUERY_FILE, "jquery.min.js");
 
-//定义悬浮按钮和悬浮菜单全局变量, 防止被自动释放
-UIWindow* floatWindow=NULL;
-FloatButton* floatBtn=NULL;
-FloatMenu* floatH5=NULL;
-h5ggEngine* h5gg = NULL;
-
 void onScreenLayoutChange(CGSize size)
 {
     NSLog(@"onScreenLayoutChange=%@", NSStringFromCGSize(size));
-    if(floatH5) {
+    FloatMenu* menu = H5GGCurrentMenu();
+    if(menu) {
         NSString *js = [NSString stringWithFormat:@"if(window.h5gg_onLayoutChange)h5gg_onLayoutChange(%f,%f);", size.width, size.height];
-        [floatH5 evalJS:js];
+        [menu evalJS:js];
     }
 }
 
 #define NotificationDisplayStatus CFSTR("com.apple.iokit.hid.displayStatus")
 
 static BOOL H5GGPublishButtonImage(NSData* data) {
-    if(!data || data.length == 0 ||
-       data.length > sizeof(PGVSharedData->buttonImageData)) {
+    if(!data || data.length == 0 || data.length > GV_IMAGE_MAX_PAYLOAD) {
         return NO;
     }
-
-    size_t pendingSize = __atomic_load_n(&PGVSharedData->buttonImageSize, __ATOMIC_ACQUIRE);
-    if(pendingSize != 0) return NO;
-
-    [data getBytes:PGVSharedData->buttonImageData length:data.length];
-    __atomic_store_n(&PGVSharedData->buttonImageSize, data.length, __ATOMIC_RELEASE);
-    return YES;
+    return GVImageTransferPublish(PGVSharedImage,
+                                  data.bytes,
+                                  (uint32_t)data.length);
 }
 
 static void screenLockStateChanged(CFNotificationCenterRef center,void* observer,CFStringRef name, const void*object, CFDictionaryRef userInfo)
@@ -97,11 +85,62 @@ static void screenLockStateChanged(CFNotificationCenterRef center,void* observer
     }
 }
 
-UIWindow* appWindow = nil;
+typedef struct {
+    vm_address_t mapping;
+    vm_size_t mappingSize;
+    void* value;
+} H5GGRemappedValue;
 
-extern "C" __attribute__ ((visibility ("default")))
-void SetGlobalView(char* dylib, UInt64 GVDataOffset)
-{
+static BOOL H5GGRemapGlobal(task_port_t task,
+                            UInt64 moduleBase,
+                            UInt64 offset,
+                            size_t valueSize,
+                            H5GGRemappedValue* output) {
+    if(!output || valueSize == 0 || moduleBase > UINT64_MAX - offset) return NO;
+
+    UInt64 address = moduleBase + offset;
+    if(address > UINT64_MAX - valueSize) return NO;
+
+    UInt64 mapBase = address & ~((UInt64)PAGE_MASK);
+    UInt64 bytesFromBase = address + valueSize - mapBase;
+    if(bytesFromBase > UINT64_MAX - PAGE_MASK) return NO;
+    UInt64 roundedSize = (bytesFromBase + PAGE_MASK) & ~((UInt64)PAGE_MASK);
+    if(roundedSize == 0 || roundedSize > SIZE_MAX) return NO;
+
+    vm_prot_t currentProtection = 0;
+    vm_prot_t maximumProtection = 0;
+    vm_address_t buffer = 0;
+    kern_return_t result = vm_remap(mach_task_self(),
+                                    &buffer,
+                                    (vm_size_t)roundedSize,
+                                    0,
+                                    VM_FLAGS_ANYWHERE,
+                                    task,
+                                    (vm_address_t)mapBase,
+                                    false,
+                                    &currentProtection,
+                                    &maximumProtection,
+                                    VM_INHERIT_NONE);
+    if(result != KERN_SUCCESS) {
+        NSLog(@"SetGlobalView: vm_remap failed: %d %s", result, mach_error_string(result));
+        return NO;
+    }
+
+    output->mapping = buffer;
+    output->mappingSize = (vm_size_t)roundedSize;
+    output->value = (void*)(buffer + (address - mapBase));
+    return YES;
+}
+
+static void H5GGReleaseRemapping(H5GGRemappedValue value) {
+    if(value.mapping && value.mappingSize) {
+        vm_deallocate(mach_task_self(), value.mapping, value.mappingSize);
+    }
+}
+
+static void H5GGSetGlobalView(char* dylib,
+                              UInt64 GVDataOffset,
+                              UInt64 GVImageOffset) {
     if(!dylib || !dylib[0]) return;
     NSLog(@"SetGlobalView=%llx, %s", (unsigned long long)GVDataOffset, dylib);
     
@@ -127,32 +166,51 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
     
     NSLog(@"SetGlobalView=dylib=%llu:%@, %@", (unsigned long long)modulebase, modules[0][@"start"], modules[0][@"name"]);
     
-    UInt64 address = modulebase + GVDataOffset;
-    
-    UInt64 mapbase = (uint64_t)address & ~PAGE_MASK;
-    size_t mapsize = address + sizeof(GVData) - mapbase;
-    mapsize = (mapsize+PAGE_MASK) & ~PAGE_MASK;
-    
-    NSLog(@"SetGlobalView=%llu,%llu,%zu", (unsigned long long)address, (unsigned long long)mapbase, mapsize);
-    
-    vm_prot_t cur_prot=0;
-    vm_prot_t max_prot=0;
-    vm_address_t buffer=0;
-    kern_return_t kr = vm_remap(mach_task_self(), &buffer, mapsize, 0, VM_FLAGS_ANYWHERE,
-                                sbtask, mapbase, false, &cur_prot, &max_prot, VM_INHERIT_NONE);
+    H5GGRemappedValue dataMapping = {};
+    H5GGRemappedValue imageMapping = {};
+    BOOL mappedData = H5GGRemapGlobal(sbtask,
+                                     modulebase,
+                                     GVDataOffset,
+                                     sizeof(GVData),
+                                     &dataMapping);
+    BOOL mappedImage = H5GGRemapGlobal(sbtask,
+                                       modulebase,
+                                       GVImageOffset,
+                                       sizeof(GVImageTransfer),
+                                       &imageMapping);
     mach_port_deallocate(mach_task_self(), sbtask);
-    
-    NSLog(@"SetGlobalView=readmem=%lu, %d %s", (unsigned long)buffer, kr, mach_error_string(kr));
-    if(kr!=KERN_SUCCESS) return;
-    
-    PGVSharedData = (GVData*)(buffer + (address-mapbase));
-    NSLog(@"SetGlobalView=%p", PGVSharedData);
+
+    if(!mappedData || !mappedImage) {
+        H5GGReleaseRemapping(dataMapping);
+        H5GGReleaseRemapping(imageMapping);
+        return;
+    }
+
+    GVData* candidateData = (GVData*)dataMapping.value;
+    GVImageTransfer* candidateImage = (GVImageTransfer*)imageMapping.value;
+
+    if(!GVDataIsCompatible(candidateData, sizeof(GVData), GV_CAPABILITY_ALL) ||
+       !GVImageTransferIsCompatible(candidateImage, sizeof(GVImageTransfer))) {
+        NSLog(@"SetGlobalView: incompatible protocol header (expected v%u)",
+              (unsigned)GV_PROTOCOL_VERSION);
+        H5GGReleaseRemapping(dataMapping);
+        H5GGReleaseRemapping(imageMapping);
+        return;
+    }
+
+    PGVSharedData = candidateData;
+    PGVSharedImage = candidateImage;
+    NSLog(@"SetGlobalView=%p image=%p version=%u capabilities=0x%llx",
+          PGVSharedData,
+          PGVSharedImage,
+          (unsigned)PGVSharedData->header.version,
+          (unsigned long long)PGVSharedData->header.capabilities);
     
     PGVSharedData->enable = YES;
     
     
     NSData* iconData = H5GGEmbeddedCustomIcon();
-    if(!iconData && gIconSize <= sizeof(PGVSharedData->buttonImageData)) {
+    if(!iconData && gIconSize <= GV_IMAGE_MAX_PAYLOAD) {
         iconData = [NSData dataWithBytesNoCopy:(void*)gIconData
                                        length:gIconSize
                                  freeWhenDone:NO];
@@ -165,7 +223,10 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, screenLockStateChanged, NotificationDisplayStatus, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t){
+        H5GGRuntimeCoordinator* runtime = H5GGRuntimeCoordinator.sharedCoordinator;
+        __block BOOL appWindowHandled = NO;
+        __block long long lastOrientation = 0;
+        [runtime startGlobalViewMonitorWithInterval:0.1 tick:^{
             
             if(PGVSharedData->enable && PGVSharedData->customButtonAction && PGVSharedData->floatBtnClick)
             {
@@ -173,10 +234,10 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
                 
                 PGVSharedData->floatBtnClick = NO;
                 
-                [floatH5 evalJS:@"if(window.h5gg_onButtonClick)h5gg_onButtonClick();"];
+                [runtime.floatingMenu evalJS:@"if(window.h5gg_onButtonClick)h5gg_onButtonClick();"];
             }
             
-            static BOOL appWindowHandled = NO;
+            UIWindow* appWindow = runtime.applicationWindow;
             if(!appWindowHandled && PGVSharedData->viewHosted && appWindow)
             {
                 appWindowHandled = YES;
@@ -207,7 +268,6 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
                 }
             }
             
-            static long long lastOrientation=0;
             if(
                //floatWindow && 这里不判断, 让无网络提示的TopShow也可以自动旋转, 反正后面floatWindow出来的时候已经开始跟着globalview转了
                PGVSharedData->viewHosted && lastOrientation!=PGVSharedData->curOrientation) {
@@ -226,8 +286,20 @@ void SetGlobalView(char* dylib, UInt64 GVDataOffset)
                 PGVSharedData->appLoaded = YES;
             }
         }];
-        (void)timer;
     });
+}
+
+extern "C" __attribute__ ((visibility ("default")))
+void SetGlobalView(char* dylib, UInt64 GVDataOffset) {
+    (void)dylib;
+    (void)GVDataOffset;
+    NSLog(@"SetGlobalView: legacy unversioned mapping rejected; protocol v%u requires SetGlobalViewV2",
+          (unsigned)GV_PROTOCOL_VERSION);
+}
+
+extern "C" __attribute__ ((visibility ("default")))
+void SetGlobalViewV2(char* dylib, UInt64 GVDataOffset, UInt64 GVImageOffset) {
+    H5GGSetGlobalView(dylib, GVDataOffset, GVImageOffset);
 }
 
 FloatMenu* initFloatMenu(UIWindow* win)
@@ -245,12 +317,15 @@ FloatMenu* initFloatMenu(UIWindow* win)
     
     FloatMenu* menu = [[FloatMenu alloc] initWithFrame:MenuRect];
     
-    PGVSharedData->floatMenuRect = menu.frame;
+    PGVSharedData->floatMenuRect = GVRectFromCGRect(menu.frame);
         
     //创建并初始化h5gg内存搜索引擎
-    h5gg = [[h5ggEngine alloc] init];
+    h5ggEngine* h5gg = [[h5ggEngine alloc] init];
     //将h5gg内存搜索引擎添加到H5的JS环境中以便JS可以调用
     [menu setAction:@"h5gg" callback:h5gg];
+    [H5GGRuntimeCoordinator.sharedCoordinator retainFloatingWindow:win
+                                                               menu:menu
+                                                             engine:h5gg];
     
     __weak __typeof(menu) weakMenu = menu;
     //隐藏悬浮菜单, 已废弃, 保持旧版API兼容
@@ -280,10 +355,11 @@ FloatMenu* initFloatMenu(UIWindow* win)
 
         void (^complete)(NSData*) = ^(NSData* data) {
             BOOL valid = data.length > 0 &&
-                data.length <= sizeof(PGVSharedData->buttonImageData) &&
+                data.length <= GV_IMAGE_MAX_PAYLOAD &&
                 [UIImage imageWithData:data] != nil;
             dispatch_async(dispatch_get_main_queue(), ^{
                 FloatMenu* resolvedMenu = weakMenu;
+                FloatButton* floatBtn = H5GGRuntimeCoordinator.sharedCoordinator.floatingButton;
                 BOOL applied = valid && floatBtn;
                 if(applied && PGVSharedData->enable) {
                     applied = H5GGPublishButtonImage(data);
@@ -329,7 +405,7 @@ FloatMenu* initFloatMenu(UIWindow* win)
             CGFloat tx = x==-1&&y==-1 ? activeMenu.frame.origin.x : x;
             CGFloat ty = x==-1&&y==-1 ? activeMenu.frame.origin.y : y;
             activeMenu.frame = CGRectMake(tx,ty,w,h);
-            PGVSharedData->floatMenuRect = activeMenu.frame;
+            PGVSharedData->floatMenuRect = GVRectFromCGRect(activeMenu.frame);
         });
     }];
     
@@ -352,7 +428,7 @@ FloatMenu* initFloatMenu(UIWindow* win)
             activeMenu.touchableRect = CGRectMake(x,y,w,h);
         }
         PGVSharedData->touchableAll = activeMenu.touchableAll;
-        PGVSharedData->touchableRect = activeMenu.touchableRect;
+        PGVSharedData->touchableRect = GVRectFromCGRect(activeMenu.touchableRect);
         dispatch_async(dispatch_get_main_queue(), ^{
             activeMenu.userInteractionEnabled = YES;
         });
@@ -401,12 +477,17 @@ FloatMenu* initFloatMenu(UIWindow* win)
 
 void showFloatWindow(bool show)
 {
+    H5GGRuntimeCoordinator* runtime = H5GGRuntimeCoordinator.sharedCoordinator;
+    UIWindow* floatWindow = runtime.floatingWindow;
+    FloatButton* floatBtn = runtime.floatingButton;
+    FloatMenu* floatH5 = runtime.floatingMenu;
     if(!floatWindow) {
         
         FloatController* rootVC = [[FloatController alloc] init];
         
         rootVC.onResizeCallback = ^(CGSize size) {
-            NSLog(@"FloatWindow onSizeChange=%@ => %@", NSStringFromCGSize(floatWindow.frame.size), NSStringFromCGSize(size));
+            UIWindow* activeWindow = runtime.floatingWindow;
+            NSLog(@"FloatWindow onSizeChange=%@ => %@", NSStringFromCGSize(activeWindow.frame.size), NSStringFromCGSize(size));
             //if(!CGRectEqualToRect(newRect, floatWindow.frame))
                 onScreenLayoutChange(size);
         };
@@ -420,6 +501,7 @@ void showFloatWindow(bool show)
         
         
         floatH5 = initFloatMenu(floatWindow);
+        [runtime retainFloatingWindow:floatWindow menu:floatH5 engine:runtime.engine];
         
         //添加H5悬浮菜单到窗口上
         [floatWindow addSubview:floatH5];
@@ -458,10 +540,15 @@ void initFloatButton(void (^callback)(void))
     UIWindow *window = [UIApplication sharedApplication].keyWindow;
     
     //创建悬浮按钮
-    floatBtn = [[FloatButton alloc] init];
-    
-    if(g_testapp_runmode)
-        floatBtn.center = CGPointMake(25, 25);
+    FloatButton* floatBtn = [[FloatButton alloc] init];
+    [H5GGRuntimeCoordinator.sharedCoordinator retainFloatingButton:floatBtn];
+
+    if(H5GGRuntimeHasMode(H5GGRuntimeModeDylib)) {
+        CGRect buttonFrame = floatBtn.frame;
+        buttonFrame.origin.x = 35.0;
+        buttonFrame.origin.y = CGRectGetMidY(window.bounds) - CGRectGetHeight(buttonFrame) / 2.0;
+        floatBtn.frame = buttonFrame;
+    }
     
     NSData* customIcon = H5GGEmbeddedCustomIcon();
     UIImage* iconImage = customIcon ? [[UIImage alloc] initWithData:customIcon] : nil;
@@ -486,9 +573,10 @@ void initFloatButton(void (^callback)(void))
 
 void initload()
 {
-    if(g_standalone_runmode)
+    H5GGRuntimeCoordinator* runtime = H5GGRuntimeCoordinator.sharedCoordinator;
+    if([runtime hasMode:H5GGRuntimeModeStandalone])
     {
-        appWindow = UIApplication.sharedApplication.keyWindow;
+        [runtime retainApplicationWindow:UIApplication.sharedApplication.keyWindow];
     }
     
     NSString* app_package = [[NSBundle mainBundle] bundleIdentifier];
@@ -498,15 +586,16 @@ void initload()
     // Always create the floating button so the user has something to tap
     initFloatButton(^(void) {
         if(PGVSharedData->customButtonAction) {
-            [floatH5 evalJS:@"if(window.h5gg_onButtonClick)h5gg_onButtonClick();"];
+            [runtime.floatingMenu evalJS:@"if(window.h5gg_onButtonClick)h5gg_onButtonClick();"];
         } else {
+            UIWindow* floatWindow = runtime.floatingWindow;
             bool show = floatWindow ? floatWindow.isHidden : YES;
             NSLog(@"ButtonShowWindow=%d", show);
             showFloatWindow(show);
         }
     });
     
-    if(g_standalone_runmode) {
+    if([runtime hasMode:H5GGRuntimeModeStandalone]) {
         // In standalone mode, also trigger menu directly
         showFloatWindow(true);
         
@@ -519,25 +608,6 @@ void initload()
 }
 
 
-static void* thread_running(void* arg)
-{
-    // Wait one second for system frameworks to finish initializing.
-    sleep(1);
-    
-    // Execute the following code on the main thread.
-    dispatch_async(dispatch_get_main_queue(), ^{
-        __block NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.5 repeats:YES block:^(NSTimer*t){
-            
-            if(UIApplication.sharedApplication && UIApplication.sharedApplication.keyWindow) {
-                [timer invalidate];
-                initload();
-            }
-        }];
-    });
-    
-    return 0;
-}
-
 //初始化函数, 插件加载后系统自动调用
 static void __attribute__((constructor)) _init_()
 {
@@ -546,6 +616,7 @@ static void __attribute__((constructor)) _init_()
 
     NSString* app_path = [[NSBundle mainBundle] bundlePath];
     NSString* app_package = [[NSBundle mainBundle] bundleIdentifier];
+    H5GGRuntimeMode modes = H5GGRuntimeModeNone;
     
     NSLog(@"H5GGLoad:%d %d %d %d hash:%lu app_path=%@\nfirst module header=%p slide=%p current=%p\nmodule=%s\n",
           getuid(), geteuid(), getgid(), getegid(), (unsigned long)[app_package hash], app_path,
@@ -557,7 +628,7 @@ static void __attribute__((constructor)) _init_()
     
     task_port_t task=0;
     if(task_for_pid(mach_task_self(), getpid(), &task)==KERN_SUCCESS) {
-        g_standalone_runmode = true;
+        modes |= H5GGRuntimeModeStandalone;
         if(task != MACH_PORT_NULL) {
             mach_port_deallocate(mach_task_self(), task);
         }
@@ -565,19 +636,19 @@ static void __attribute__((constructor)) _init_()
 
     
     if([app_package isEqualToString:@"com.test.h5gg"])
-        g_testapp_runmode = true;
+        modes |= H5GGRuntimeModeTestApp;
     
     if([[NSString stringWithUTF8String:di.dli_fname] hasSuffix:@".dylib"])
-        g_dylib_runmode = true;
+        modes |= H5GGRuntimeModeDylib;
     
     if([app_path containsString:@"/var/"]||[app_path containsString:@"/Application/"])
-        g_commonapp_runmode = true;
+        modes |= H5GGRuntimeModeCommonApp;
     
-    if(g_testapp_runmode && g_dylib_runmode)
+    if((modes & H5GGRuntimeModeTestApp) && (modes & H5GGRuntimeModeDylib))
         return;
     
     //判断是普通版还是跨进程版, 防止混用
-    if(g_standalone_runmode && g_dylib_runmode)
+    if((modes & H5GGRuntimeModeStandalone) && (modes & H5GGRuntimeModeDylib))
     {
         NSString* dylibPath = [NSString stringWithUTF8String:di.dli_fname];
         NSString* plistPath = [[dylibPath stringByDeletingPathExtension]
@@ -588,12 +659,12 @@ static void __attribute__((constructor)) _init_()
         if(plist) {
             for(NSString* bundleId in plist[@"Filter"][@"Bundles"]) {
                 if([bundleId isEqualToString:app_package]) {
-                    g_systemapp_runmode = true;
+                    modes |= H5GGRuntimeModeSystemApp;
                     break;
                 }
             }
             
-            if(!g_systemapp_runmode) for(NSString* bundleId in plist[@"Filter"][@"Bundles"]) {
+            if(!(modes & H5GGRuntimeModeSystemApp)) for(NSString* bundleId in plist[@"Filter"][@"Bundles"]) {
                 NSBundle* test = [NSBundle bundleWithIdentifier:bundleId];
                 NSLog(@"filter bundle id=%@, %@, %d", bundleId, test, [test isLoaded]);
                 if(test && ![bundleId isEqualToString:app_package]) {
@@ -605,14 +676,17 @@ static void __attribute__((constructor)) _init_()
         }
     }
     
-    if(g_standalone_runmode||g_commonapp_runmode)
-    {
-        pthread_t thread;
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        int result = pthread_create(&thread, &attr, thread_running, nil);
-        pthread_attr_destroy(&attr);
-        if(result != 0) NSLog(@"H5GG failed to start initialization thread: %d", result);
+    H5GGRuntimeCoordinator* runtime = H5GGRuntimeCoordinator.sharedCoordinator;
+    [runtime configureModes:modes];
+
+    if((modes & H5GGRuntimeModeStandalone) || (modes & H5GGRuntimeModeCommonApp)) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [runtime startWhenReady:^BOOL {
+                return UIApplication.sharedApplication &&
+                    UIApplication.sharedApplication.keyWindow;
+            } interval:0.5 initialize:^{
+                initload();
+            }];
+        });
     }
 }

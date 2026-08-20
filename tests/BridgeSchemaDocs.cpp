@@ -1,0 +1,140 @@
+#include "../BridgeMethods.h"
+
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+static std::string formatNumber(double value) {
+    std::ostringstream output;
+    output << std::setprecision(15) << value;
+    return output.str();
+}
+
+static std::string describeKinds(uint8_t kinds) {
+    const struct {
+        H5GGBridgeValueKind kind;
+        const char* name;
+    } knownKinds[] = {
+        {H5GGBridgeValueNull, "null"},
+        {H5GGBridgeValueBoolean, "boolean"},
+        {H5GGBridgeValueNumber, "number"},
+        {H5GGBridgeValueString, "string"},
+        {H5GGBridgeValueArray, "array"},
+        {H5GGBridgeValueObject, "object"},
+    };
+
+    std::string description;
+    for(const auto& known : knownKinds) {
+        if((kinds & static_cast<uint8_t>(known.kind)) == 0) continue;
+        if(!description.empty()) description += " or ";
+        description += known.name;
+    }
+    return description;
+}
+
+static std::string describeArgument(const H5GGBridgeArgument& argument,
+                                    size_t position,
+                                    bool optional) {
+    std::string description = "#" + std::to_string(position + 1) + " ";
+    description += describeKinds(argument.allowedKinds);
+    if(optional) description += " (optional)";
+
+    if(argument.allowedKinds & H5GGBridgeValueNumber) {
+        description += "; finite";
+        if(argument.integerOnly) description += ", integer";
+        if(argument.hasMinimum) {
+            description += ", min " + formatNumber(argument.minimum);
+        }
+        if(argument.hasMaximum) {
+            description += ", max " + formatNumber(argument.maximum);
+        }
+        if(argument.allowedNumberCount > 0) {
+            description += ", one of {";
+            for(size_t index = 0; index < argument.allowedNumberCount; index++) {
+                if(index > 0) description += ", ";
+                description += formatNumber(argument.allowedNumbers[index]);
+            }
+            description += "}";
+        }
+    }
+    return description;
+}
+
+static std::string generateReference() {
+    std::ostringstream output;
+    output << "| Method | Native selector | Arity | Argument schema |\n";
+    output << "|---|---|---:|---|\n";
+
+    size_t methodCount = 0;
+    const H5GGBridgeMethod* methods = H5GGBridgeMethods(methodCount);
+    for(size_t methodIndex = 0; methodIndex < methodCount; methodIndex++) {
+        const H5GGBridgeMethod& method = methods[methodIndex];
+        output << "| `" << method.name << "` | `" << method.selector << "` | `";
+        if(method.minimumArguments == method.maximumArguments) {
+            output << method.minimumArguments;
+        } else {
+            output << method.minimumArguments << "-" << method.maximumArguments;
+        }
+        output << "` | ";
+
+        if(method.maximumArguments == 0) {
+            output << "None";
+        } else {
+            for(size_t argumentIndex = 0;
+                argumentIndex < method.maximumArguments;
+                argumentIndex++) {
+                if(argumentIndex > 0) output << "<br>";
+                output << describeArgument(
+                    method.arguments[argumentIndex], argumentIndex,
+                    argumentIndex >= method.minimumArguments);
+            }
+        }
+        output << " |\n";
+    }
+    return output.str();
+}
+
+static std::string readFile(const char* path) {
+    std::ifstream input(path, std::ios::binary);
+    if(!input) return {};
+    return std::string(std::istreambuf_iterator<char>(input),
+                       std::istreambuf_iterator<char>());
+}
+
+int main(int argc, char** argv) {
+    const std::string reference = generateReference();
+    if(argc == 1) {
+        std::cout << reference;
+        return 0;
+    }
+    if(argc != 2) {
+        std::cerr << "usage: BridgeSchemaDocs [docs/javascript-api.md]\n";
+        return 2;
+    }
+
+    const std::string documentation = readFile(argv[1]);
+    const std::string startMarker = "<!-- bridge-schema:start -->";
+    const std::string endMarker = "<!-- bridge-schema:end -->";
+    size_t start = documentation.find(startMarker);
+    size_t end = documentation.find(endMarker);
+    if(start == std::string::npos || end == std::string::npos || end <= start) {
+        std::cerr << "bridge schema documentation markers are missing\n";
+        return 1;
+    }
+
+    start += startMarker.size();
+    if(start < documentation.size() && documentation[start] == '\n') start++;
+    std::string documented = documentation.substr(start, end - start);
+    if(documented != reference) {
+        std::cerr << "generated bridge schema reference is stale; expected:\n\n";
+        std::cerr << startMarker << "\n" << reference << endMarker << "\n";
+        return 1;
+    }
+
+    std::cout << "JavaScript argument schema matches " << reference.size()
+              << " generated bytes\n";
+    return 0;
+}

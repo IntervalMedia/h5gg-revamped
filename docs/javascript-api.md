@@ -1,6 +1,6 @@
 # JavaScript frontend contract
 
-Status: current code inventory for the `GUI` branch on 2026-08-05.
+Status: current code inventory verified on 2026-08-20.
 
 This is the canonical reference for JavaScript that runs inside H5GG's iOS
 `WKWebView`. It documents the complete frontend contract: engine bridge methods,
@@ -102,18 +102,82 @@ This machine-checked list must match `BridgeMethods.cpp` exactly.
 - `copyText`
 <!-- bridge-methods:end -->
 
+## Generated native argument schema
+
+This table is generated from the same `BridgeMethods.cpp` structures used by
+JavaScript injection and native dispatch. Argument positions correspond to the
+method call order; the behavioral tables below provide semantic names and
+operation-specific rules.
+
+<!-- bridge-schema:start -->
+| Method | Native selector | Arity | Argument schema |
+|---|---|---:|---|
+| `searchNumber` | `searchNumber:param2:param3:param4:` | `4` | #1 string<br>#2 string<br>#3 string<br>#4 string |
+| `searchNearby` | `searchNearby:param2:param3:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `getValue` | `getValue:param2:` | `2` | #1 string<br>#2 string |
+| `setValue` | `setValue:param2:param3:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `editAll` | `editAll:param3:` | `2` | #1 string<br>#2 string |
+| `getResults` | `getResults:param1:` | `1-2` | #1 number; finite, integer, min 1, max 2147483647<br>#2 number (optional); finite, integer, min 0, max 2147483647 |
+| `getResultsCount` | `getResultsCount` | `0` | None |
+| `clearResults` | `clearResults` | `0` | None |
+| `getLocalScripts` | `getLocalScripts` | `0` | None |
+| `pickScriptFile` | `pickScriptFileWithTypes:` | `0-1` | #1 null or array (optional) |
+| `getRangesList` | `getRangesList:` | `0-1` | #1 null or string (optional) |
+| `getProcList` | `getProcList:` | `0-1` | #1 null or string (optional) |
+| `setTargetProc` | `setTargetProc:` | `1` | #1 number; finite, integer, min 1, max 2147483647 |
+| `getTargetStatus` | `getTargetStatus` | `0` | None |
+| `loadPlugin` | `loadPlugin:path:` | `2` | #1 string<br>#2 string |
+| `callPlugin` | `callPlugin:method:arguments:` | `3` | #1 string<br>#2 string<br>#3 array |
+| `getPluginCapabilities` | `getPluginCapabilities` | `0` | None |
+| `makeTweak` | `makeTweak:with:` | `2` | #1 string<br>#2 string |
+| `require` | `require:` | `1` | #1 number; finite, min 0 |
+| `setFloatTolerance` | `setFloatTolerance:` | `1` | #1 string |
+| `searchChange` | `searchChange:` | `1` | #1 string |
+| `searchFilter` | `searchFilter:type:mode:` | `3` | #1 string<br>#2 string<br>#3 number; finite, integer, one of {0, 2, 3} |
+| `getInputHistory` | `getInputHistory` | `0` | None |
+| `addInputHistory` | `addInputHistory:` | `1` | #1 string |
+| `clearInputHistory` | `clearInputHistory` | `0` | None |
+| `addBookmark` | `addBookmark:name:type:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `removeBookmark` | `removeBookmark:` | `1` | #1 string |
+| `getBookmarks` | `getBookmarks` | `0` | None |
+| `clearBookmarks` | `clearBookmarks` | `0` | None |
+| `freezeValue` | `freezeValue:value:type:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `unfreezeValue` | `unfreezeValue:` | `1` | #1 string |
+| `getFrozenValues` | `getFrozenValues` | `0` | None |
+| `clearFrozenValues` | `clearFrozenValues` | `0` | None |
+| `searchHex` | `searchHex:memoryFrom:memoryTo:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `getSearchHistory` | `getSearchHistory` | `0` | None |
+| `addSearchHistory` | `addSearchHistory:type:count:` | `3` | #1 string<br>#2 string<br>#3 number; finite, integer, min 0, max 2147483647 |
+| `clearSearchHistory` | `clearSearchHistory` | `0` | None |
+| `dumpMemory` | `dumpMemory:end:filename:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `getDumpStatus` | `getDumpStatus` | `0` | None |
+| `cancelDump` | `cancelDump` | `0` | None |
+| `readPointer` | `readPointer:` | `1` | #1 string |
+| `findPointers` | `findPointers:rangeStart:rangeEnd:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `getPointerCapabilities` | `getPointerCapabilities` | `0` | None |
+| `appendLog` | `appendLog:` | `1` | #1 string |
+| `readBytes` | `readBytes:length:` | `2` | #1 string<br>#2 number; finite, integer, min 1, max 4096 |
+| `readMemoryPage` | `readMemoryPage:length:` | `1-2` | #1 string<br>#2 number (optional); finite, integer, min 1, max 4096 |
+| `saveScript` | `saveScript:content:` | `2` | #1 string<br>#2 string |
+| `loadScript` | `loadScript:` | `1` | #1 string |
+| `deleteScript` | `deleteScript:` | `1` | #1 string |
+| `listScripts` | `listScripts` | `0` | None |
+| `getLastFileError` | `getLastFileError` | `0` | None |
+| `copyText` | `copyText:` | `1` | #1 string |
+<!-- bridge-schema:end -->
+
 ## Runtime and memory bridge methods
 
 | Method and status | Parameters | Resolves | Side effects, failures, and restrictions | Minimal example | Native source |
 |---|---|---|---|---|---|
-| `h5gg.require(minVersion)`<br>**Stable** | `minVersion`: numeric H5GG version. | `boolean`; `true` when the runtime is new enough. | Does not change state. An older runtime resolves `false`; legacy JavaScriptCore paths may also set a JS exception. | `if (!await h5gg.require(8.0)) return;` | `h5ggEngine require:` in `h5gg.mm` |
+| `h5gg.require(minVersion)`<br>**Stable** | `minVersion`: non-negative numeric H5GG version. | `boolean`; `true` when the runtime is new enough. | Invalid kinds, negative values, and non-finite values are rejected by the bridge. An older runtime resolves `false`; legacy JavaScriptCore paths may also set a JS exception. | `if (!await h5gg.require(8.0)) return;` | `h5ggEngine require:` in `h5gg.mm` |
 | `h5gg.setFloatTolerance(value)`<br>**Stable** | `value`: non-negative numeric string. | `null`. | Updates tolerance used by float searches. Invalid or negative text shows an alert and leaves the prior tolerance unchanged. | `await h5gg.setFloatTolerance("0.01");` | `h5ggEngine setFloatTolerance:` |
 | `h5gg.copyText(text)`<br>**Stable** | `text`: clipboard string. | `boolean`. | Writes the general iOS pasteboard. A missing/null argument is rejected by bridge arity or resolves `false` natively. | `await h5gg.copyText(result.address);` | `h5ggEngine copyText:` |
-| `h5gg.searchNumber(value, type, start, end)`<br>**Stable** | `value`: exact number, `a~b` range, or comma-separated group; `type`: value type; `start`, `end`: hexadecimal range endpoints. | `null`. | Starts a scan after `clearResults`, otherwise refines existing results. Updates search history and last result type. Invalid values/ranges or refining an empty list show an alert. Device memory access is required. | `await h5gg.searchNumber("42", "I32", "0x100000000", "0x200000000");` | `h5ggEngine searchNumber:param2:param3:param4:` |
+| `h5gg.searchNumber(value, type, start, end)`<br>**Stable** | `value`: exact number, inclusive `a~b` range, or comma-separated group of either form; `type`: value type; `start`, `end`: hexadecimal range endpoints. | `null`. | Starts a scan after `clearResults`, otherwise refines existing results. Group members use OR semantics in one scan. The whole expression is validated before mutation; invalid/empty members, inverted ranges, invalid endpoints, or refining an empty list show an alert. Updates search history and last result type. Device memory access is required. | `await h5gg.searchNumber("41, 42~44", "I32", "0x100000000", "0x300000000");` | `h5ggEngine searchNumber:param2:param3:param4:` |
 | `h5gg.searchNearby(value, type, range)`<br>**Stable** | `value`, `type`; `range`: hexadecimal byte distance from `2` through `4096`. | `null`. | Replaces current results with nearby matches. Requires existing results; invalid input or an empty list shows an alert. | `await h5gg.searchNearby("7", "I32", "0x100");` | `h5ggEngine searchNearby:param2:param3:` |
 | `h5gg.searchChange(change)`<br>**Stable** | `change`: `Unchanged`, `Changed`, `Increased`, or `Decreased`. | `null`. | Refines existing results by change from the saved snapshot. Invalid modes or an empty list show an alert. | `await h5gg.searchChange("Increased");` | `h5ggEngine searchChange:` |
 | `h5gg.searchFilter(value, type, mode)`<br>**Experimental** | `value`, `type`; `mode`: `0` equal, `2` greater, `3` less. | Number of results retained. | Mutates the current result set. Invalid values/modes or an empty set resolve `0` and may show an alert. | `const kept = await h5gg.searchFilter("100", "I32", 2);` | `h5ggEngine searchFilter:type:mode:` |
-| `h5gg.searchHex(pattern, start, end)`<br>**Experimental** | `pattern`: bytes with optional wildcard nibbles such as `DE AD ?? E?`; hexadecimal endpoints. | `null`. | Starts/refines a byte-pattern search and changes the result type to `Hex`. Invalid patterns/ranges show an alert. | `await h5gg.searchHex("DE AD ?? EF", "0x100000000", "0x200000000");` | `h5ggEngine searchHex:memoryFrom:memoryTo:` |
+| `h5gg.searchHex(pattern, start, end)`<br>**Experimental** | `pattern`: bytes with optional wildcard nibbles such as `DE AD ?? E?`; hexadecimal endpoints. | `null`. | Starts/refines a byte-pattern search and changes the result type to `Hex`. Invalid patterns/ranges show an alert. | `await h5gg.searchHex("DE AD ?? EF", "0x100000000", "0x300000000");` | `h5ggEngine searchHex:memoryFrom:memoryTo:` |
 | `h5gg.getValue(address, type)`<br>**Stable** | Address and value type. | Formatted value string. | Reads selected-process memory. Invalid address/type or unreadable memory resolves `""`; invalid address may show an alert. | `const value = await h5gg.getValue("0x102000000", "I32");` | `h5ggEngine getValue:param2:` |
 | `h5gg.setValue(address, value, type)`<br>**Stable** | Address, value string, and value type. | `boolean`. | Writes selected-process memory. Invalid values/addresses or failed writes resolve `false`; invalid address may show an alert. | `const ok = await h5gg.setValue(address, "99", "I32");` | `h5ggEngine setValue:param2:param3:` |
 | `h5gg.editAll(value, type)`<br>**Stable** | Value string and value type. | Number of addresses written. | Writes the same value to all current results. Invalid input or an empty list resolves `0`; empty list shows an alert. | `const changed = await h5gg.editAll("0", "I32");` | `h5ggEngine editAll:param3:` |
@@ -143,7 +207,7 @@ This machine-checked list must match `BridgeMethods.cpp` exactly.
 | `h5gg.clearBookmarks()`<br>**Stable** | None. | `null`. | Removes every persisted bookmark. | `await h5gg.clearBookmarks();` | `h5ggEngine clearBookmarks` |
 | `h5gg.freezeValue(address, value, type)`<br>**Experimental** | Address, value string, and value type. | `boolean`. | Starts/replaces a 100 ms repeating write for the current target. Invalid target/address/value/type resolves `false`. | `await h5gg.freezeValue(address, "100", "I32");` | `h5ggEngine freezeValue:value:type:` |
 | `h5gg.unfreezeValue(address)`<br>**Experimental** | Decimal or hexadecimal address. | `boolean`. | Removes the canonical-address entry; missing/invalid entries resolve `false`. Stops the timer when none remain. | `await h5gg.unfreezeValue(address);` | `h5ggEngine unfreezeValue:` |
-| `h5gg.getFrozenValues()`<br>**Experimental** | None. | Sorted array of `{address, value, type, targetPid, status, failures, lastError}`. | Read-only snapshot. Status may be `active`, `target-unavailable`, `invalid`, or `write-failed`. | `const frozen = await h5gg.getFrozenValues();` | `h5ggEngine getFrozenValues` |
+| `h5gg.getFrozenValues()`<br>**Experimental** | None. | Sorted array of `{address, value, type, targetPid, status, failures, lastError}`. | Read-only snapshot. Invalid entries are rejected before insertion; status is `active`, `target-unavailable`, or `write-failed`. | `const frozen = await h5gg.getFrozenValues();` | `h5ggEngine getFrozenValues` |
 | `h5gg.clearFrozenValues()`<br>**Experimental** | None. | `null`. | Removes all entries and stops the freezer timer. | `await h5gg.clearFrozenValues();` | `h5ggEngine clearFrozenValues` |
 | `h5gg.getSearchHistory()`<br>**Stable** | None. | Array of `{value, type, count, time}`, newest first. | Reads up to 50 entries from `NSUserDefaults`; `time` is `HH:mm:ss`. | `const history = await h5gg.getSearchHistory();` | `h5ggEngine getSearchHistory` |
 | `h5gg.addSearchHistory(value, type, count)`<br>**Stable** | Value string, type string, numeric count. | `null`. | Persists a new timestamped entry and caps history at 50. Missing value is ignored. | `await h5gg.addSearchHistory("42", "I32", count);` | `h5ggEngine addSearchHistory:type:count:` |
@@ -154,7 +218,7 @@ This machine-checked list must match `BridgeMethods.cpp` exactly.
 | Method and status | Parameters | Resolves | Side effects, failures, and restrictions | Minimal example | Native source |
 |---|---|---|---|---|---|
 | `h5gg.getLocalScripts()`<br>**Stable** | None. | Array of `{name, path}` for `.js` and `.html` files. | Reads the app Documents directory and application bundle. Directory failures produce no entries for that location. | `const scripts = await h5gg.getLocalScripts();` | `h5ggEngine getLocalScripts` |
-| `h5gg.pickScriptFile(types?)`<br>**Stable** | Optional array of Uniform Type Identifier strings; defaults to `public.data`. | Selected path string or `null` on cancellation. | Presents the native iOS file picker and defers Promise completion until selection/cancellation. | `const path = await h5gg.pickScriptFile(["public.html"]);` | `h5ggEngine pickScriptFileWithTypes:` |
+| `h5gg.pickScriptFile(types?)`<br>**Stable** | Optional array of Uniform Type Identifier strings; blank/duplicate values are removed and an empty result defaults to `public.data`. | Selected path string or `null` on cancellation. | Presents the native iOS file picker. The request retains its originating call ID and accepts selection/cancellation exactly once, including overlapping calls. | `const path = await h5gg.pickScriptFile(["public.html"]);` | `h5ggEngine pickScriptFileWithTypes:` |
 | `h5gg.saveScript(name, content)`<br>**Experimental** | Safe single-entry `.js`/`.html` filename and UTF-8 text. Missing extension becomes `.js`. | `boolean`. | Atomically writes Documents. Rejects paths, unsupported extensions, and content over 2 MiB; inspect `getLastFileError`. | `const ok = await h5gg.saveScript("tool.js", source);` | `h5ggEngine saveScript:content:` |
 | `h5gg.loadScript(name)`<br>**Experimental** | Safe `.js`/`.html` filename. | UTF-8 string or `null`. | Reads Documents only. Invalid/missing files set `getLastFileError`. | `const source = await h5gg.loadScript("tool.js");` | `h5ggEngine loadScript:` |
 | `h5gg.deleteScript(name)`<br>**Experimental** | Safe `.js`/`.html` filename. | `boolean`. | Removes the Documents file; invalid/missing files resolve `false` and set the last file error. | `await h5gg.deleteScript("tool.js");` | `h5ggEngine deleteScript:` |
@@ -165,12 +229,12 @@ This machine-checked list must match `BridgeMethods.cpp` exactly.
 
 | Method and status | Parameters | Resolves | Side effects, failures, and restrictions | Minimal example | Native source |
 |---|---|---|---|---|---|
-| `h5gg.dumpMemory(start, end, filename)`<br>**Experimental** | Start/end addresses and safe single-entry output filename. | Final `boolean` after the asynchronous dump finishes. | Streams the range to Documents, retains its target port, updates dump status, and deletes partial files on failure/cancellation. Rejects invalid/overlapping requests with `false`. | `const ok = await h5gg.dumpMemory(start, end, "dump.bin");` | `h5ggEngine dumpMemory:end:filename:` |
+| `h5gg.dumpMemory(start, end, filename)`<br>**Experimental** | Start/end addresses and safe single-entry output filename. | Final `boolean` after the asynchronous dump finishes. | Streams the range to Documents through one target-reader lease, updates dump status, and deletes partial files on failure/cancellation. Rejects invalid/overlapping requests with `false`; completion remains bound to the originating menu/call ID. | `const ok = await h5gg.dumpMemory(start, end, "dump.bin");` | `h5ggEngine dumpMemory:end:filename:` |
 | `h5gg.getDumpStatus()`<br>**Experimental** | None. | `{state, progress, written?, total?, path?, error?}`. | Read-only. State is `idle`, `running`, `completed`, `cancelled`, or `failed`; progress is `0...1`. | `const status = await h5gg.getDumpStatus();` | `h5ggEngine getDumpStatus` |
 | `h5gg.cancelDump()`<br>**Experimental** | None. | `boolean`. | Requests cancellation of a running dump. Resolves `false` when no dump is running. | `await h5gg.cancelDump();` | `h5ggEngine cancelDump` |
 | `h5gg.readPointer(address)`<br>**Experimental** | Address string. | Hexadecimal pointer string or `""`. | Reads one 64-bit unsigned pointer. Invalid/unreadable/null pointers resolve `""`. | `const next = await h5gg.readPointer(address);` | `h5ggEngine readPointer:` |
-| `h5gg.readBytes(address, length)`<br>**Experimental** | Address and byte length. | Formatted uppercase hex string with line breaks. | Reads at most 4096 bytes; non-positive or oversized length defaults to 256. Invalid/unreadable address resolves `""`. | `const hex = await h5gg.readBytes(address, 64);` | `h5ggEngine readBytes:length:` |
-| `h5gg.readMemoryPage(address, length = 256)`<br>**Experimental** | Address and optional length, capped at 4096. | `{address, length, readable, complete, bytes}` or `{error}`. | `bytes` contains numbers or `null` for unreadable bytes. Errors include `invalid-address` and `address-range-overflow`. | `const page = await h5gg.readMemoryPage(address, 256);` | `h5ggEngine readMemoryPage:length:` |
+| `h5gg.readBytes(address, length)`<br>**Experimental** | Address and integer byte length from 1 through 4096. | Formatted uppercase hex string with line breaks. | Invalid kinds or lengths are rejected by the bridge. Invalid/unreadable addresses resolve `""`. | `const hex = await h5gg.readBytes(address, 64);` | `h5ggEngine readBytes:length:` |
+| `h5gg.readMemoryPage(address, length = 256)`<br>**Experimental** | Address and optional integer length from 1 through 4096. | `{address, length, readable, complete, bytes}` or `{error}`. | Invalid kinds or explicit lengths are rejected by the bridge. `bytes` contains numbers or `null` for unreadable bytes. Native errors include `invalid-address` and `address-range-overflow`. | `const page = await h5gg.readMemoryPage(address, 256);` | `h5ggEngine readMemoryPage:length:` |
 | `h5gg.findPointers(address, rangeStart, rangeEnd)`<br>**Experimental** | Target address; hexadecimal scan endpoints. | Array of `{address, value}` hexadecimal strings. | Exact, aligned 64-bit pointer search. Invalid input resolves `[]`; engine limits are reported separately. | `const refs = await h5gg.findPointers(target, start, end);` | `h5ggEngine findPointers:rangeStart:rangeEnd:` |
 | `h5gg.getPointerCapabilities()`<br>**Experimental** | None. | `{pointerWidth, alignment, exactMatchesOnly, maxResults, maxScannedBytes, maxChainDepth}`. | Read-only capability record; currently 64-bit, 8-byte aligned, 4096 results, 512 MiB scan, depth 32. | `const limits = await h5gg.getPointerCapabilities();` | `h5ggEngine getPointerCapabilities` |
 
@@ -178,10 +242,10 @@ This machine-checked list must match `BridgeMethods.cpp` exactly.
 
 | Method and status | Parameters | Resolves | Side effects, failures, and restrictions | Minimal example | Native source |
 |---|---|---|---|---|---|
-| `h5gg.loadPlugin(className, dylibPath)`<br>**Experimental** | Objective-C class name and absolute path, or bundle-relative dylib path. | WKWebView: `{loaded, id?, className?, rpc?, error?}`. | Loads executable code with `dlopen`. WK plugins must implement `H5GGPluginRPC`; failures are returned in the object. Legacy JavaScriptCore may receive a native object instead. | `const plugin = await h5gg.loadPlugin("MyPlugin", "MyPlugin.dylib");` | `h5ggEngine loadPlugin:path:` |
-| `h5gg.callPlugin(pluginId, method, arguments)`<br>**Experimental** | Plugin handle, method string, JSON-compatible argument array. | `{ok: true, result}` or `{ok: false, error}`. | Invokes `H5GGPluginRPC`. Exceptions, plugin errors, unknown handles, and non-JSON results become `{ok:false}`. | `const reply = await h5gg.callPlugin(plugin.id, "status", []);` | `h5ggEngine callPlugin:method:arguments:` |
+| `h5gg.loadPlugin(className, dylibPath)`<br>**Experimental** | Objective-C class name and absolute path, or bundle-relative dylib path. | WKWebView: `{loaded, id?, className?, rpc?, error?}`. | Loads each resolved image once with `dlopen` and returns an opaque per-object WK handle. WK plugins must implement `H5GGPluginRPC`; failures are returned in the object. Legacy JavaScriptCore may receive a native object instead. | `const plugin = await h5gg.loadPlugin("MyPlugin", "MyPlugin.dylib");` | `h5ggEngine loadPlugin:path:` |
+| `h5gg.callPlugin(pluginId, method, arguments)`<br>**Experimental** | Plugin handle, method string, JSON-compatible argument array. | `{ok: true, result}` or `{ok: false, error}`. | Invokes `H5GGPluginRPC`. Exceptions, plugin errors, unknown handles, and non-JSON arguments/results become `{ok:false}`. | `const reply = await h5gg.callPlugin(plugin.id, "status", []);` | `h5ggEngine callPlugin:method:arguments:` |
 | `h5gg.getPluginCapabilities()`<br>**Experimental** | None. | Capability object describing RPC, protocol, legacy objects, and JSON restrictions. | Read-only. Use before assuming native-object transport. | `const caps = await h5gg.getPluginCapabilities();` | `h5ggEngine getPluginCapabilities` |
-| `h5gg.makeTweak(iconPath, htmlPath)`<br>**Experimental** | Selected icon and HTML filesystem paths. | Localized result-message string. | Generates/signs a customized dylib. Empty paths return a failure message; signing/template errors are reported in the string. Jailbreak/runtime restrictions apply. | `const message = await h5gg.makeTweak(icon, html);` | `h5ggEngine makeTweak:with:` |
+| `h5gg.makeTweak(iconPath, htmlPath)`<br>**Experimental** | Selected icon and HTML filesystem paths. | Localized result-message string. | Generates and signs a customized dylib through a temporary file, then atomically publishes it. Empty paths return a failure message; validation/signing/template errors are reported without replacing an existing output. Jailbreak/runtime restrictions apply. | `const message = await h5gg.makeTweak(icon, html);` | `h5ggEngine makeTweak:with:` |
 | `h5gg.appendLog(message)`<br>**Stable** | Log string. | `null`. | Appends a line to `Documents/h5gg.log`, creating it if necessary. File errors are not surfaced. | `await h5gg.appendLog("search started");` | `h5ggEngine appendLog:` |
 
 ## Global window-control functions
@@ -235,7 +299,7 @@ async function findAndCopyFirstMatch() {
         "42",
         "I32",
         "0x100000000",
-        "0x200000000"
+        "0x300000000"
     );
 
     const count = await h5gg.getResultsCount();

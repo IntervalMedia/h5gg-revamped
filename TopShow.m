@@ -88,7 +88,8 @@ extern GVData* PGVSharedData;
     [self _documentPicker:controller didPickDocumentAtURL:urls.firstObject];
 }
 
-+ (void)filePicker:(NSArray<NSString*>*)types callback:(void(^)(NSString*))callback {
++ (void)filePicker:(NSArray<NSString*>*)types
+          callback:(void(^)(NSString* _Nullable path))callback {
     [self present:^(TopShow* controller) {
         __weak TopShow* weakPicker = controller;
         __block BOOL settled = NO;

@@ -1,16 +1,12 @@
 #include "makeDYLIB.h"
-#include "DylibTemplate.h"
+#include "DylibBuilder.h"
 #include "Localized.h"
+#include "RuntimeCoordinator.h"
 #import <UIKit/UIKit.h>
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "incbin.h"
 #include <dlfcn.h>
-#include <libgen.h>
-#include <stdlib.h>
 #include <cstring>
-
-extern bool g_systemapp_runmode;
-extern bool g_standalone_runmode;
 
 int ldid_main(int argc, char *argv[]);
 
@@ -46,87 +42,109 @@ NSString* H5GGEmbeddedCustomMenu(void) {
     size_t length = strnlen((const char*)data.bytes, data.length);
     return [[NSString alloc] initWithBytes:data.bytes
                                    length:length
-                                 encoding:NSUTF8StringEncoding];
+                                   encoding:NSUTF8StringEncoding];
+}
+
+static std::vector<uint8_t> H5GGBytes(NSData* data) {
+    if(data.length == 0) return {};
+    const uint8_t* begin = static_cast<const uint8_t*>(data.bytes);
+    return std::vector<uint8_t>(begin, begin + data.length);
+}
+
+static std::string H5GGUTF8String(NSString* value) {
+    const char* utf8 = value.UTF8String;
+    return utf8 ? utf8 : "";
+}
+
+static NSString* H5GGDylibBuildMessage(const H5GGDylibBuildResult& result,
+                                       NSString* sourcePath,
+                                       NSString* iconPath,
+                                       NSString* menuPath,
+                                       NSString* outputPath) {
+    NSString* detail = result.detail.empty()
+        ? @""
+        : [NSString stringWithUTF8String:result.detail.c_str()];
+    switch(result.status) {
+        case H5GGDylibBuildStatus::Completed:
+            return [NSString stringWithFormat:
+                Localized(@"制作成功!\n\n专属H5GG.dylib已生成在当前App的Documents数据目录:\n%@"),
+                [NSString stringWithUTF8String:result.outputPath.c_str()]];
+        case H5GGDylibBuildStatus::InvalidRequest:
+            return Localized(@"制作失败\n\n必须选择图标和H5文件");
+        case H5GGDylibBuildStatus::UnableToReadSource:
+            return [NSString stringWithFormat:Localized(@"制作失败\n\n无法读取文件:\n%@"),
+                                              sourcePath ?: @""];
+        case H5GGDylibBuildStatus::UnableToReadIcon:
+            return [NSString stringWithFormat:Localized(@"制作失败\n\n无法读取文件:\n%@"),
+                                              iconPath ?: @""];
+        case H5GGDylibBuildStatus::InvalidIcon:
+            return Localized(@"制作失败\n\n图标文件不是受支持的图片");
+        case H5GGDylibBuildStatus::UnableToReadMenu:
+            return [NSString stringWithFormat:Localized(@"制作失败\n\n无法读取文件:\n%@"),
+                                              menuPath ?: @""];
+        case H5GGDylibBuildStatus::InvalidMenu:
+            return Localized(@"制作失败\n\nH5文件必须是UTF-8文本");
+        case H5GGDylibBuildStatus::IconTooLarge:
+            return Localized(@"制作失败\n\n图标文件超过512KB");
+        case H5GGDylibBuildStatus::MenuTooLarge:
+            return Localized(@"制作失败\n\nH5文件超过2MB");
+        case H5GGDylibBuildStatus::TemplateMismatch:
+            return Localized(@"制作失败\n\n当前已经是定制版本, 请使用原版H5GG制作插件");
+        case H5GGDylibBuildStatus::UnableToWriteOutput:
+            return [NSString stringWithFormat:
+                Localized(@"制作失败\n\n无法写入文件到%@\n\n%@"),
+                outputPath ?: @"", detail];
+        case H5GGDylibBuildStatus::SigningFailed:
+            return detail.length
+                ? [NSString stringWithFormat:Localized(@"制作失败\n\n代码签名失败\n\n%@"),
+                                                   detail]
+                : Localized(@"制作失败\n\n代码签名失败");
+    }
+    return Localized(@"制作失败");
 }
 
 NSString* makeDYLIB(NSString* iconfile, NSString* htmlurl)
 {
     struct dl_info di = {0};
     dladdr((void*)makeDYLIB, &di);
+    NSString* libpath = di.dli_fname
+        ? [NSString stringWithUTF8String:di.dli_fname]
+        : nil;
 
-    NSString* libpath = [NSString stringWithUTF8String:di.dli_fname];
-
-    NSMutableData* dylib = [NSMutableData dataWithContentsOfFile:libpath];
-    if (!dylib)
-        return [NSString stringWithFormat:Localized(@"制作失败\n\n无法读取文件:\n%@"), libpath];
-
-    NSData* icon = [NSData dataWithContentsOfFile:iconfile];
-    if (!icon)
-        return [NSString stringWithFormat:Localized(@"制作失败\n\n无法读取文件:\n%@"), iconfile];
-    if(![UIImage imageWithData:icon])
-        return Localized(@"制作失败\n\n图标文件不是受支持的图片");
-
-    NSData* html = [NSData dataWithContentsOfFile:htmlurl];
-    if (!html)
-        return [NSString stringWithFormat:Localized(@"制作失败\n\n无法读取文件:\n%@"), htmlurl];
-    if(html.length == 0 ||
-       memchr(html.bytes, 0, html.length) ||
-       ![[NSString alloc] initWithData:html encoding:NSUTF8StringEncoding])
-        return Localized(@"制作失败\n\nH5文件必须是UTF-8文本");
-
-    NSData* iconStub = H5GGIconTemplateData();
-    NSData* menuStub = H5GGMenuTemplateData();
-
-    if (icon.length >= iconStub.length)
-        return Localized(@"制作失败\n\n图标文件超过512KB");
-
-    if (html.length >= menuStub.length)
-        return Localized(@"制作失败\n\nH5文件超过2MB");
-
-    std::vector<uint8_t> binaryBytes(
-        (const uint8_t*)dylib.bytes,
-        (const uint8_t*)dylib.bytes + dylib.length);
-    std::vector<uint8_t> iconPlaceholder(
-        (const uint8_t*)iconStub.bytes,
-        (const uint8_t*)iconStub.bytes + iconStub.length);
-    std::vector<uint8_t> menuPlaceholder(
-        (const uint8_t*)menuStub.bytes,
-        (const uint8_t*)menuStub.bytes + menuStub.length);
-    std::vector<uint8_t> iconPayload(
-        (const uint8_t*)icon.bytes,
-        (const uint8_t*)icon.bytes + icon.length);
-    std::vector<uint8_t> menuPayload(
-        (const uint8_t*)html.bytes,
-        (const uint8_t*)html.bytes + html.length);
-
-    size_t iconReplacements =
-        H5GGReplaceAllTemplates(binaryBytes, iconPlaceholder, iconPayload);
-    size_t menuReplacements =
-        H5GGReplaceAllTemplates(binaryBytes, menuPlaceholder, menuPayload);
-    if(iconReplacements == 0 || menuReplacements == 0 ||
-       iconReplacements != menuReplacements) {
-        return Localized(@"制作失败\n\n当前已经是定制版本, 请使用原版H5GG制作插件");
-    }
-    dylib = [NSMutableData dataWithBytes:binaryBytes.data()
-                                  length:binaryBytes.size()];
-
-    NSString* savePath = [NSString stringWithFormat:@"%@/Documents/H5GG.dylib", NSHomeDirectory()];
-
-    char* pathCopy = strdup(savePath.UTF8String);
-    if (access(dirname(pathCopy), W_OK) != 0 && (g_systemapp_runmode || g_standalone_runmode))
+    NSString* documents = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+    NSString* savePath = [documents stringByAppendingPathComponent:@"H5GG.dylib"];
+    if(![[NSFileManager defaultManager] isWritableFileAtPath:documents] &&
+       (H5GGRuntimeHasMode(H5GGRuntimeModeSystemApp) ||
+        H5GGRuntimeHasMode(H5GGRuntimeModeStandalone))) {
         savePath = @"/var/tmp/H5GG.dylib";
-    free(pathCopy);
-
-    NSError* error = nil;
-    if (![dylib writeToFile:savePath options:0 error:&error])
-        return [NSString stringWithFormat:Localized(@"制作失败\n\n无法写入文件到%@\n\n%@"), savePath, error];
-
-    const char* ldidargs[] = {"ldid", "-S", savePath.UTF8String};
-    if(ldid_main(sizeof(ldidargs) / sizeof(ldidargs[0]), (char**)ldidargs) != 0) {
-        [[NSFileManager defaultManager] removeItemAtPath:savePath error:nil];
-        return Localized(@"制作失败\n\n代码签名失败");
     }
 
-    return [NSString stringWithFormat:
-            Localized(@"制作成功!\n\n专属H5GG.dylib已生成在当前App的Documents数据目录:\n%@"), savePath];
+    DylibBuilder builder(
+        H5GGBytes(H5GGIconTemplateData()),
+        H5GGBytes(H5GGMenuTemplateData()),
+        [](const std::vector<uint8_t>& bytes, std::string& error) {
+            NSData* data = [NSData dataWithBytes:bytes.data() length:bytes.size()];
+            if([UIImage imageWithData:data]) return true;
+            error = "The icon payload is not a supported image";
+            return false;
+        },
+        [](const std::string& path, std::string& error) {
+            char* arguments[] = {
+                const_cast<char*>("ldid"),
+                const_cast<char*>("-S"),
+                const_cast<char*>(path.c_str()),
+            };
+            if(ldid_main(3, arguments) == 0) return true;
+            error = "ldid returned a non-zero exit status";
+            return false;
+        });
+
+    H5GGDylibBuildRequest request = {
+        H5GGUTF8String(libpath),
+        H5GGUTF8String(iconfile),
+        H5GGUTF8String(htmlurl),
+        H5GGUTF8String(savePath),
+    };
+    H5GGDylibBuildResult result = builder.build(request);
+    return H5GGDylibBuildMessage(result, libpath, iconfile, htmlurl, savePath);
 }

@@ -18,7 +18,9 @@ trap 'rm -f "$tool" "$output"' EXIT
 
 "${CXX:-c++}" -std=c++17 -Wall -Wextra -Werror \
   "$repo_root/tests/DylibGenerationIntegration.cpp" \
+  "$repo_root/DylibBuilder.cpp" \
   "$repo_root/DylibTemplate.cpp" \
+  "$repo_root/TextEncoding.cpp" \
   -o "$tool"
 
 "$tool" \
@@ -29,6 +31,5 @@ trap 'rm -f "$tool" "$output"' EXIT
   "$repo_root/Index-en.html" \
   "$output"
 
-ldid -S "$output"
 ldid -e "$output" >/dev/null
 file "$output" | grep -q 'Mach-O universal binary'

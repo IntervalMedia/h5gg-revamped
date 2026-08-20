@@ -13,6 +13,20 @@ INCTXT(INITIAL_JS, "initial.js");
 
 extern GVData* PGVSharedData;
 
+static H5GGBridgeValueKind H5GGBridgeKindForValue(id value) {
+    if(!value || value == NSNull.null) return H5GGBridgeValueNull;
+    if([value isKindOfClass:NSString.class]) return H5GGBridgeValueString;
+    if([value isKindOfClass:NSArray.class]) return H5GGBridgeValueArray;
+    if([value isKindOfClass:NSDictionary.class]) return H5GGBridgeValueObject;
+    if([value isKindOfClass:NSNumber.class]) {
+        CFTypeID type = CFGetTypeID((__bridge CFTypeRef)value);
+        return type == CFBooleanGetTypeID()
+            ? H5GGBridgeValueBoolean
+            : H5GGBridgeValueNumber;
+    }
+    return static_cast<H5GGBridgeValueKind>(0);
+}
+
 #pragma mark - FloatMenu implementation
 
 @interface FloatMenu () <WKScriptMessageHandler>
@@ -169,7 +183,7 @@ static NSString* _bridgeSource() {
         newcenter.y = MAX(halfy, newcenter.y);
 
         self.center = newcenter;
-        PGVSharedData->floatMenuRect = self.frame;
+        PGVSharedData->floatMenuRect = GVRectFromCGRect(self.frame);
     }
 }
 
@@ -302,7 +316,7 @@ static NSString* _bridgeSource() {
         self.touchableRect = CGRectZero;
 
         PGVSharedData->touchableAll = YES;
-        PGVSharedData->touchableRect = CGRectZero;
+        PGVSharedData->touchableRect = GVRectFromCGRect(CGRectZero);
 
         if(self.reloadAction) self.reloadAction();
     }
@@ -364,6 +378,20 @@ static NSString* _bridgeSource() {
     if(!method->acceptsArgumentCount(args.count)) {
         if(error) *error = [NSString stringWithFormat:@"Invalid argument count for %@", methodName];
         return nil;
+    }
+    for(NSUInteger index = 0; index < args.count; index++) {
+        id value = args[index];
+        H5GGBridgeValueKind kind = H5GGBridgeKindForValue(value);
+        double numberValue = kind == H5GGBridgeValueNumber
+            ? [value doubleValue]
+            : 0;
+        if(!method->acceptsArgument(index, kind, numberValue)) {
+            if(error) {
+                *error = [NSString stringWithFormat:@"Invalid argument %lu for %@",
+                          (unsigned long)(index + 1), methodName];
+            }
+            return nil;
+        }
     }
 
     id engine = self.actions[@"h5gg"];

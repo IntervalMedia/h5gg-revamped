@@ -38,6 +38,7 @@ collect_variant_artifacts() (
 
   local artifact
   for artifact in "${artifacts[@]}"; do
+    "$ROOT_DIR/tests/check_package_contents.sh" "$variant" "$artifact"
     cp "$artifact" "$H5GG_COLLECTED_DIR/${variant}-$(basename "$artifact")"
   done
 )

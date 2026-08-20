@@ -1,5 +1,5 @@
-//为了保持未来版本兼容性, 请勿使用JSContext
-//To maintain compatibility with future versions, do not use JSContext
+//  Tweak.mm optimized for h5gg v8 in 2026
+
 #import <CoreFoundation/CoreFoundation.h>
 #import <Foundation/Foundation.h>
 #import <JavaScriptCore/JavaScriptCore.h>

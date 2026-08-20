@@ -16,15 +16,46 @@ The host suite covers:
 - result counts and typed/untyped result invariants;
 - signed, unsigned, floating-point, and invalid value parsing;
 - equal/greater/less result filtering through an in-memory reader;
+- clamped raw, exact, and typed reads through buffer and fault-injecting
+  adapters, including address overflow;
 - strict hexadecimal pattern parsing;
 - wildcard hex matching and result refinement;
 - partial memory pages with unreadable-byte markers;
 - streaming dump progress, cancellation, and failure behavior;
-- multi-slice dylib template replacement and host `ldid` signing;
+- dump-controller validation, overlap rejection, reader-lease release,
+  real-file publication/removal, and deferred completion;
+- exact aligned 64-bit pointer matching with range, result, byte, and overflow
+  limits through the production reader-backed scanner;
+- freezer validation, target binding, typed writes, failure/recovery, and
+  deterministic timer start/stop through injected production seams;
+- file-picker type normalization, independent originating call IDs,
+  cancellation, overlap, and racing exactly-once completion;
+- isolated preference-store history caps, bookmark uniqueness, malformed-value
+  filtering, timestamps, removal, and clearing;
+- atomic multi-slice dylib construction, failure cleanup, and host `ldid`
+  signing through the production builder interface;
 - bridge method allowlisting and argument ranges;
 - user-controlled filename confinement;
+- plugin path resolution, image caching, legacy/WK modes, opaque handles, JSON
+  validation, and plugin error/exception conversion with injected adapters;
+- exactly-once runtime readiness, monitor start/stop, mode queries, and retained
+  resource teardown through `RuntimeCoordinator`;
+- GlobalView magic/version/size/capability rejection and bounded single-slot
+  image publication/consumption through the production protocol interface;
 - exactly one `H5GG_BUILD_*` definition for every Theos scheme when `THEOS` is
   configured.
+
+The build and manual-release workflows run this suite before packaging. Every
+artifact produced by `build.sh` is then unpacked with the portable package
+checker, which asserts:
+
+- package name/version, scheme-specific architecture, dependency, and positive
+  installed size;
+- rootful/roothide `/Library` versus rootless `/var/jb/Library` paths;
+- exactly one non-empty `H5GG.dylib`/`H5GG.plist` pair and an executable
+  `preinst`;
+- a valid non-empty `Filter.Bundles` plist and exactly arm64/arm64e Mach-O
+  slices.
 
 Compile the tweak without producing or replacing package artifacts:
 
@@ -32,8 +63,13 @@ Compile the tweak without producing or replacing package artifacts:
 make -j2
 ```
 
-Package validation should use `./build.sh` only in a clean release checkout
-because its clean targets intentionally replace generated package outputs.
+Build and validate all package variants with:
+
+```sh
+./build.sh all
+```
+
+Invalid artifacts are rejected before collection or publication.
 
 ## Device smoke matrix
 
@@ -70,11 +106,17 @@ for every row.
 
 ## Current evidence
 
-As of 2026-07-31:
+As of 2026-08-20:
 
 - host tests pass;
-- normal arm64/arm64e compilation passes;
-- universal dylib replacement and host signing integration passes;
-- rootless and roothide sources compile with their distinct definitions;
+- normal, rootless, and roothide arm64/arm64e compilation passes;
+- normal, rootless, and roothide package control metadata and installed layouts
+  pass the artifact verifier;
+- universal dylib build, atomic publication, and host signing integration pass;
+- PluginLoader's macOS Foundation contract tests pass;
+- RuntimeCoordinator and GlobalView protocol host contract tests pass;
+- FreezerController, FilePickerRequest, PreferencesStore, and reader-backed
+  PointerSearch host contract tests pass;
+- DumpController lifecycle and real temporary-file contract tests pass;
 - plist and entitlement linting passes;
 - device rows remain unverified and must be completed before a stable release.

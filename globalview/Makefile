@@ -28,7 +28,7 @@ $(error Unsupported jailbreak build variant '$(JB_VARIANT)'. Use normal, rootles
 endif
 
 TWEAK_NAME = libH5GGApp
-libH5GGApp_FILES = globalview.mm ContextHostManager.mm ../FloatButton.m ../makeWindow.m
+libH5GGApp_FILES = globalview.mm GVProtocol.cpp ContextHostManager.mm ../FloatButton.m ../makeWindow.m
 libH5GGApp_CFLAGS = -fobjc-arc $(H5GG_COMMON_FLAGS)
 libH5GGApp_CCFLAGS = -fobjc-arc -std=c++17 $(H5GG_COMMON_FLAGS)
 

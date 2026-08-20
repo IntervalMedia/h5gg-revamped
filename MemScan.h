@@ -11,6 +11,7 @@
 #include <set>
 
 #include "MemoryResults.h"
+#include "MemoryReader.h"
 #include "MemoryValue.h"
 #include "vmtag.h"
 
@@ -48,7 +49,7 @@ struct AddrRange {
     uint64_t end;
 };
 
-class JJMemoryEngine
+class JJMemoryEngine : public JJMemoryReader
 {
     mach_port_t task;
     Result *result;
@@ -58,19 +59,27 @@ class JJMemoryEngine
     int lastNumberType;
 
     void freeResults();
-    size_t readMemoryBytes(void* buf, uint64_t addr, size_t len);
-    bool readMemory(void* buf, uint64_t addr, size_t len);
+    size_t performRead(void* buf, uint64_t addr, size_t len) override;
     bool writeMemory(void* address, void *target, size_t len);
 
     uint64_t ScanData(uint64_t buffer, uint64_t size, void* target, int type);
+    uint64_t ScanDataAny(uint64_t buffer,
+                         uint64_t size,
+                         const vector<JJSearchValue>& values,
+                         int type);
 
     void* loadRegion(uint64_t base, uint64_t* psize, bool* remapped);
     void unloadRegion(void* buffer, uint64_t size, bool remapped);
 
-    void ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type, vector<result_region*>* outResults);
+    void ScanRegionAny(AddrRange range,
+                       uint64_t base,
+                       uint64_t size,
+                       const vector<JJSearchValue>& values,
+                       int type,
+                       vector<result_region*>* outResults);
     void enumerateRegions(AddrRange range);
-    void FirstScan(AddrRange range, void* target, int type);
-    void ScanAgain(AddrRange range, void* target, int type);
+    void FirstScanAny(AddrRange range, const vector<JJSearchValue>& values, int type);
+    void ScanAgainAny(AddrRange range, const vector<JJSearchValue>& values, int type);
     void saveSnapshot();
 
 public:
@@ -81,6 +90,7 @@ public:
     void SetFloatTolerance(float d);
 
     void JJScanMemory(AddrRange range, void* target, int type);
+    void JJScanMemoryAny(AddrRange range, const vector<JJSearchValue>& values, int type);
     void JJScanHexMemory(AddrRange range, const char* hexStr);
     void JJNearBySearch(size_t range, void *target, int type);
     vector<pair<uint64_t, uint64_t>> JJFindPointers(
@@ -88,8 +98,6 @@ public:
         AddrRange range,
         size_t maxResults = 4096,
         uint64_t maxScannedBytes = 512ULL * 1024ULL * 1024ULL);
-    size_t JJReadBytes(void* buf, uint64_t addr, size_t len);
-    bool JJReadMemory(void* buf, uint64_t addr, int type);
     bool JJWriteMemory(void* address, void *target, int type);
     int JJWriteAll(void *target, int type);
 

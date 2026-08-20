@@ -8,13 +8,9 @@
 #ifndef h5gg_h
 #define h5gg_h
 
-@class FloatMenu;
-extern FloatMenu* _Nullable floatH5;
-
 #include <sys/stat.h>
 #include <sys/mount.h>
 #import <JavaScriptCore/JavaScriptCore.h>
-#include "MemScan.h"
 #include "TopShow.h"
 #include "crossproc.h"
 #include "version.h"
@@ -82,7 +78,7 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(void)searchHex:(NSString*)hex memoryFrom:(NSString*)memoryFrom memoryTo:(NSString*)memoryTo;
 
 // Search history
--(NSArray<NSDictionary<NSString*,NSString*>*>*)getSearchHistory;
+-(NSArray<NSDictionary<NSString*,id>*>*)getSearchHistory;
 -(void)addSearchHistory:(NSString*)value type:(NSString*)type count:(int)count;
 -(void)clearSearchHistory;
 
@@ -116,17 +112,6 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 @end
 
 @interface h5ggEngine : NSObject <h5ggJSExport>
-@property JJMemoryEngine* engine;
-@property (nullable) NSString* lastSearchType;
-@property BOOL firstSearchDone;
-@property pid_t targetpid;
-@property task_port_t targetport;
-@property (nonatomic, strong) NSMutableDictionary<NSString*, NSMutableDictionary*>* frozenValues;
-@property (nonatomic, strong) NSTimer* freezerTimer;
-@property (atomic) BOOL dumpCancelled;
-@property (atomic, strong) NSDictionary<NSString*,id>* dumpStatus;
-@property (atomic, copy, nullable) NSString* lastFileError;
-@property (nonatomic, strong) NSMutableDictionary<NSString*,id>* pluginObjects;
 -(NSArray<NSString*>*)getInputHistory;
 -(void)addInputHistory:(NSString*)value;
 -(void)clearInputHistory;
@@ -139,7 +124,7 @@ JSExportAs(makeTweak, -(NSString*)makeTweak:(NSString*)icon with:(NSString*)html
 -(NSArray<NSDictionary<NSString*,id>*>*)getFrozenValues;
 -(void)clearFrozenValues;
 -(void)searchHex:(NSString*)hex memoryFrom:(NSString*)memoryFrom memoryTo:(NSString*)memoryTo;
--(NSArray<NSDictionary<NSString*,NSString*>*>*)getSearchHistory;
+-(NSArray<NSDictionary<NSString*,id>*>*)getSearchHistory;
 -(void)addSearchHistory:(NSString*)value type:(NSString*)type count:(int)count;
 -(void)clearSearchHistory;
 -(BOOL)dumpMemory:(NSString*)start end:(NSString*)end filename:(NSString*)filename;
