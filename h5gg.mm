@@ -30,9 +30,7 @@ NSString* makeDYLIB(NSString* iconfile, NSString* htmlfile);
 @end
 
 @interface h5ggEngine ()
--(int)ggtype2jjtype:(NSString*)type;
--(NSString*)jjtype2ggtype:(int)jjtype;
--(NSString*)formartValue:(void*)value byType:(NSString*)type;
+-(NSString*)formatValue:(void*)value byType:(int)type;
 -(int)parseValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type;
 -(int)parseSearchValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type;
 -(void)threadcall:(void(^)())block;
@@ -215,10 +213,8 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 }
 
 -(void)setFloatTolerance:(NSString*)value {
-    char* pvaluerr = NULL;
-    float d = strtof(value.UTF8String, &pvaluerr);
-
-    if(value.length == 0 || (pvaluerr && pvaluerr[0]) || d < 0) {
+    float d = 0;
+    if(!JJParseNonnegativeFloat(value.UTF8String, d)) {
         [floatH5 alert:Localized(@"浮点误差格式错误")];
         return;
     }
@@ -270,16 +266,16 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     for(const auto& [address, jjtype] : results) {
         int8_t resolvedType = jjtype;
         if(resolvedType == 0)
-            resolvedType = [self ggtype2jjtype:_lastSearchType];
+            resolvedType = JJTypeFromName(_lastSearchType.UTF8String);
 
-        NSString* ggtype = [self jjtype2ggtype:resolvedType];
+        NSString* ggtype = [NSString stringWithUTF8String:JJTypeName(resolvedType)];
 
         UInt8 valuebuf[8] = {0};
         _engine->JJReadMemory(valuebuf, (UInt64)address, resolvedType);
 
         [resultArr addObject:@{
             @"address": [NSString stringWithFormat:@"0x%llX", (uint64_t)address],
-            @"value": [self formartValue:valuebuf byType:ggtype],
+            @"value": [self formatValue:valuebuf byType:resolvedType],
             @"type": ggtype,
         }];
     }
@@ -287,58 +283,28 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     return resultArr;
 }
 
--(int)ggtype2jjtype:(NSString*)type {
-    if([type isEqualToString:@"I8"])     return JJ_Search_Type_SByte;
-    if([type isEqualToString:@"U8"])     return JJ_Search_Type_UByte;
-    if([type isEqualToString:@"I16"])    return JJ_Search_Type_SShort;
-    if([type isEqualToString:@"U16"])    return JJ_Search_Type_UShort;
-    if([type isEqualToString:@"I32"])    return JJ_Search_Type_SInt;
-    if([type isEqualToString:@"U32"])    return JJ_Search_Type_UInt;
-    if([type isEqualToString:@"I64"])    return JJ_Search_Type_SLong;
-    if([type isEqualToString:@"U64"])    return JJ_Search_Type_ULong;
-    if([type isEqualToString:@"F32"])    return JJ_Search_Type_Float;
-    if([type isEqualToString:@"F64"])    return JJ_Search_Type_Double;
-    return 0;
-}
-
--(NSString*)jjtype2ggtype:(int)jjtype {
-    switch(jjtype) {
-        case JJ_Search_Type_SByte:  return @"I8";
-        case JJ_Search_Type_UByte:  return @"U8";
-        case JJ_Search_Type_SShort: return @"I16";
-        case JJ_Search_Type_UShort: return @"U16";
-        case JJ_Search_Type_SInt:   return @"I32";
-        case JJ_Search_Type_UInt:   return @"U32";
-        case JJ_Search_Type_SLong:  return @"I64";
-        case JJ_Search_Type_ULong:  return @"U64";
-        case JJ_Search_Type_Float:  return @"F32";
-        case JJ_Search_Type_Double: return @"F64";
-    }
-    return @"";
-}
-
--(NSString*)formartValue:(void*)value byType:(NSString*)type {
-    if([type isEqualToString:@"I8"])
+- (NSString*)formatValue:(void*)value byType:(int)type {
+    if(type == JJ_Search_Type_SByte)
         return [NSString stringWithFormat:@"%d", (int)*(int8_t*)value];
-    if([type isEqualToString:@"U8"])
+    if(type == JJ_Search_Type_UByte)
         return [NSString stringWithFormat:@"%u", (unsigned int)*(UInt8*)value];
-    if([type isEqualToString:@"I16"])
+    if(type == JJ_Search_Type_SShort)
         return [NSString stringWithFormat:@"%d", (int)*(int16_t*)value];
-    if([type isEqualToString:@"U16"])
+    if(type == JJ_Search_Type_UShort)
         return [NSString stringWithFormat:@"%u", (unsigned int)*(UInt16*)value];
-    if([type isEqualToString:@"I32"])
+    if(type == JJ_Search_Type_SInt)
         return [NSString stringWithFormat:@"%d", *(int32_t*)value];
-    if([type isEqualToString:@"U32"])
+    if(type == JJ_Search_Type_UInt)
         return [NSString stringWithFormat:@"%u", *(UInt32*)value];
-    if([type isEqualToString:@"I64"])
+    if(type == JJ_Search_Type_SLong)
         return [NSString stringWithFormat:@"%lld", *(int64_t*)value];
-    if([type isEqualToString:@"U64"])
+    if(type == JJ_Search_Type_ULong)
         return [NSString stringWithFormat:@"%llu", *(UInt64*)value];
-    if([type isEqualToString:@"F32"]) {
+    if(type == JJ_Search_Type_Float) {
         NSString* fmt = (*(uint32_t*)value && fabs(*(float*)value) < 1.0) ? @"%g" : @"%f";
         return [NSString stringWithFormat:fmt, *(float*)value];
     }
-    if([type isEqualToString:@"F64"]) {
+    if(type == JJ_Search_Type_Double) {
         NSString* fmt = (*(uint64_t*)value && fabs(*(double*)value) < 1.0) ? @"%g" : @"%f";
         return [NSString stringWithFormat:fmt, *(double*)value];
     }
@@ -348,7 +314,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 }
 
 -(int)parseValue:(void*)valuebuf from:(NSString*)value byType:(NSString*)type {
-    int JJType = [self ggtype2jjtype:type];
+    int JJType = JJTypeFromName(type.UTF8String);
     if(!JJType) {
         [floatH5 alert:Localized(@"不支持的数值类型")];
         return 0;
@@ -382,7 +348,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 
     NSLog(@"value1=%@ value2=%@", value1, value2);
 
-    int jjtype = [self ggtype2jjtype:type];
+    int jjtype = JJTypeFromName(type.UTF8String);
     if(!jjtype) return 0;
 
     int len = JJ_Search_Type_Len[jjtype];
@@ -517,7 +483,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
 -(nullable NSString*)getValue:(NSString*)address param2:(NSString*)type {
     NSLog(@"getValue %@ %@", address, type);
 
-    int jjtype = [self ggtype2jjtype:type];
+    int jjtype = JJTypeFromName(type.UTF8String);
     if(!jjtype) return @"";
 
     UInt64 addr = 0;
@@ -531,7 +497,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     if(!_engine->JJReadMemory(valuebuf, addr, jjtype))
         return @"";
 
-    return [self formartValue:valuebuf byType:type];
+    return [self formatValue:valuebuf byType:jjtype];
 }
 
 -(BOOL)setValue:(NSString*)address param2:(NSString*)value param3:(NSString*)type {
@@ -830,7 +796,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
     if(!address || !value || !type || ![self _targetIsAvailable]) return NO;
 
     UInt64 parsedAddress = 0;
-    int jjtype = [self ggtype2jjtype:type];
+    int jjtype = JJTypeFromName(type.UTF8String);
     uint8_t parsedValue[8] = {};
     if(!jjtype ||
        !JJParseAddress(address.UTF8String, [address hasPrefix:@"0x"] ? 16 : 10,
@@ -899,7 +865,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         }
 
         UInt8 valuebuf[8];
-        int jjtype = [self ggtype2jjtype:entry[@"type"]];
+        int jjtype = JJTypeFromName([entry[@"type"] UTF8String]);
         if(!jjtype || !JJParseValue([entry[@"value"] UTF8String], jjtype, valuebuf)) {
             entry[@"status"] = @"invalid";
             entry[@"lastError"] = @"Stored value is invalid";
@@ -1314,7 +1280,7 @@ static NSString* _Nullable H5GGDocumentsPathForName(NSString* _Nullable name) {
         [floatH5 alert:Localized(@"当前列表为空")];
         return 0;
     }
-    int jjtype = [self ggtype2jjtype:type];
+    int jjtype = JJTypeFromName(type.UTF8String);
     if(!jjtype) return 0;
     uint8_t parsedValue[8] = {};
     if((mode != JJ_Filter_Equal && mode != JJ_Filter_Greater && mode != JJ_Filter_Less) ||

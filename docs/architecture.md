@@ -1,6 +1,6 @@
 # H5GG architecture
 
-Status: current implementation baseline verified on 2026-08-19. Active defects
+Status: current implementation baseline verified on 2026-08-20. Active defects
 and debt are tracked in [codebase-review.md](codebase-review.md); implementation
 status is tracked in [roadmap.md](roadmap.md).
 
@@ -33,7 +33,7 @@ Tweak.mm — process bootstrap and floating-window orchestration
           ▼
 FloatMenu — WKWebView and allowlisted JavaScript message dispatch
           │
-          ├── BridgeMethods — names, selectors, and argument counts
+          ├── BridgeMethods — names, selectors, and argument schemas
           │
           ▼
 h5ggEngine — JavaScript-facing use cases and process/session ownership
@@ -104,8 +104,9 @@ injected values, schemas, and examples, is defined in
 
 `BridgeMethods` is the allowed-method seam used for JavaScript injection and
 native lookup. It prevents arbitrary selector derivation and validates argument
-counts. It does not yet declare or validate argument kinds, which remains an
-active interface gap.
+counts, JSON value kinds, integer requirements, numeric ranges, and enumerated
+numeric values before `NSInvocation`. Detailed reference prose is still
+maintained manually; generating it from this schema remains roadmap work.
 
 Asynchronous file-picker calls capture their own numeric call ID. Selection and
 cancellation settle that ID once; later bridge calls do not replace it.
@@ -118,13 +119,14 @@ freezing, plugins, files, dumps, and dylib generation.
 
 Several internal implementation modules now provide locality:
 
-- `MemoryValue` validates value, address, and masked-hex text;
+- `MemoryValue` owns H5GG type-name mapping and validates values, addresses,
+  non-negative float tolerance, and masked-hex text;
 - `MemoryResults` owns result regions, counts, and type-vector invariants;
 - `MemoryFilter` performs typed result refinement through a reader callback;
 - `MemoryPage` and `MemoryDump` implement bounded raw-read workflows through
   reader callbacks;
 - `FileNames` contains filename confinement and script-extension policy;
-- `BridgeMethods` owns the callable native method inventory;
+- `BridgeMethods` owns the callable native method inventory and argument rules;
 - `DylibTemplate` performs fixed-size template replacement.
 
 The façade still directly owns the target task port/session and implements
@@ -232,7 +234,7 @@ bash tests/run_tests.sh
 ```
 
 The suite exercises the same internal seams used by production result, codec,
-raw-read, dump, filename, bridge-inventory, and dylib-template code. It also
+raw-read, dump, filename, bridge-schema, and dylib-template code. It also
 checks JavaScript reference coverage and variant compile definitions. The suite
 is not yet a required CI job.
 

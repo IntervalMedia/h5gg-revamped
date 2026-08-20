@@ -11,6 +11,7 @@
 #include <cstring>
 #include <cstdint>
 #include <memory>
+#include <limits>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -137,6 +138,29 @@ static void parsesValuesAccordingToTheirDeclaredType() {
     assert(!JJParseValue("999", JJ_Search_Type_UByte, value));
 }
 
+static void centralizesTypeNamesAndToleranceParsing() {
+    const char* names[] = {
+        "F64", "U64", "I64", "F32", "U32",
+        "I32", "U16", "I16", "U8", "I8",
+    };
+    for(int type = JJ_Search_Type_Double; type < JJ_Search_Type_Max; type++) {
+        assert(JJTypeFromName(names[type - 1]) == type);
+        assert(std::strcmp(JJTypeName(type), names[type - 1]) == 0);
+    }
+    assert(JJTypeFromName(nullptr) == JJ_Search_Type_Error);
+    assert(JJTypeFromName("i32") == JJ_Search_Type_Error);
+    assert(std::strcmp(JJTypeName(JJ_Search_Type_Error), "") == 0);
+    assert(std::strcmp(JJTypeName(JJ_Search_Type_Max), "") == 0);
+
+    float tolerance = -1;
+    assert(JJParseNonnegativeFloat("0", tolerance) && tolerance == 0);
+    assert(JJParseNonnegativeFloat("0.125", tolerance) && tolerance == 0.125f);
+    assert(!JJParseNonnegativeFloat("-0.1", tolerance));
+    assert(!JJParseNonnegativeFloat("1garbage", tolerance));
+    assert(!JJParseNonnegativeFloat("nan", tolerance));
+    assert(!JJParseNonnegativeFloat("", tolerance));
+}
+
 static void parsesStrictHexPatterns() {
     std::vector<uint8_t> bytes;
     assert(JJParseHexPattern("DE AD be ef", bytes));
@@ -181,6 +205,14 @@ static void bridgeSchemaRejectsUnknownOrMalformedCalls() {
     assert(search);
     assert(search->acceptsArgumentCount(4));
     assert(!search->acceptsArgumentCount(3));
+    for(size_t index = 0; index < 4; index++) {
+        assert(search->acceptsArgument(index, H5GGBridgeValueString));
+        assert(!search->acceptsArgument(index, H5GGBridgeValueNull));
+        assert(!search->acceptsArgument(index, H5GGBridgeValueBoolean));
+        assert(!search->acceptsArgument(index, H5GGBridgeValueNumber, 1));
+        assert(!search->acceptsArgument(index, H5GGBridgeValueArray));
+        assert(!search->acceptsArgument(index, H5GGBridgeValueObject));
+    }
     assert(std::strcmp(search->selector, "searchNumber:param2:param3:param4:") == 0);
 
     const H5GGBridgeMethod* results = H5GGBridgeMethodNamed("getResults");
@@ -188,6 +220,55 @@ static void bridgeSchemaRejectsUnknownOrMalformedCalls() {
     assert(results->acceptsArgumentCount(1));
     assert(results->acceptsArgumentCount(2));
     assert(!results->acceptsArgumentCount(0));
+    assert(results->acceptsArgument(0, H5GGBridgeValueNumber, 1));
+    assert(results->acceptsArgument(1, H5GGBridgeValueNumber, 0));
+    assert(!results->acceptsArgument(0, H5GGBridgeValueNumber, 0));
+    assert(!results->acceptsArgument(0, H5GGBridgeValueNumber, 1.5));
+    assert(!results->acceptsArgument(1, H5GGBridgeValueNumber, -1));
+    assert(!results->acceptsArgument(0, H5GGBridgeValueBoolean));
+    assert(!results->acceptsArgument(0, H5GGBridgeValueString));
+
+    const H5GGBridgeMethod* filter = H5GGBridgeMethodNamed("searchFilter");
+    assert(filter);
+    assert(filter->acceptsArgument(2, H5GGBridgeValueNumber, 0));
+    assert(filter->acceptsArgument(2, H5GGBridgeValueNumber, 2));
+    assert(filter->acceptsArgument(2, H5GGBridgeValueNumber, 3));
+    assert(!filter->acceptsArgument(2, H5GGBridgeValueNumber, 1));
+    assert(!filter->acceptsArgument(2, H5GGBridgeValueNumber, 2.5));
+
+    const H5GGBridgeMethod* picker = H5GGBridgeMethodNamed("pickScriptFile");
+    assert(picker);
+    assert(picker->acceptsArgument(0, H5GGBridgeValueArray));
+    assert(picker->acceptsArgument(0, H5GGBridgeValueNull));
+    assert(!picker->acceptsArgument(0, H5GGBridgeValueString));
+
+    const H5GGBridgeMethod* plugin = H5GGBridgeMethodNamed("callPlugin");
+    assert(plugin);
+    assert(plugin->acceptsArgument(0, H5GGBridgeValueString));
+    assert(plugin->acceptsArgument(1, H5GGBridgeValueString));
+    assert(plugin->acceptsArgument(2, H5GGBridgeValueArray));
+    assert(!plugin->acceptsArgument(2, H5GGBridgeValueObject));
+
+    const H5GGBridgeMethod* target = H5GGBridgeMethodNamed("setTargetProc");
+    assert(target);
+    assert(target->acceptsArgument(0, H5GGBridgeValueNumber, 1));
+    assert(!target->acceptsArgument(0, H5GGBridgeValueNumber, 0));
+    assert(!target->acceptsArgument(0, H5GGBridgeValueNumber, 1.5));
+
+    const H5GGBridgeMethod* readBytes = H5GGBridgeMethodNamed("readBytes");
+    assert(readBytes);
+    assert(readBytes->acceptsArgument(1, H5GGBridgeValueNumber, 1));
+    assert(readBytes->acceptsArgument(1, H5GGBridgeValueNumber, 4096));
+    assert(!readBytes->acceptsArgument(1, H5GGBridgeValueNumber, 0));
+    assert(!readBytes->acceptsArgument(1, H5GGBridgeValueNumber, 4097));
+    assert(!readBytes->acceptsArgument(1, H5GGBridgeValueNumber, 1.5));
+
+    const H5GGBridgeMethod* require = H5GGBridgeMethodNamed("require");
+    assert(require);
+    assert(require->acceptsArgument(0, H5GGBridgeValueNumber, 0));
+    assert(!require->acceptsArgument(0, H5GGBridgeValueNumber, -1));
+    assert(!require->acceptsArgument(
+        0, H5GGBridgeValueNumber, std::numeric_limits<double>::infinity()));
 
     const H5GGBridgeMethod* copyText = H5GGBridgeMethodNamed("copyText");
     assert(copyText);
@@ -218,6 +299,9 @@ static void bridgeSchemaCoversEveryAdvertisedMethod() {
         assert(H5GGBridgeMethodNamed(method.name) == &method);
         assert(method.acceptsArgumentCount(method.minimumArguments));
         assert(method.acceptsArgumentCount(method.maximumArguments));
+        for(size_t argument = 0; argument < method.maximumArguments; argument++) {
+            assert(method.arguments[argument].allowedKinds != 0);
+        }
         if(method.minimumArguments > 0) {
             assert(!method.acceptsArgumentCount(method.minimumArguments - 1));
         }
@@ -397,6 +481,7 @@ int main() {
     filtersAllSupportedValueKinds();
     filtersEveryNumericTypeInEveryDocumentedMode();
     parsesValuesAccordingToTheirDeclaredType();
+    centralizesTypeNamesAndToleranceParsing();
     parsesStrictHexPatterns();
     parsesAndMatchesHexWildcards();
     parsesAddressesWithFullConsumptionAndRangeChecks();

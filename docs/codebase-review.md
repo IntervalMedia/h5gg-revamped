@@ -1,7 +1,6 @@
 # Codebase review
 
-Verified against `02b818d` plus the working-tree floating-button fix on
-2026-08-19.
+Verified against `02b818d` plus the current working tree on 2026-08-20.
 
 ## Executive finding
 
@@ -12,16 +11,15 @@ confined, plugins use a JSON RPC contract under WKWebView, and customized dylib
 templates are embedded and host-tested.
 
 The code is not release-verified. Hardware-dependent behavior is still pending
-in [validation.md](validation.md), bridge schemas validate argument counts but
-not argument kinds, package contents are not asserted, and several architecture
-and repository-health items remain open.
+in [validation.md](validation.md), package contents are not asserted, and
+several architecture and repository-health items remain open.
 
 ## Evidence and validation
 
-- `bash tests/run_tests.sh`: passed on 2026-08-19.
+- `bash tests/run_tests.sh`: passed on 2026-08-20.
 - The host suite covers result invariants, value parsing, numeric filtering,
   masked hex matching, partial raw reads, dump streaming, filename confinement,
-  bridge allowlisting/counts, JavaScript documentation coverage, build-variant
+  bridge allowlisting/argument schemas, JavaScript documentation coverage, build-variant
   definitions, and dylib template replacement/signing when a built dylib and
   `ldid` are available.
 - The root tweak currently compiles for arm64 and arm64e. The rootful package
@@ -41,20 +39,6 @@ Resolved findings are removed from this active register. Roadmap completion and
 remaining verification are tracked in [roadmap.md](roadmap.md).
 
 ### P1 — Runtime correctness and lifecycle
-
-#### H5-003: Bridge argument kinds are not declared or validated centrally
-
-`BridgeMethods` is now the native allowlist and validates argument counts, so a
-posted message can no longer derive an arbitrary Objective-C selector. The
-table does not describe argument kinds or ranges, however, and `FloatMenu`
-still converts values according to the Objective-C method encoding.
-
-Impact: malformed but correctly sized argument arrays can be coerced at the
-invocation seam and fail inconsistently inside individual methods.
-
-Acceptance: extend the method schema with argument/result kinds and applicable
-ranges; reject invalid values before `NSInvocation`; add negative fixtures for
-every kind; use the same schema for dispatch and reference documentation.
 
 #### H5-012: Dialog synchronization is process-global and non-reentrant
 
@@ -123,12 +107,14 @@ explicit policy for the Dobby snapshot.
 #### H5-019: Legacy examples do not all follow the WK Promise/RPC contract
 
 The complete 52-method bridge inventory is documented and checked against
-`BridgeMethods.cpp`. At least the WebUDID example still calls `loadPlugin`
+`BridgeMethods.cpp`, but detailed argument prose is not generated from the
+schema. At least the WebUDID example still calls `loadPlugin`
 synchronously and expects a native object
 ([h5ggWebUDID.js](../examples-HTML5/get-device-UDID/h5ggWebUDID.js#L1)).
 
-Acceptance: migrate or clearly label every legacy example; add representative
-examples to bridge contract fixtures; keep the checked method inventory in sync.
+Acceptance: generate the method/argument reference from the native schema;
+migrate or clearly label every legacy example; add representative examples to
+bridge contract fixtures.
 
 #### H5-020: Debug logging is unconditional and may expose target details
 
@@ -142,6 +128,10 @@ path.
 ## Positive current state
 
 - `Result` owns count/type invariants and is exercised by host tests.
+- Bridge names, counts, JSON kinds, integer rules, numeric ranges, and filter
+  modes are rejected centrally before native invocation.
+- `MemoryValue` owns type-name mapping and strict tolerance/value/address
+  parsing instead of duplicating those rules in the Objective-C façade.
 - Numeric typed reads and bounded raw-byte reads are distinct interfaces.
 - Target replacement clears results and frozen values and releases old ports.
 - File-picker callbacks capture independent call IDs and settle cancellation.

@@ -10,6 +10,41 @@
 
 const int JJ_Search_Type_Len[] = {0, 8, 8, 8, 4, 4, 4, 2, 2, 1, 1};
 
+static const char* const JJ_Search_Type_Names[] = {
+    "", "F64", "U64", "I64", "F32", "U32",
+    "I32", "U16", "I16", "U8", "I8",
+};
+
+int JJTypeFromName(const char* name) {
+    if(!name) return JJ_Search_Type_Error;
+    for(int type = JJ_Search_Type_Double; type < JJ_Search_Type_Max; type++) {
+        if(std::strcmp(name, JJ_Search_Type_Names[type]) == 0) return type;
+    }
+    return JJ_Search_Type_Error;
+}
+
+const char* JJTypeName(int type) {
+    if(type <= JJ_Search_Type_Error || type >= JJ_Search_Type_Max) return "";
+    return JJ_Search_Type_Names[type];
+}
+
+bool JJParseNonnegativeFloat(const char* text, float& output) {
+    if(!text || text[0] == '\0' ||
+       std::isspace(static_cast<unsigned char>(text[0]))) {
+        return false;
+    }
+
+    char* end = nullptr;
+    errno = 0;
+    float value = std::strtof(text, &end);
+    if(!end || *end != '\0' || errno == ERANGE ||
+       !std::isfinite(value) || value < 0) {
+        return false;
+    }
+    output = value;
+    return true;
+}
+
 template<typename T>
 static void storeValue(uint8_t output[8], T value) {
     std::memset(output, 0, 8);

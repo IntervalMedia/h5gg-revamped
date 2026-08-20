@@ -42,6 +42,9 @@ struct JJHexPattern {
 
 extern const int JJ_Search_Type_Len[];
 
+int JJTypeFromName(const char* name);
+const char* JJTypeName(int type);
+bool JJParseNonnegativeFloat(const char* text, float& output);
 bool JJParseValue(const char* text, int type, uint8_t output[8]);
 bool JJParseAddress(const char* text, int base, uint64_t& output);
 bool JJValueMatchesFilter(const uint8_t current[8],

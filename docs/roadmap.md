@@ -1,6 +1,6 @@
 # Stabilization and feature roadmap
 
-Last verified: 2026-08-19.
+Last verified: 2026-08-20.
 
 ## Status legend and current phase
 
@@ -10,19 +10,19 @@ Last verified: 2026-08-19.
 | 🟡 Partial | Implemented in part or awaiting a required verification gate |
 | ⬜ Planned | No material implementation of the roadmap outcome yet |
 
-**Current phase: Phase 2 exit validation.** The Phase 0–2 implementation is
-largely present, but the project has not met the device and package release
-gates. Phase 3 has some opportunistic extractions but has not started as a
-coordinated architecture phase. Phase 4 is partially underway.
+**Current phase: Phase 2 exit validation with Phase 3 implementation underway.**
+The Phase 0–2 implementation is largely present, but the project has not met
+the device and package release gates. Phase 3 is now actively deepening the
+bridge and value seams. Phase 4 is partially underway.
 
 ## Phase summary
 
 | Phase | Status | Current outcome |
 |---|---|---|
 | Phase 0 — Freeze and reproduce | 🟡 Partial | Host harness and device matrix exist; native bridge/device repro coverage is incomplete |
-| Phase 1 — Core correctness | 🟡 Partial | Core fixes are implemented and host-verified; argument-kind, package, and device gates remain |
+| Phase 1 — Core correctness | 🟡 Partial | Core fixes and bridge validation are host-verified; package and device gates remain |
 | Phase 2 — Complete v8 features | 🟡 Partial | Feature implementation is present; hardware-dependent rows remain experimental |
-| Phase 3 — Deepen the modules | ⬜ Planned | A few supporting modules exist, but ownership seams remain broad |
+| Phase 3 — Deepen the modules | 🟡 Partial | Bridge validation and value rules are centralized; ownership seams remain broad |
 | Phase 4 — Delivery and repository health | 🟡 Partial | Variant builds/artifact publication improved; tracked artifacts, CI tests, provenance, and logging remain |
 | Phase 5 — New feature candidates | ⬜ Planned | Candidate backlog only |
 
@@ -34,7 +34,7 @@ coordinated architecture phase. Phase 4 is partially underway.
 | Host suite is required in CI | ⬜ Planned | Add it before variant builds/releases |
 | Local and cross-process numeric/byte sessions pass on device | ⬜ Planned | Record [validation.md](validation.md) rows |
 | Every JavaScript Promise settles once | 🟡 Partial | Picker path is implemented; native/device overlap matrix remains |
-| Bridge validates method names, counts, and argument kinds | 🟡 Partial | Names/counts pass; kinds/ranges remain H5-003 |
+| Bridge validates method names, counts, argument kinds, and numeric constraints | ✅ Complete | Shared schema is host-tested and enforced before `NSInvocation` |
 | Normal/rootless/roothide package contents and paths are asserted | 🟡 Partial | Compile definitions pass; unpacked package assertions remain H5-005 |
 | Standalone, injected, and GlobalView modes pass smoke tests | ⬜ Planned | Record device matrix |
 
@@ -48,7 +48,7 @@ Goal: make failures deterministic before restructuring.
 |---|---|---|
 | Add a host test target and in-memory readers | ✅ Complete | `tests/run_tests.sh`, C++ fixtures, and callback readers exist |
 | Encode result invariants as assertions/tests | ✅ Complete | `MemoryResultsTests.cpp` exercises counts and typed/untyped regions |
-| Add bridge contract fixtures | 🟡 Partial | Inventory, unknown-name, and argument-count checks exist; argument kinds and native WK dispatch remain |
+| Add bridge contract fixtures | 🟡 Partial | Portable inventory, count, kind, range, and enum checks exist; a host WK dispatch fixture remains |
 | Capture repeatable device smoke steps | ✅ Complete | Matrix exists in `validation.md` |
 | Record supported platform baseline | ✅ Complete | iOS 15.0+, arm64/arm64e is consistent in README, targets, and package description |
 
@@ -65,7 +65,7 @@ Goal: make primary workflows trustworthy.
 | Separate typed and raw memory interfaces | ✅ Complete | `JJReadMemory` and `JJReadBytes`; host page/dump readers |
 | Central result model and invariant-safe filtering | ✅ Complete | `Result`, `MemoryFilter`, and masked-hex refinement tests |
 | Native bridge allowlist | ✅ Complete | `BridgeMethods` is required before selector creation |
-| Bridge argument-kind/range validation | ⬜ Planned | Active issue H5-003 |
+| Bridge argument-kind/range validation | ✅ Complete | Shared schema rejects malformed values before `NSInvocation` |
 | Variant compiler definitions | ✅ Complete | One definition per normal/rootless/roothide dry run |
 | Variant package content assertions | ⬜ Planned | Active issue H5-005 |
 | Device verification of search/read/write and target switching | ⬜ Planned | Use `validation.md` |
@@ -105,17 +105,18 @@ JavaScript interface.
 | Work item | Status | Current state / outcome |
 |---|---|---|
 | Add `TargetProcess` and `MemorySession` | ⬜ Planned | Correct ownership behavior remains inside `h5ggEngine` |
-| Centralize value/address/type conversion | 🟡 Partial | `MemoryValue` exists; façade conversion methods and direct parsing remain |
+| Centralize value/address/type conversion | 🟡 Partial | Type names, tolerance, values, addresses, and hex patterns use `MemoryValue`; search-range orchestration and value formatting remain in the façade |
 | Add a raw/typed reader seam with in-memory adapters | 🟡 Partial | Page, dump, and filter callbacks exist; the whole engine does not use one adapter interface |
 | Replace ad hoc result mutation with one result module | ✅ Complete | `MemoryResults` owns mutation/count invariants |
-| Use one bridge schema for dispatch, injection, validation, and docs | 🟡 Partial | Inventory and counts are shared; argument kinds and docs generation remain |
+| Use one bridge schema for dispatch, injection, validation, and docs | 🟡 Partial | Inventory and argument rules are shared by injection/dispatch; detailed docs generation remains |
 | Add `ScriptStore`, `PluginLoader`, and `DylibBuilder` | 🟡 Partial | Filename and template helpers exist; ownership remains in the façade |
 | Replace bootstrap globals/timers with a runtime coordinator | ⬜ Planned | Active issue H5-015 |
 | Make modal presentation request-scoped and serial | ⬜ Planned | Active issue H5-012 |
 | Version the `GVData` shared-memory interface | ⬜ Planned | Active issue H5-016 |
 
-Exit status: **not started as a coordinated phase**. Existing extractions are
-foundational work, not completion of the ownership seams.
+Exit status: **active and partial**. The bridge and value modules now provide
+real locality, but target/session, store/plugin/builder, bootstrap, modal, and
+GlobalView ownership seams remain incomplete.
 
 ## Phase 4 — Delivery and repository health
 
