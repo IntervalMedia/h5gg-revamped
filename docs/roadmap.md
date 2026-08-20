@@ -110,7 +110,7 @@ JavaScript interface.
 | Centralize value/address/type conversion | ✅ Complete | Type names, tolerance, parsing, formatting, addresses, grouped/ranged expressions, and hex patterns use host-tested `MemoryValue` rules |
 | Add a raw/typed reader seam with in-memory adapters | 🟡 Partial | Page, dump, and filter callbacks exist; the whole engine does not use one adapter interface |
 | Replace ad hoc result mutation with one result module | ✅ Complete | `MemoryResults` owns mutation/count invariants |
-| Use one bridge schema for dispatch, injection, validation, and docs | 🟡 Partial | Inventory and argument rules are shared by injection/dispatch; detailed docs generation remains |
+| Use one bridge schema for dispatch, injection, validation, and docs | ✅ Complete | Production method/argument structures drive injection and dispatch; a linked host verifier generates/checks the documentation table |
 | Add `ScriptStore`, `PluginLoader`, and `DylibBuilder` | 🟡 Partial | Filename and template helpers exist; ownership remains in the façade |
 | Replace bootstrap globals/timers with a runtime coordinator | ⬜ Planned | Active issue H5-015 |
 | Make modal presentation request-scoped and serial | ✅ Complete | FIFO request state, exactly-once completion, cancellation promotion, and blocking waits are host-tested; UIKit adapter builds for both slices |
@@ -133,7 +133,7 @@ Goal: make releases reproducible and the repository navigable.
 | Remove hardcoded local device addresses | ✅ Complete | Only a commented example remains |
 | Run host verification in CI before packaging | ⬜ Planned | H5-014 |
 | Gate/redact verbose logs and add opt-in diagnostics | ⬜ Planned | H5-020 |
-| Maintain complete JavaScript reference documentation | 🟡 Partial | All 52 methods are checked; legacy examples remain H5-019 |
+| Maintain complete JavaScript reference documentation | ✅ Complete | All 52 methods and native argument constraints are generated/checked; WK examples are awaited and native-object examples are explicitly labelled |
 
 Exit status: **partial**. Artifact publication improved, but repository hygiene
 and release assurance are not complete.

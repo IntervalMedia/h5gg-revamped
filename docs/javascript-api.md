@@ -1,6 +1,6 @@
 # JavaScript frontend contract
 
-Status: current code inventory for the `GUI` branch on 2026-08-05.
+Status: current code inventory verified on 2026-08-20.
 
 This is the canonical reference for JavaScript that runs inside H5GG's iOS
 `WKWebView`. It documents the complete frontend contract: engine bridge methods,
@@ -101,6 +101,70 @@ This machine-checked list must match `BridgeMethods.cpp` exactly.
 - `getLastFileError`
 - `copyText`
 <!-- bridge-methods:end -->
+
+## Generated native argument schema
+
+This table is generated from the same `BridgeMethods.cpp` structures used by
+JavaScript injection and native dispatch. Argument positions correspond to the
+method call order; the behavioral tables below provide semantic names and
+operation-specific rules.
+
+<!-- bridge-schema:start -->
+| Method | Native selector | Arity | Argument schema |
+|---|---|---:|---|
+| `searchNumber` | `searchNumber:param2:param3:param4:` | `4` | #1 string<br>#2 string<br>#3 string<br>#4 string |
+| `searchNearby` | `searchNearby:param2:param3:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `getValue` | `getValue:param2:` | `2` | #1 string<br>#2 string |
+| `setValue` | `setValue:param2:param3:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `editAll` | `editAll:param3:` | `2` | #1 string<br>#2 string |
+| `getResults` | `getResults:param1:` | `1-2` | #1 number; finite, integer, min 1, max 2147483647<br>#2 number (optional); finite, integer, min 0, max 2147483647 |
+| `getResultsCount` | `getResultsCount` | `0` | None |
+| `clearResults` | `clearResults` | `0` | None |
+| `getLocalScripts` | `getLocalScripts` | `0` | None |
+| `pickScriptFile` | `pickScriptFileWithTypes:` | `0-1` | #1 null or array (optional) |
+| `getRangesList` | `getRangesList:` | `0-1` | #1 null or string (optional) |
+| `getProcList` | `getProcList:` | `0-1` | #1 null or string (optional) |
+| `setTargetProc` | `setTargetProc:` | `1` | #1 number; finite, integer, min 1, max 2147483647 |
+| `getTargetStatus` | `getTargetStatus` | `0` | None |
+| `loadPlugin` | `loadPlugin:path:` | `2` | #1 string<br>#2 string |
+| `callPlugin` | `callPlugin:method:arguments:` | `3` | #1 string<br>#2 string<br>#3 array |
+| `getPluginCapabilities` | `getPluginCapabilities` | `0` | None |
+| `makeTweak` | `makeTweak:with:` | `2` | #1 string<br>#2 string |
+| `require` | `require:` | `1` | #1 number; finite, min 0 |
+| `setFloatTolerance` | `setFloatTolerance:` | `1` | #1 string |
+| `searchChange` | `searchChange:` | `1` | #1 string |
+| `searchFilter` | `searchFilter:type:mode:` | `3` | #1 string<br>#2 string<br>#3 number; finite, integer, one of {0, 2, 3} |
+| `getInputHistory` | `getInputHistory` | `0` | None |
+| `addInputHistory` | `addInputHistory:` | `1` | #1 string |
+| `clearInputHistory` | `clearInputHistory` | `0` | None |
+| `addBookmark` | `addBookmark:name:type:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `removeBookmark` | `removeBookmark:` | `1` | #1 string |
+| `getBookmarks` | `getBookmarks` | `0` | None |
+| `clearBookmarks` | `clearBookmarks` | `0` | None |
+| `freezeValue` | `freezeValue:value:type:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `unfreezeValue` | `unfreezeValue:` | `1` | #1 string |
+| `getFrozenValues` | `getFrozenValues` | `0` | None |
+| `clearFrozenValues` | `clearFrozenValues` | `0` | None |
+| `searchHex` | `searchHex:memoryFrom:memoryTo:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `getSearchHistory` | `getSearchHistory` | `0` | None |
+| `addSearchHistory` | `addSearchHistory:type:count:` | `3` | #1 string<br>#2 string<br>#3 number; finite, integer, min 0, max 2147483647 |
+| `clearSearchHistory` | `clearSearchHistory` | `0` | None |
+| `dumpMemory` | `dumpMemory:end:filename:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `getDumpStatus` | `getDumpStatus` | `0` | None |
+| `cancelDump` | `cancelDump` | `0` | None |
+| `readPointer` | `readPointer:` | `1` | #1 string |
+| `findPointers` | `findPointers:rangeStart:rangeEnd:` | `3` | #1 string<br>#2 string<br>#3 string |
+| `getPointerCapabilities` | `getPointerCapabilities` | `0` | None |
+| `appendLog` | `appendLog:` | `1` | #1 string |
+| `readBytes` | `readBytes:length:` | `2` | #1 string<br>#2 number; finite, integer, min 1, max 4096 |
+| `readMemoryPage` | `readMemoryPage:length:` | `1-2` | #1 string<br>#2 number (optional); finite, integer, min 1, max 4096 |
+| `saveScript` | `saveScript:content:` | `2` | #1 string<br>#2 string |
+| `loadScript` | `loadScript:` | `1` | #1 string |
+| `deleteScript` | `deleteScript:` | `1` | #1 string |
+| `listScripts` | `listScripts` | `0` | None |
+| `getLastFileError` | `getLastFileError` | `0` | None |
+| `copyText` | `copyText:` | `1` | #1 string |
+<!-- bridge-schema:end -->
 
 ## Runtime and memory bridge methods
 

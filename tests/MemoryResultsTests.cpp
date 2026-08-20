@@ -8,6 +8,7 @@
 #include "../DylibTemplate.h"
 #include "../TargetSession.h"
 #include "../ModalRequestQueue.h"
+#include "../ScriptStore.h"
 
 #include <cassert>
 #include <chrono>
@@ -19,6 +20,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unistd.h>
 
 static int releasedTargetPorts = 0;
 static int deletedMemoryEngines = 0;
@@ -134,6 +136,40 @@ static void modalRequestsAreRequestScopedAndSerial() {
     assert(completion.wait_for(std::chrono::seconds(1)) ==
            std::future_status::ready);
     assert(completion.get());
+}
+
+static void scriptStoreOwnsConfinementAndAtomicIO() {
+    char rootTemplate[] = "/tmp/h5gg-script-store.XXXXXX";
+    char* root = mkdtemp(rootTemplate);
+    assert(root);
+
+    ScriptStore store(root);
+    std::string content;
+    assert(store.save("alpha", "first"));
+    assert(store.lastError().empty());
+    assert(store.load("alpha", content));
+    assert(content == "first");
+
+    assert(store.save("alpha.js", "replacement"));
+    assert(store.load("alpha.js", content));
+    assert(content == "replacement");
+    assert(store.save("Page.HTML", "<p>ok</p>"));
+
+    std::vector<std::string> scripts = store.list();
+    assert((scripts == std::vector<std::string>{"alpha.js", "Page.HTML"}));
+
+    assert(!store.save("../escape.js", "bad"));
+    assert(!store.lastError().empty());
+    assert(!store.save("bad.txt", "bad"));
+    assert(!store.save("invalid.js", std::string("\xFF", 1)));
+    assert(!store.save("large.js",
+                       std::string(ScriptStore::MaximumScriptBytes + 1, 'x')));
+
+    assert(store.remove("alpha"));
+    assert(!store.load("alpha", content));
+    assert(store.remove("Page.HTML"));
+    assert(!store.remove("Page.HTML"));
+    assert(rmdir(root) == 0);
 }
 
 static void recountsAddressesAcrossRegions() {
@@ -648,6 +684,7 @@ static void streamsMemoryDumpsWithProgressFailureAndCancellation() {
 int main() {
     targetSessionsOwnExactlyOneTargetAndEngine();
     modalRequestsAreRequestScopedAndSerial();
+    scriptStoreOwnsConfinementAndAtomicIO();
     recountsAddressesAcrossRegions();
     typedRegionsRequireOneTypePerAddress();
     untypedRegionsUseTheFallbackType();

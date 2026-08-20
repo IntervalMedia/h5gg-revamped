@@ -13,7 +13,7 @@ async function findAndCopyFirstMatch() {
     const count = await h5gg.getResultsCount();
     if (count === 0) return;
 
-    await h5gg.alert(`Searched for "42". Found ${count} results. Copying the first one to clipboard...`);
+    alert(`Searched for "42". Found ${count} results. Copying the first one to clipboard...`);
 
     const [result] = await h5gg.getResults(1, 0);
     if (result) {

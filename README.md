@@ -38,6 +38,14 @@ iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but
 
 - Minimum deployment target is iOS 15.0. The root, standalone, and GlobalView
   builds share this baseline.
+- Run the host verification suite:
+  - `make test`
+- Compile the rootful tweak without packaging:
+  - `make clean all`
+- Build one release package directly through the Makefile:
+  - `make package-normal FINALPACKAGE=1`
+  - `make package-rootless FINALPACKAGE=1`
+  - `make package-roothide FINALPACKAGE=1`
 - Build all jailbreak variants with compile-time flags:
   - `./build.sh all`
 - Build a single variant:

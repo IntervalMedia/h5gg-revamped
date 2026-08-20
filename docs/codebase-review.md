@@ -18,12 +18,12 @@ several architecture and repository-health items remain open.
 ## Evidence and validation
 
 - `bash tests/run_tests.sh`: passed on 2026-08-20.
-- The host suite covers target/session lifetime, result invariants, value and
-  grouped-search parsing/matching, numeric filtering,
+- The host suite covers target/session lifetime, modal request serialization,
+  result invariants, value and grouped-search parsing/matching, numeric filtering,
   masked hex matching, partial raw reads, dump streaming, filename confinement,
-  bridge allowlisting/argument schemas, JavaScript documentation coverage, build-variant
-  definitions, and dylib template replacement/signing when a built dylib and
-  `ldid` are available.
+  bridge allowlisting/argument schemas, generated JavaScript argument-reference
+  coverage, build-variant definitions, and dylib template replacement/signing
+  when a built dylib and `ldid` are available.
 - The root tweak currently compiles for arm64 and arm64e. The rootful package
   step passes when run after compilation.
 - Build/package validation for all three jailbreak layouts and every device row
@@ -93,18 +93,6 @@ Acceptance: classify required binaries, record versions/checksums and licenses,
 remove regenerable outputs and user state from source history, and choose an
 explicit policy for the Dobby snapshot.
 
-#### H5-019: Legacy examples do not all follow the WK Promise/RPC contract
-
-The complete 52-method bridge inventory is documented and checked against
-`BridgeMethods.cpp`, but detailed argument prose is not generated from the
-schema. At least the WebUDID example still calls `loadPlugin`
-synchronously and expects a native object
-([h5ggWebUDID.js](../examples-HTML5/get-device-UDID/h5ggWebUDID.js#L1)).
-
-Acceptance: generate the method/argument reference from the native schema;
-migrate or clearly label every legacy example; add representative examples to
-bridge contract fixtures.
-
 #### H5-020: Debug logging is unconditional and may expose target details
 
 Release builds still emit process paths, addresses, mapped regions, values, and
@@ -118,7 +106,8 @@ path.
 
 - `Result` owns count/type invariants and is exercised by host tests.
 - Bridge names, counts, JSON kinds, integer rules, numeric ranges, and filter
-  modes are rejected centrally before native invocation.
+  modes are rejected centrally before native invocation; the same structures
+  generate the checked native argument table in `javascript-api.md`.
 - `MemoryValue` owns type-name mapping and strict tolerance/value/address
   parsing, typed formatting, and atomic grouped/ranged search expressions
   instead of duplicating those rules in the Objective-C façade.
@@ -133,6 +122,9 @@ path.
 - File-picker callbacks capture independent call IDs and settle cancellation.
 - Script and dump names are confined to a single safe Documents entry.
 - WK plugins use JSON-compatible descriptors and `H5GGPluginRPC` calls.
+- Example bridge calls are checked against the production inventory: WK samples
+  await Promise methods, synchronous native-object samples carry an explicit
+  `LEGACY-JAVASCRIPTCORE-ONLY` marker, and the RPC demo is fixture-checked.
 - The floating button establishes its first layout baseline before rescaling;
   injected dylibs default to 35 points from the left and vertical center.
 - All build adapters use an iOS 15.0 deployment baseline and explicit variant

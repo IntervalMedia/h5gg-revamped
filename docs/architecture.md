@@ -110,8 +110,9 @@ injected values, schemas, and examples, is defined in
 `BridgeMethods` is the allowed-method seam used for JavaScript injection and
 native lookup. It prevents arbitrary selector derivation and validates argument
 counts, JSON value kinds, integer requirements, numeric ranges, and enumerated
-numeric values before `NSInvocation`. Detailed reference prose is still
-maintained manually; generating it from this schema remains roadmap work.
+numeric values before `NSInvocation`. The method inventory and native argument
+table in `javascript-api.md` are generated and checked by linking against that
+same production schema; operation semantics and examples remain curated prose.
 
 Asynchronous file-picker calls capture their own numeric call ID. Selection and
 cancellation settle that ID once; later bridge calls do not replace it.

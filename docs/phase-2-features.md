@@ -111,8 +111,9 @@ from WKWebView must implement `H5GGPluginRPC`:
 returns `{ok, result}` or `{ok: false, error}`. Arguments and results must be
 JSON-compatible. Legacy JavaScriptCore callers may still receive the native
 object. The custom-alert demo shows the RPC form. Older examples that expect a
-synchronous native object are not part of this WK contract and are tracked for
-migration in the active review.
+synchronous native object are not part of this WK contract and carry an explicit
+`LEGACY-JAVASCRIPTCORE-ONLY` marker. The host documentation check rejects
+unknown bridge calls, unawaited WK examples, and unlabelled legacy samples.
 
 ## Dylib generation
 

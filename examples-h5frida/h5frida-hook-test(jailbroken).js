@@ -1,3 +1,5 @@
+// LEGACY-JAVASCRIPTCORE-ONLY: h5frida returns a native Objective-C object
+// synchronously and is not compatible with the WKWebView Promise/RPC bridge.
 h5gg.require(7.9); //设定最低需求的H5GG版本号//min version support for H5GG
 
 //获取h5gg当前选择的进程号 //Get the currently selected process ID of h5gg
