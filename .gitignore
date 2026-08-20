@@ -24,3 +24,5 @@ packages/release-artifacts/normal-com.test.h5gg_8.0.0_iphoneos-arm.deb
 packages/release-artifacts/roothide-com.test.h5gg_8.0.0_iphoneos-arm64e-b00c250dcd81.deb
 packages/release-artifacts/roothide-com.test.h5gg_8.0.0_iphoneos-arm64e.deb
 packages/release-artifacts/rootless-com.test.h5gg_8.0.0_iphoneos-arm64.deb
+packages/com.test.h5gg_8.0.1_iphoneos-arm64e.deb
+packages/com.test.h5gg_8.0.3_iphoneos-arm64e.deb

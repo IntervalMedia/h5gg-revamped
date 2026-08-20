@@ -922,6 +922,17 @@ static NSString* _Nullable H5GGStringArgument(id _Nullable value) {
 }
 
 -(NSString*)loadScript:(NSString*)name {
+    if(name.isAbsolutePath) {
+        NSDictionary<NSFileAttributeKey,id>* attributes =
+            [NSFileManager.defaultManager attributesOfItemAtPath:name error:nil];
+        unsigned long long size = [attributes[NSFileSize] unsignedLongLongValue];
+        if(size == 0 || size > ScriptStore::MaximumScriptBytes) return nil;
+
+        NSData* data = [NSData dataWithContentsOfFile:name options:NSDataReadingMappedIfSafe error:nil];
+        if(!data || data.length == 0 || data.length > ScriptStore::MaximumScriptBytes) return nil;
+        return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    }
+
     std::string content;
     if(!_scriptStore->load(name.UTF8String, content)) return nil;
     return [[NSString alloc] initWithBytes:content.data()

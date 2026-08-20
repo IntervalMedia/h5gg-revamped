@@ -55,6 +55,14 @@ trap 'rm -f "$test_output" "$bridge_docs_output" "$plugin_test_output" "$gv_prot
   "$repo_root/BridgeMethods.cpp" \
   -o "$bridge_docs_output"
 "$bridge_docs_output" "$repo_root/docs/javascript-api.md"
+if [[ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]] ||
+   [[ -x "/Applications/Chromium.app/Contents/MacOS/Chromium" ]] ||
+   command -v google-chrome >/dev/null 2>&1 ||
+   command -v chromium >/dev/null 2>&1; then
+  bash "$repo_root/tests/run_ui_bug_repros.sh"
+else
+  echo "Skipping UI browser regressions: Chrome/Chromium not installed"
+fi
 if command -v xcrun >/dev/null 2>&1 &&
    xcrun --sdk macosx --show-sdk-path >/dev/null 2>&1; then
   xcrun --sdk macosx clang \

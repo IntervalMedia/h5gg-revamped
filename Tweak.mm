@@ -50,6 +50,7 @@ INCTXT(Menu, "Index.html");
 INCTXT(MenuEn, "Index-en.html");
 
 INCTXT(H5GG_JQUERY_FILE, "jquery.min.js");
+INCTXT(H5GG_UI_RELIABILITY_FILE, "UIReliability.js");
 
 void onScreenLayoutChange(CGSize size)
 {
@@ -471,6 +472,10 @@ FloatMenu* initFloatMenu(UIWindow* win)
     }
     NSString* jquery = [NSString stringWithUTF8String:gH5GG_JQUERY_FILEData];
     menu.rawHTML = [menu.rawHTML stringByReplacingOccurrencesOfString:@"var h5gg_jquery_stub;" withString:jquery];
+    NSString* uiReliability = [NSString stringWithUTF8String:gH5GG_UI_RELIABILITY_FILEData];
+    NSString* embeddedUIReliability = [NSString stringWithFormat:@"<script>%@</script>", uiReliability];
+    menu.rawHTML = [menu.rawHTML stringByReplacingOccurrencesOfString:@"<script src=\"UIReliability.js\"></script>"
+                                                           withString:embeddedUIReliability];
     
     return menu;
 }
