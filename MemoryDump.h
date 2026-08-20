@@ -28,7 +28,7 @@ using JJMemoryDumpProgress = std::function<void(size_t written, size_t total)>;
 JJMemoryDumpResult JJStreamMemoryDump(
     uint64_t address,
     size_t length,
-    const JJPartialMemoryReader& reader,
+    JJMemoryReader& reader,
     const JJMemoryWriter& writer,
     const JJMemoryDumpCancellation& cancelled = {},
     const JJMemoryDumpProgress& progress = {},

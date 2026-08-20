@@ -1,13 +1,11 @@
 #ifndef H5GG_MEMORY_PAGE_H
 #define H5GG_MEMORY_PAGE_H
 
+#include "MemoryReader.h"
+
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <vector>
-
-using JJPartialMemoryReader =
-    std::function<size_t(void* output, uint64_t address, size_t length)>;
 
 struct JJMemoryPage {
     uint64_t address = 0;
@@ -19,7 +17,7 @@ struct JJMemoryPage {
 
 JJMemoryPage JJReadMemoryPage(uint64_t address,
                               size_t length,
-                              const JJPartialMemoryReader& reader,
+                              JJMemoryReader& reader,
                               size_t chunkSize = 16);
 
 #endif

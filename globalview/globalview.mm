@@ -28,6 +28,7 @@ NSString* _Nullable g_pinnedBundleId = nil;
 UIImage* _Nullable g_pinnedBundleIcon = nil;
 
 GVData GVSharedData = GVDataDefaultMake();
+GVImageTransfer GVSharedImage = GVImageTransferDefaultMake();
 
 FloatButton* _Nullable floatBtn;
 APAppView* _Nullable appView = nil;
@@ -104,9 +105,9 @@ void handleHostView(UIView* view, CGRect newFrame)
 
             if(childV==hostView) {
                 if(GVSharedData.touchableAll) {
-                    return CGRectContainsPoint(GVSharedData.floatMenuRect, childP);
+                    return CGRectContainsPoint(CGRectFromGVRect(GVSharedData.floatMenuRect), childP);
                 } else {
-                    return CGRectContainsPoint(GVSharedData.touchableRect, childP);
+                    return CGRectContainsPoint(CGRectFromGVRect(GVSharedData.touchableRect), childP);
                 }
             }
 
@@ -259,6 +260,7 @@ void toggleGlobalView()
             {
                 NSLog(@"GlobalView=monitor=%d", running);
                 GVSharedData = GVDataDefaultMake();
+                GVSharedImage = GVImageTransferDefaultMake();
                 [hostView removeFromSuperview];
 
                 if (@available(iOS 13, *)) {
@@ -426,15 +428,20 @@ void initload()
             [GlobalView private_updateToInterfaceOrientation:(UIInterfaceOrientation)sbapp.activeInterfaceOrientation animated:YES];
         }
 
-        size_t buttonImageSize = __atomic_load_n(&GVSharedData.buttonImageSize, __ATOMIC_ACQUIRE);
-        if(buttonImageSize > 0 && buttonImageSize <= sizeof(GVSharedData.buttonImageData)) {
-            NSData* iconData = [[NSData alloc] initWithBytes:GVSharedData.buttonImageData length:buttonImageSize];
+        static NSMutableData* iconBytes = nil;
+        static dispatch_once_t iconBytesOnce;
+        dispatch_once(&iconBytesOnce, ^{
+            iconBytes = [NSMutableData dataWithLength:GV_IMAGE_MAX_PAYLOAD];
+        });
+        iconBytes.length = GV_IMAGE_MAX_PAYLOAD;
+        uint32_t buttonImageSize = GVImageTransferConsume(&GVSharedImage,
+                                                          iconBytes.mutableBytes,
+                                                          (uint32_t)iconBytes.length);
+        if(buttonImageSize > 0) {
+            iconBytes.length = buttonImageSize;
+            NSData* iconData = iconBytes;
             g_pinnedBundleIcon = [[UIImage alloc] initWithData:iconData];
             if(g_pinnedBundleIcon) [floatBtn setIcon:g_pinnedBundleIcon];
-            __atomic_store_n(&GVSharedData.buttonImageSize, 0, __ATOMIC_RELEASE);
-        } else if(buttonImageSize > sizeof(GVSharedData.buttonImageData)) {
-            LOGGER("GlobalView rejected oversized button image: %zu", buttonImageSize);
-            __atomic_store_n(&GVSharedData.buttonImageSize, 0, __ATOMIC_RELEASE);
         }
 
         SBApplication *appToHost = applicationForID(g_pinnedBundleId);
@@ -495,9 +502,24 @@ static void __attribute__((constructor)) _init_()
             }
         }
     } else {
-        void (*SetGlobalView)(char* dylib, UInt64 GVDataOffset);
-        *(void**)&SetGlobalView = dlsym(RTLD_DEFAULT, "SetGlobalView");
-        SetGlobalView((char*)di.dli_fname, (UInt64)&GVSharedData-(UInt64)di.dli_fbase);
+        if(!GVDataIsCompatible(&GVSharedData, sizeof(GVSharedData), GV_CAPABILITY_ALL) ||
+           !GVImageTransferIsCompatible(&GVSharedImage, sizeof(GVSharedImage))) {
+            LOGGER("GlobalView protocol initialization failed");
+            return;
+        }
+
+        void (*SetGlobalViewV2)(char* dylib,
+                                UInt64 GVDataOffset,
+                                UInt64 GVImageOffset) = NULL;
+        *(void**)&SetGlobalViewV2 = dlsym(RTLD_DEFAULT, "SetGlobalViewV2");
+        if(!SetGlobalViewV2) {
+            LOGGER("GlobalView protocol v%u is not supported by the host",
+                   (unsigned)GV_PROTOCOL_VERSION);
+            return;
+        }
+        SetGlobalViewV2((char*)di.dli_fname,
+                        (UInt64)&GVSharedData-(UInt64)di.dli_fbase,
+                        (UInt64)&GVSharedImage-(UInt64)di.dli_fbase);
     }
 }
 

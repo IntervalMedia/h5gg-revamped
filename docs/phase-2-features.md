@@ -54,7 +54,8 @@ The UI requests fixed 256-byte pages through `readMemoryPage`. The native API
 accepts 1–4096 bytes, reports each byte as a number or `null`, and returns
 `complete` plus the readable-byte count. The viewer renders unreadable bytes as
 `??`, uses 64-bit `BigInt` address arithmetic, and clamps page navigation to the
-unsigned 64-bit address space.
+unsigned 64-bit address space. Page reads and typed result reads use the same
+`MemoryReader` interface as filters, snapshots, and dumps.
 
 ### Memory dump
 
@@ -63,9 +64,10 @@ file, exposes `getDumpStatus`, and accepts `cancelDump` while the original
 Promise is pending. Failed and cancelled dumps remove the partial file. Output
 names are confined to one entry in the app Documents directory.
 
-The stream, partial-read, progress, cancellation, and failure behavior have
-host tests. Reading another process and writing its complete output remain
-device-verified.
+The stream, partial-read, progress, cancellation, failure, adapter
+over-reporting, and address-overflow behavior have host tests through the same
+reader interface used by the Mach-backed engine. Reading another process and
+writing its complete output remain device-verified.
 
 ## Target and freezer lifecycle
 
@@ -80,20 +82,28 @@ dump.
 Frozen entries contain the selected PID, canonical address, status, failure
 count, and last error. Invalid values are rejected before scheduling. Timer
 teardown occurs when the last entry is removed or the engine is released.
+`FreezerController` owns those rules behind injected target, memory-writer, and
+scheduler adapters. Its Foundation contract test covers validation, numeric
+address sorting, replacement, target changes, write failure/recovery, and
+exactly-one timer start/stop without relying on run-loop timing.
 
 ## Files and extensions
 
 The script store accepts only a single safe `.js` or `.html` file name. A name
 without an extension receives `.js`; any other extension is rejected. Files are
-limited to 2 MiB, writes are atomic, lists are sorted, and failures are exposed
-through `getLastFileError`.
+limited to 2 MiB and valid UTF-8, writes use a same-directory temporary file and
+atomic rename, reads reject symlinks and non-regular files, lists are sorted,
+and failures are exposed through `getLastFileError`. Host tests exercise the
+same `ScriptStore` used by the Objective-C bridge.
 
 The editor uses explicit Save—there is no autosave. Only `.js` files can run or
 auto-run; `.html` files can be edited and stored.
 
-File-picker Promises settle once on selection or cancellation. Each picker
-captures its own bridge call ID, tolerates an empty URL list, and stops its
-security-scoped access after the imported path has been returned.
+File-picker Promises settle once on selection or cancellation.
+`FilePickerRequest` captures the originating menu's bridge call ID, normalizes
+and deduplicates document types, defaults to `public.data`, and rejects racing
+duplicate completions. The UIKit adapter tolerates an empty URL list and stops
+its security-scoped access after the imported path has been returned.
 
 ## Native plugin transport
 
@@ -109,33 +119,45 @@ from WKWebView must implement `H5GGPluginRPC`:
 `loadPlugin` returns a JSON-compatible descriptor containing `loaded`, `id`,
 `className`, and `rpc` when loading succeeds. `callPlugin(id, method, arguments)`
 returns `{ok, result}` or `{ok: false, error}`. Arguments and results must be
-JSON-compatible. Legacy JavaScriptCore callers may still receive the native
-object. The custom-alert demo shows the RPC form. Older examples that expect a
-synchronous native object are not part of this WK contract and carry an explicit
-`LEGACY-JAVASCRIPTCORE-ONLY` marker. The host documentation check rejects
+JSON-compatible. `PluginLoader` resolves relative paths against the app bundle,
+loads each image once, retains Objective-C images for process lifetime, creates
+an independent opaque ID for each WK plugin object, and converts loader, plugin,
+and serialization failures to result dictionaries. Legacy JavaScriptCore
+callers may still receive the native object. The custom-alert demo shows the RPC
+form. Older examples that expect a synchronous native object are not part of
+this WK contract and carry an explicit `LEGACY-JAVASCRIPTCORE-ONLY` marker. A
+macOS Foundation contract test covers loading, caching, modes, JSON checks,
+errors, exceptions, and handle lifecycle. The documentation check rejects
 unknown bridge calls, unawaited WK examples, and unlabelled legacy samples.
 
 ## Dylib generation
 
 The tweak embeds 512 KiB icon and 2 MiB menu replacement regions in every
 architecture slice. Generation validates the image and UTF-8 menu, replaces
-every slice without changing Mach-O offsets, writes the output, and requires
-`ldid` signing to succeed. The generated tweak consumes the customized regions
-before bundle or built-in resources.
+every slice without changing Mach-O offsets, signs a same-directory temporary
+file, and atomically publishes only after `ldid` succeeds. A failed build
+removes its temporary file and preserves any existing output. The generated
+tweak consumes the customized regions before bundle or built-in resources.
 
 When a built universal dylib and `ldid` are available,
-`tests/check_dylib_generation.sh` transforms the dylib with the same replacement
-module, signs it, verifies the signature can be read, and checks that it remains
-a universal Mach-O. The check reports a skip when either prerequisite is
-missing. Loading the generated dylib remains experimental until the device
-validation row passes.
+`tests/check_dylib_generation.sh` transforms and signs the dylib through the
+same `DylibBuilder` interface used by production, verifies the signature can be
+read, and checks that it remains a universal Mach-O. Unit coverage also checks
+invalid icons, UTF-8/NUL rejection, payload limits, architecture-count
+mismatches, and preservation of existing output after signing failure. The
+integration check reports a skip when either prerequisite is missing. Loading
+the generated dylib remains experimental until the device validation row
+passes.
 
 ## Pointer tools
 
 Pointers are unsigned 64-bit, exact, and 8-byte aligned. Pointer searches
 enumerate the selected range and stop at 4,096 results or 512 MiB of mapped
 memory scanned. UI pointer chains use `BigInt` and stop at 32 reads.
-`getPointerCapabilities` exposes these limits to scripts.
+`getPointerCapabilities` exposes these limits to scripts. `PointerSearch`
+enforces range, alignment, result, byte, and chunk limits through the same
+`MemoryReader` interface used in production and host tests. Mach region
+enumeration and real target reads remain device-gated.
 
 ## Floating presentation
 
@@ -147,3 +169,9 @@ the initial position. Later window-size changes scale and clamp its origin.
 This behavior is source-checked and compiles for arm64/arm64e. Orientation and
 window-lifecycle behavior remain part of the injected and GlobalView device
 matrix.
+
+GlobalView state uses a fixed-width versioned header with explicit capabilities
+and fails closed when `SetGlobalViewV2` or a compatible mapping is unavailable.
+Button images cross a separate 512 KiB maximum single-slot transfer instead of
+being embedded in `GVData`. Header rejection and payload bounds are host-tested;
+cross-process remapping and presentation remain device-gated.

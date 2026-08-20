@@ -183,7 +183,7 @@ static NSString* _bridgeSource() {
         newcenter.y = MAX(halfy, newcenter.y);
 
         self.center = newcenter;
-        PGVSharedData->floatMenuRect = self.frame;
+        PGVSharedData->floatMenuRect = GVRectFromCGRect(self.frame);
     }
 }
 
@@ -316,7 +316,7 @@ static NSString* _bridgeSource() {
         self.touchableRect = CGRectZero;
 
         PGVSharedData->touchableAll = YES;
-        PGVSharedData->touchableRect = CGRectZero;
+        PGVSharedData->touchableRect = GVRectFromCGRect(CGRectZero);
 
         if(self.reloadAction) self.reloadAction();
     }

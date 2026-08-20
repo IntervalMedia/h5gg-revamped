@@ -63,6 +63,9 @@ jobs:
           tar xf sdk.tar.xz -C $PWD/theos/sdks
           rm sdk.tar.xz
 
+      - name: Run host verification
+        run: bash tests/run_tests.sh
+
       - name: Build all jailbreak variants
         run: ./build.sh all
 

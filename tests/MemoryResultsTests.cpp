@@ -5,7 +5,10 @@
 #include "../MemoryFilter.h"
 #include "../MemoryPage.h"
 #include "../MemoryDump.h"
+#include "../MemoryReader.h"
+#include "../PointerSearch.h"
 #include "../DylibTemplate.h"
+#include "../DylibBuilder.h"
 #include "../TargetSession.h"
 #include "../ModalRequestQueue.h"
 #include "../ScriptStore.h"
@@ -15,11 +18,13 @@
 #include <cstring>
 #include <cstdint>
 #include <future>
+#include <fcntl.h>
 #include <memory>
 #include <limits>
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <unistd.h>
 
 static int releasedTargetPorts = 0;
@@ -160,14 +165,21 @@ static void scriptStoreOwnsConfinementAndAtomicIO() {
 
     assert(!store.save("../escape.js", "bad"));
     assert(!store.lastError().empty());
+    assert(!store.save(nullptr, std::nullopt));
+    assert(store.lastError() == "A file name and content are required");
     assert(!store.save("bad.txt", "bad"));
     assert(!store.save("invalid.js", std::string("\xFF", 1)));
+    assert(!store.save("overlong.js", std::string("\xC0\xAF", 2)));
+    assert(!store.save("surrogate.js", std::string("\xED\xA0\x80", 3)));
+    assert(!store.save("out-of-range.js", std::string("\xF4\x90\x80\x80", 4)));
+    assert(store.save("unicode.js", std::string("H5GG \xF0\x9F\x94\x8D", 9)));
     assert(!store.save("large.js",
                        std::string(ScriptStore::MaximumScriptBytes + 1, 'x')));
 
     assert(store.remove("alpha"));
     assert(!store.load("alpha", content));
     assert(store.remove("Page.HTML"));
+    assert(store.remove("unicode.js"));
     assert(!store.remove("Page.HTML"));
     assert(rmdir(root) == 0);
 }
@@ -543,17 +555,12 @@ static void filtersAResultSetThroughTheMemoryInterface() {
     region->append(0x30);
     results.add(std::move(region));
 
-    std::unordered_map<uint64_t, int32_t> memory = {
-        {0x1010, 4},
-        {0x1020, 8},
-        {0x1030, 12},
-    };
-    auto reader = [&memory](void* output, uint64_t address, size_t length) {
-        auto found = memory.find(address);
-        if(found == memory.end() || length != sizeof(int32_t)) return false;
-        std::memcpy(output, &found->second, length);
-        return true;
-    };
+    std::vector<uint8_t> memory(0x34);
+    int32_t values[] = {4, 8, 12};
+    std::memcpy(memory.data() + 0x10, &values[0], sizeof(values[0]));
+    std::memcpy(memory.data() + 0x20, &values[1], sizeof(values[1]));
+    std::memcpy(memory.data() + 0x30, &values[2], sizeof(values[2]));
+    JJBufferMemoryReader reader(0x1000, std::move(memory));
 
     size_t kept = JJFilterResultSet(results, "7", JJ_Search_Type_SInt,
                                     JJ_Filter_Greater, reader);
@@ -573,17 +580,14 @@ static void refinesHexResultsThroughTheMemoryInterface() {
     region->append(0x30, JJ_Search_Type_UByte);
     results.add(std::move(region));
 
-    std::unordered_map<uint64_t, std::vector<uint8_t>> memory = {
-        {0x2010, {0xDE, 0xAD, 0x01, 0xEF}},
-        {0x2020, {0xDE, 0xAD, 0x02, 0xE0}},
-        {0x2030, {0xDE, 0xAD, 0x03, 0xEF}},
-    };
-    auto reader = [&memory](void* output, uint64_t address, size_t length) {
-        auto found = memory.find(address);
-        if(found == memory.end() || found->second.size() < length) return false;
-        std::memcpy(output, found->second.data(), length);
-        return true;
-    };
+    std::vector<uint8_t> memory(0x34);
+    const uint8_t first[] = {0xDE, 0xAD, 0x01, 0xEF};
+    const uint8_t second[] = {0xDE, 0xAD, 0x02, 0xE0};
+    const uint8_t third[] = {0xDE, 0xAD, 0x03, 0xEF};
+    std::memcpy(memory.data() + 0x10, first, sizeof(first));
+    std::memcpy(memory.data() + 0x20, second, sizeof(second));
+    std::memcpy(memory.data() + 0x30, third, sizeof(third));
+    JJBufferMemoryReader reader(0x2000, std::move(memory));
 
     JJHexPattern pattern;
     assert(JJParseMaskedHexPattern("DE AD ?? EF", pattern));
@@ -595,7 +599,9 @@ static void refinesHexResultsThroughTheMemoryInterface() {
 
 static void readsPartialPagesAndMarksUnreadableBytes() {
     const std::vector<uint8_t> memory = {0x10, 0x11, 0x12, 0x13, 0x14, 0x15};
-    auto reader = [&memory](void* output, uint64_t address, size_t length) -> size_t {
+    JJCallbackMemoryReader reader([&memory](void* output,
+                                            uint64_t address,
+                                            size_t length) -> size_t {
         if(address < 0x1000 || address >= 0x1000 + memory.size()) return 0;
         size_t offset = (size_t)(address - 0x1000);
         if(offset == 3) return 0;
@@ -603,7 +609,7 @@ static void readsPartialPagesAndMarksUnreadableBytes() {
         if(offset < 3) readable = std::min(readable, (size_t)(3 - offset));
         std::memcpy(output, memory.data() + offset, readable);
         return readable;
-    };
+    });
 
     JJMemoryPage page = JJReadMemoryPage(0x1000, 8, reader, 4);
     assert(page.bytes.size() == 8);
@@ -629,19 +635,193 @@ static void replacesEveryDylibTemplateWithoutChangingBinarySize() {
     assert(H5GGReplaceAllTemplates(binary, placeholder, placeholder) == 0);
 }
 
+static void memoryReaderUnifiesRawExactAndTypedReads() {
+    uint32_t stored = 0x78563412;
+    std::vector<uint8_t> memory(sizeof(stored));
+    std::memcpy(memory.data(), &stored, sizeof(stored));
+    JJBufferMemoryReader reader(0x4000, memory);
+
+    uint8_t raw[8] = {};
+    assert(reader.readBytes(raw, 0x4001, sizeof(raw)) == 3);
+    assert(raw[0] == memory[1]);
+    assert(!reader.readExact(raw, 0x4001, sizeof(stored)));
+    assert(!reader.readValue(raw, 0x4000, JJ_Search_Type_Error));
+
+    uint32_t typed = 0;
+    assert(reader.readValue(&typed, 0x4000, JJ_Search_Type_UInt));
+    assert(typed == stored);
+
+    JJCallbackMemoryReader overReporting(
+        [](void* output, uint64_t, size_t length) {
+            std::memset(output, 0xAB, length);
+            return length + 10;
+        });
+    assert(overReporting.readBytes(raw, 0x5000, 2) == 2);
+
+    JJMemoryPage overflowPage = JJReadMemoryPage(UINT64_MAX, 2, reader);
+    assert(overflowPage.readableCount() == 0);
+    JJMemoryDumpResult overflowDump = JJStreamMemoryDump(
+        UINT64_MAX, 2, reader,
+        [](const void*, size_t) { return true; });
+    assert(overflowDump.status == JJMemoryDumpStatus::InvalidInput);
+}
+
+static void writeTestFile(const std::string& path,
+                          const std::vector<uint8_t>& bytes) {
+    int descriptor = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    assert(descriptor >= 0);
+    size_t offset = 0;
+    while(offset < bytes.size()) {
+        ssize_t count = write(descriptor, bytes.data() + offset,
+                              bytes.size() - offset);
+        assert(count > 0);
+        offset += static_cast<size_t>(count);
+    }
+    assert(close(descriptor) == 0);
+}
+
+static std::vector<uint8_t> readTestFile(const std::string& path) {
+    int descriptor = open(path.c_str(), O_RDONLY);
+    assert(descriptor >= 0);
+    std::vector<uint8_t> bytes;
+    uint8_t buffer[64];
+    while(true) {
+        ssize_t count = read(descriptor, buffer, sizeof(buffer));
+        assert(count >= 0);
+        if(count == 0) break;
+        bytes.insert(bytes.end(), buffer, buffer + count);
+    }
+    assert(close(descriptor) == 0);
+    return bytes;
+}
+
+static void dylibBuilderOwnsValidationOutputAndSigning() {
+    char rootTemplate[] = "/tmp/h5gg-dylib-builder.XXXXXX";
+    char* root = mkdtemp(rootTemplate);
+    assert(root);
+
+    std::string directory(root);
+    std::string sourcePath = directory + "/source.dylib";
+    std::string iconPath = directory + "/icon.png";
+    std::string menuPath = directory + "/menu.html";
+    std::string outputPath = directory + "/output.dylib";
+
+    const std::vector<uint8_t> iconPlaceholder = {
+        'I', 'C', 'O', 'N', '_', '_', '_', '_',
+    };
+    const std::vector<uint8_t> menuPlaceholder = {
+        'M', 'E', 'N', 'U', '_', '_', '_', '_', '_', '_', '_', '_',
+    };
+    const std::vector<uint8_t> icon = {0x89, 'P', 'N', 'G'};
+    const std::vector<uint8_t> menu = {'<', 'h', '5', '>'};
+    std::vector<uint8_t> source = {'F', 'A', 'T'};
+    source.insert(source.end(), iconPlaceholder.begin(), iconPlaceholder.end());
+    source.push_back(0x7F);
+    source.insert(source.end(), menuPlaceholder.begin(), menuPlaceholder.end());
+    source.insert(source.end(), iconPlaceholder.begin(), iconPlaceholder.end());
+    source.insert(source.end(), menuPlaceholder.begin(), menuPlaceholder.end());
+    writeTestFile(sourcePath, source);
+    writeTestFile(iconPath, icon);
+    writeTestFile(menuPath, menu);
+    writeTestFile(outputPath, {'o', 'l', 'd'});
+
+    int signingCalls = 0;
+    DylibBuilder builder(
+        iconPlaceholder, menuPlaceholder,
+        [](const std::vector<uint8_t>& bytes, std::string& error) {
+            if(bytes.size() >= 4 && bytes[0] == 0x89 && bytes[1] == 'P') {
+                return true;
+            }
+            error = "unsupported test icon";
+            return false;
+        },
+        [&signingCalls, &outputPath](const std::string& path, std::string&) {
+            signingCalls++;
+            assert(path != outputPath);
+            assert(!readTestFile(path).empty());
+            return true;
+        });
+
+    H5GGDylibBuildRequest request = {
+        sourcePath, iconPath, menuPath, outputPath,
+    };
+    H5GGDylibBuildResult built = builder.build(request);
+    assert(built.completed());
+    assert(built.outputPath == outputPath);
+    assert(built.architectureCount == 2);
+    assert(signingCalls == 1);
+
+    std::vector<uint8_t> expected = source;
+    assert(H5GGReplaceAllTemplates(expected, iconPlaceholder, icon) == 2);
+    assert(H5GGReplaceAllTemplates(expected, menuPlaceholder, menu) == 2);
+    assert(readTestFile(outputPath) == expected);
+    assert(readTestFile(sourcePath) == source);
+
+    writeTestFile(menuPath, {'a', 0, 'b'});
+    assert(builder.build(request).status == H5GGDylibBuildStatus::InvalidMenu);
+    assert(signingCalls == 1);
+    assert(readTestFile(outputPath) == expected);
+
+    writeTestFile(menuPath, menu);
+    writeTestFile(iconPath, {});
+    assert(builder.build(request).status == H5GGDylibBuildStatus::InvalidIcon);
+    assert(signingCalls == 1);
+
+    writeTestFile(iconPath, {'b', 'a', 'd'});
+    H5GGDylibBuildResult invalidIcon = builder.build(request);
+    assert(invalidIcon.status == H5GGDylibBuildStatus::InvalidIcon);
+    assert(invalidIcon.detail == "unsupported test icon");
+    assert(signingCalls == 1);
+
+    writeTestFile(iconPath, std::vector<uint8_t>(iconPlaceholder.size(), 1));
+    assert(builder.build(request).status == H5GGDylibBuildStatus::IconTooLarge);
+    assert(signingCalls == 1);
+
+    writeTestFile(iconPath, icon);
+    std::vector<uint8_t> mismatched = iconPlaceholder;
+    mismatched.insert(mismatched.end(), menuPlaceholder.begin(), menuPlaceholder.end());
+    mismatched.insert(mismatched.end(), menuPlaceholder.begin(), menuPlaceholder.end());
+    writeTestFile(sourcePath, mismatched);
+    assert(builder.build(request).status == H5GGDylibBuildStatus::TemplateMismatch);
+    assert(signingCalls == 1);
+
+    writeTestFile(sourcePath, source);
+    const std::vector<uint8_t> existing = {'k', 'e', 'e', 'p'};
+    writeTestFile(outputPath, existing);
+    DylibBuilder failingSigner(
+        iconPlaceholder, menuPlaceholder,
+        [](const std::vector<uint8_t>&, std::string&) { return true; },
+        [](const std::string&, std::string& error) {
+            error = "test signer failed";
+            return false;
+        });
+    H5GGDylibBuildResult signingFailed = failingSigner.build(request);
+    assert(signingFailed.status == H5GGDylibBuildStatus::SigningFailed);
+    assert(signingFailed.detail == "test signer failed");
+    assert(readTestFile(outputPath) == existing);
+
+    assert(unlink(sourcePath.c_str()) == 0);
+    assert(unlink(iconPath.c_str()) == 0);
+    assert(unlink(menuPath.c_str()) == 0);
+    assert(unlink(outputPath.c_str()) == 0);
+    assert(rmdir(root) == 0);
+}
+
 static void streamsMemoryDumpsWithProgressFailureAndCancellation() {
     std::vector<uint8_t> source(20);
     for(size_t index = 0; index < source.size(); index++) {
         source[index] = static_cast<uint8_t>(index);
     }
-    auto reader = [&source](void* output, uint64_t address, size_t length) -> size_t {
+    JJCallbackMemoryReader reader([&source](void* output,
+                                            uint64_t address,
+                                            size_t length) -> size_t {
         if(address < 0x3000 || address >= 0x3000 + source.size()) return 0;
         size_t offset = static_cast<size_t>(address - 0x3000);
         size_t available = std::min(length, source.size() - offset);
         size_t partial = std::min(available, (size_t)3);
         std::memcpy(output, source.data() + offset, partial);
         return partial;
-    };
+    });
 
     std::vector<uint8_t> output;
     size_t lastProgress = 0;
@@ -681,6 +861,67 @@ static void streamsMemoryDumpsWithProgressFailureAndCancellation() {
     assert(failed.failureAddress == 0x3000 + source.size());
 }
 
+static void findsExactPointersThroughTheMemoryReader() {
+    constexpr uint64_t base = 0x1000;
+    constexpr uint64_t target = 0x1122334455667788ULL;
+    std::vector<uint8_t> memory(0x80, 0);
+    for(size_t offset : {size_t(0x08), size_t(0x18), size_t(0x40)}) {
+        std::memcpy(memory.data() + offset, &target, sizeof(target));
+    }
+    std::memcpy(memory.data() + 0x31, &target, sizeof(target));
+    JJBufferMemoryReader reader(base, memory);
+    std::vector<JJPointerSearchRegion> regions = {
+        {base + 0x40, 0x20},
+        {base + 0x03, 0x35},
+    };
+
+    JJPointerSearchOptions options;
+    options.chunkBytes = 16;
+    auto results = JJFindExactPointers(target, base, base + memory.size(),
+                                       regions, reader, options);
+    assert((results == std::vector<std::pair<uint64_t, uint64_t>>{
+        {base + 0x08, target},
+        {base + 0x18, target},
+        {base + 0x40, target},
+    }));
+
+    auto ranged = JJFindExactPointers(target, base + 0x10, base + 0x40,
+                                      regions, reader, options);
+    assert((ranged == std::vector<std::pair<uint64_t, uint64_t>>{
+        {base + 0x18, target},
+    }));
+
+    options.maxResults = 2;
+    auto cappedResults = JJFindExactPointers(target, base, base + memory.size(),
+                                             regions, reader, options);
+    assert(cappedResults.size() == 2);
+    assert(cappedResults.back().first == base + 0x18);
+
+    options.maxResults = 4096;
+    options.maxScannedBytes = 16;
+    auto cappedBytes = JJFindExactPointers(target, base, base + memory.size(),
+                                           regions, reader, options);
+    assert(cappedBytes.size() == 1);
+    assert(cappedBytes.front().first == base + 0x08);
+
+    options.maxScannedBytes = 7;
+    assert(JJFindExactPointers(target, base, base + memory.size(),
+                               regions, reader, options).empty());
+    options.maxScannedBytes = 64;
+    options.chunkBytes = 7;
+    assert(JJFindExactPointers(target, base, base + memory.size(),
+                               regions, reader, options).empty());
+
+    options.chunkBytes = 16;
+    std::vector<JJPointerSearchRegion> overflowRegion = {
+        {std::numeric_limits<uint64_t>::max() - 15, 32},
+    };
+    assert(JJFindExactPointers(target,
+                               std::numeric_limits<uint64_t>::max() - 15,
+                               std::numeric_limits<uint64_t>::max(),
+                               overflowRegion, reader, options).empty());
+}
+
 int main() {
     targetSessionsOwnExactlyOneTargetAndEngine();
     modalRequestsAreRequestScopedAndSerial();
@@ -705,6 +946,9 @@ int main() {
     refinesHexResultsThroughTheMemoryInterface();
     readsPartialPagesAndMarksUnreadableBytes();
     replacesEveryDylibTemplateWithoutChangingBinarySize();
+    memoryReaderUnifiesRawExactAndTypedReads();
+    dylibBuilderOwnsValidationOutputAndSigning();
     streamsMemoryDumpsWithProgressFailureAndCancellation();
+    findsExactPointersThroughTheMemoryReader();
     return 0;
 }

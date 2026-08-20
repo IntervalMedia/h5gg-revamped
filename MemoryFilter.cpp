@@ -2,16 +2,16 @@
 
 #include "MemoryValue.h"
 
+#include <limits>
 #include <memory>
 
 size_t JJFilterResultSet(Result& results,
                          const char* value,
                          int type,
                          int mode,
-                         const JJMemoryReader& reader) {
+                         JJMemoryReader& reader) {
     uint8_t target[8] = {0};
-    if(!reader ||
-       type <= JJ_Search_Type_Error || type >= JJ_Search_Type_Max ||
+    if(type <= JJ_Search_Type_Error || type >= JJ_Search_Type_Max ||
        (mode != JJ_Filter_Equal && mode != JJ_Filter_Greater && mode != JJ_Filter_Less) ||
        !JJParseValue(value, type, target)) {
         return 0;
@@ -24,9 +24,13 @@ size_t JJFilterResultSet(Result& results,
         auto filtered = std::make_unique<result_region>(region->region_base, region->region_size);
 
         for(size_t slideIndex = 0; slideIndex < region->slides.size(); slideIndex++) {
+            if(region->slides[slideIndex] >
+               std::numeric_limits<uint64_t>::max() - region->region_base) {
+                continue;
+            }
             uint64_t address = region->region_base + region->slides[slideIndex];
             uint8_t current[8] = {0};
-            if(reader(current, address, valueLength) &&
+            if(reader.readExact(current, address, valueLength) &&
                JJValueMatchesFilter(current, target, type, mode)) {
                 filtered->append(region->slides[slideIndex], type);
             }
@@ -41,10 +45,10 @@ size_t JJFilterResultSet(Result& results,
 
 size_t JJFilterHexResultSet(Result& results,
                             const JJHexPattern& pattern,
-                            const JJMemoryReader& reader,
+                            JJMemoryReader& reader,
                             uint64_t rangeStart,
                             uint64_t rangeEnd) {
-    if(!reader || pattern.empty() || rangeStart >= rangeEnd) return 0;
+    if(pattern.empty() || rangeStart >= rangeEnd) return 0;
 
     size_t regionCount = results.regionCount();
     for(size_t regionIndex = 0; regionIndex < regionCount; regionIndex++) {
@@ -52,11 +56,14 @@ size_t JJFilterHexResultSet(Result& results,
         auto filtered = std::make_unique<result_region>(region->region_base, region->region_size);
 
         for(uint32_t slide : region->slides) {
+            if(slide > std::numeric_limits<uint64_t>::max() - region->region_base) {
+                continue;
+            }
             std::vector<uint8_t> bytes(pattern.size());
             uint64_t address = region->region_base + slide;
             if(address >= rangeStart && address < rangeEnd &&
                pattern.size() <= rangeEnd - address &&
-               reader(bytes.data(), address, bytes.size()) &&
+               reader.readExact(bytes.data(), address, bytes.size()) &&
                JJHexPatternMatches(bytes.data(), bytes.size(), pattern)) {
                 filtered->append(slide, JJ_Search_Type_UByte);
             }

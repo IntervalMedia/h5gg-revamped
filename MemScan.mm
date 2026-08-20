@@ -1,4 +1,5 @@
 #include "MemScan.h"
+#include "PointerSearch.h"
 #include "MemoryFilter.h"
 #include <pthread.h>
 #include <Foundation/Foundation.h>
@@ -26,7 +27,7 @@ void JJMemoryEngine::freeResults() {
     result = nullptr;
 }
 
-size_t JJMemoryEngine::readMemoryBytes(void* buf, uint64_t addr, size_t len) {
+size_t JJMemoryEngine::performRead(void* buf, uint64_t addr, size_t len) {
     if(!buf || len == 0 || this->task == MACH_PORT_NULL) {
         return 0;
     }
@@ -38,10 +39,6 @@ size_t JJMemoryEngine::readMemoryBytes(void* buf, uint64_t addr, size_t len) {
         return 0;
     }
     return size;
-}
-
-bool JJMemoryEngine::readMemory(void* buf, uint64_t addr, size_t len) {
-    return readMemoryBytes(buf, addr, len) == len;
 }
 
 bool JJMemoryEngine::writeMemory(void* address, void *target, size_t len) {
@@ -380,10 +377,7 @@ void JJMemoryEngine::JJScanHexMemory(AddrRange range, const char* hexStr) {
 
     if(firstScanDone) {
         JJFilterHexResultSet(
-            *result, pattern,
-            [this](void* output, uint64_t address, size_t length) {
-                return readMemory(output, address, length);
-            },
+            *result, pattern, *this,
             range.start, range.end);
         lastNumberType = JJ_Search_Type_UByte;
         saveSnapshot();
@@ -438,7 +432,7 @@ void JJMemoryEngine::saveSnapshot() {
             uint8_t type = hasTypes ? region->types[j] : this->lastNumberType;
             int len = JJ_Search_Type_Len[type];
             uint64_t value = 0;
-            if(readMemory(&value, address, len)) {
+            if(readExact(&value, address, len)) {
                 snapshot[address] = {type, value};
             }
         }
@@ -469,7 +463,7 @@ void JJMemoryEngine::JJRefineByChange(int changeType) {
                 uint8_t snapType = it->second.first;
 
                 uint64_t curValue = 0;
-                if(!readMemory(&curValue, address, len)) continue;
+                if(!readExact(&curValue, address, len)) continue;
 
                 bool sameBits = (memcmp(&curValue, &snapValue, min((size_t)len, sizeof(uint64_t))) == 0);
                 bool keep = false;
@@ -676,17 +670,6 @@ void JJMemoryEngine::JJNearBySearch(size_t range, void *target, int type) {
     this->result->removeEmptyRegions();
 }
 
-bool JJMemoryEngine::JJReadMemory(void* buf, uint64_t addr, int type) {
-    if(type <= 0 || type >= JJ_Search_Type_Max) return false;
-
-    int len = JJ_Search_Type_Len[type];
-    return readMemory(buf, addr, len);
-}
-
-size_t JJMemoryEngine::JJReadBytes(void* buf, uint64_t addr, size_t len) {
-    return readMemoryBytes(buf, addr, len);
-}
-
 bool JJMemoryEngine::JJWriteMemory(void* address, void *target, int type) {
     if(type <= 0 || type >= JJ_Search_Type_Max) return false;
 
@@ -759,48 +742,17 @@ vector<pair<uint64_t, uint64_t>> JJMemoryEngine::JJFindPointers(
     AddrRange range,
     size_t maxResults,
     uint64_t maxScannedBytes) {
-    vector<pair<uint64_t, uint64_t>> results;
-    if(range.start >= range.end || maxResults == 0 || maxScannedBytes < sizeof(uint64_t)) {
-        return results;
-    }
-
     enumerateRegions(range);
-    uint64_t scannedBytes = 0;
+    vector<JJPointerSearchRegion> searchRegions;
+    searchRegions.reserve(this->regions.size());
     for(auto& [base, size] : this->regions) {
-        uint64_t mappedEnd = size > UINT64_MAX - base ? UINT64_MAX : base + size;
-        if(base >= range.end || size == 0 || mappedEnd <= range.start) continue;
-
-        uint64_t region_end = min(mappedEnd, range.end);
-        uint64_t region_base = max(base, range.start);
-        if(region_base > UINT64_MAX - (sizeof(uint64_t) - 1)) continue;
-        region_base = (region_base + sizeof(uint64_t) - 1) &
-                      ~(uint64_t)(sizeof(uint64_t) - 1);
-        if(region_base >= region_end || scannedBytes >= maxScannedBytes) break;
-        uint64_t region_size = region_end - region_base;
-        region_size = min(region_size, maxScannedBytes - scannedBytes);
-        if(region_size < 8) continue;
-
-        bool remapped = false;
-        uint64_t loadSize = region_size;
-        void* buffer = loadRegion(region_base, &loadSize, &remapped);
-        if(!buffer) continue;
-
-        uint64_t* ptrs = (uint64_t*)buffer;
-        uint64_t scanSize = min((uint64_t)loadSize, region_size) / 8;
-        scannedBytes += scanSize * sizeof(uint64_t);
-
-        for(uint64_t i = 0; i < scanSize; i++) {
-            if(ptrs[i] == targetAddr) {
-                results.push_back({region_base + i * 8, ptrs[i]});
-                if(results.size() >= maxResults) break;
-            }
-        }
-
-        unloadRegion(buffer, loadSize, remapped);
-        if(results.size() >= maxResults) break;
+        searchRegions.push_back({base, size});
     }
-
-    return results;
+    JJPointerSearchOptions options;
+    options.maxResults = maxResults;
+    options.maxScannedBytes = maxScannedBytes;
+    return JJFindExactPointers(targetAddr, range.start, range.end,
+                               std::move(searchRegions), *this, options);
 }
 
 size_t JJMemoryEngine::getResultsCount() {
@@ -848,10 +800,7 @@ map<void*, int8_t> JJMemoryEngine::getResultsAndTypes(int count, int skip) {
 
 size_t JJMemoryEngine::JJFilterResults(const char* valueStr, int type, int mode) {
     size_t kept = JJFilterResultSet(
-        *result, valueStr, type, mode,
-        [this](void* output, uint64_t address, size_t length) {
-            return readMemory(output, address, length);
-        });
+        *result, valueStr, type, mode, *this);
     lastNumberType = type;
     saveSnapshot();
     return kept;

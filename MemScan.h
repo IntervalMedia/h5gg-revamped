@@ -11,6 +11,7 @@
 #include <set>
 
 #include "MemoryResults.h"
+#include "MemoryReader.h"
 #include "MemoryValue.h"
 #include "vmtag.h"
 
@@ -48,7 +49,7 @@ struct AddrRange {
     uint64_t end;
 };
 
-class JJMemoryEngine
+class JJMemoryEngine : public JJMemoryReader
 {
     mach_port_t task;
     Result *result;
@@ -58,8 +59,7 @@ class JJMemoryEngine
     int lastNumberType;
 
     void freeResults();
-    size_t readMemoryBytes(void* buf, uint64_t addr, size_t len);
-    bool readMemory(void* buf, uint64_t addr, size_t len);
+    size_t performRead(void* buf, uint64_t addr, size_t len) override;
     bool writeMemory(void* address, void *target, size_t len);
 
     uint64_t ScanData(uint64_t buffer, uint64_t size, void* target, int type);
@@ -98,8 +98,6 @@ public:
         AddrRange range,
         size_t maxResults = 4096,
         uint64_t maxScannedBytes = 512ULL * 1024ULL * 1024ULL);
-    size_t JJReadBytes(void* buf, uint64_t addr, size_t len);
-    bool JJReadMemory(void* buf, uint64_t addr, int type);
     bool JJWriteMemory(void* address, void *target, int type);
     int JJWriteAll(void *target, int type);
 

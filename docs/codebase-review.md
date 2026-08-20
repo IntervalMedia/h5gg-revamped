@@ -1,6 +1,6 @@
 # Codebase review
 
-Verified against `02b818d` plus the current working tree on 2026-08-20.
+Verified against `0571a44` plus the current working tree on 2026-08-20.
 
 ## Executive finding
 
@@ -8,12 +8,18 @@ The stabilization and Phase 2 implementation work is present. Target and
 session ownership is move-only and atomically replaceable, grouped numeric
 searches use OR semantics through one scan, typed and raw reads are separate,
 result mutations are centralized, bridge method names are allowlisted, file
-names are confined, plugins use a JSON RPC contract under WKWebView, and
-customized dylib templates are embedded and host-tested.
+names are confined, freezer/picker lifecycle and pointer matching use tested
+modules, plugin images/handles and JSON RPC use one loader, and
+customized dylib validation, replacement, signing, cleanup, and atomic output
+are owned and host-tested behind one builder interface. Bootstrap modes,
+readiness timers, and floating UI retention use one runtime coordinator, while
+GlobalView mappings negotiate a fixed-width versioned protocol and separate
+bounded image-transfer slot.
 
-The code is not release-verified. Hardware-dependent behavior is still pending
-in [validation.md](validation.md), package contents are not asserted, and
-several architecture and repository-health items remain open.
+The code is not device-verified. Hardware-dependent behavior is still pending
+in [validation.md](validation.md), while host contracts and generated package
+contents are enforced in CI. Several architecture and repository-health items
+remain open.
 
 ## Evidence and validation
 
@@ -22,12 +28,15 @@ several architecture and repository-health items remain open.
   result invariants, value and grouped-search parsing/matching, numeric filtering,
   masked hex matching, partial raw reads, dump streaming, filename confinement,
   bridge allowlisting/argument schemas, generated JavaScript argument-reference
-  coverage, build-variant definitions, and dylib template replacement/signing
-  when a built dylib and `ldid` are available.
-- The root tweak currently compiles for arm64 and arm64e. The rootful package
-  step passes when run after compilation.
-- Build/package validation for all three jailbreak layouts and every device row
-  remains outstanding.
+  coverage, freezer and file-picker lifecycle, pointer matching/limits, plugin
+  loader/RPC behavior, runtime lifecycle, GlobalView protocol rejection/
+  transfer behavior, build-variant definitions, and dylib build/sign/publish
+  behavior when a built dylib and `ldid` are available.
+- The normal, rootless, and roothide root tweaks compile for arm64 and arm64e.
+- Normal, rootless, and roothide `.deb` files pass exact control metadata,
+  installed-path, dylib/plist, executable-script, and Mach-O slice assertions
+  before `build.sh` publishes them.
+- Every device row remains outstanding.
 - This review does not treat an unrecorded device behavior as complete.
 
 ## Active issue register
@@ -42,45 +51,17 @@ remaining verification are tracked in [roadmap.md](roadmap.md).
 
 ### P2 — Verification, architecture, and delivery debt
 
-#### H5-005: Package variants lack content-level assertions
+#### H5-015: The façade still coordinates unrelated use cases
 
-Normal, rootless, and roothide now receive exactly one compile definition and
-the host test checks the compiler commands. CI builds the three artifacts but
-does not inspect their installed paths, dependencies, or translated roothide
-locations.
-
-Acceptance: unpack each generated package in CI and assert its control metadata,
-install paths, dylib/plist pairing, and variant-specific path behavior.
-
-#### H5-014: The host suite is not enforced by CI
-
-`tests/run_tests.sh` provides a deterministic host suite, but the build and
-manual-release workflows call `build.sh` without running that suite first.
-
-Acceptance: run the host suite as a required CI job, make skipped integration
-checks visible, and keep device results in the checked validation matrix.
-
-#### H5-015: Façade services and bootstrap remain high-coupling modules
-
-The extracted target/session, result, codec, bridge-schema, filename,
-memory-page, memory-dump, and dylib-template modules improve locality.
-`h5ggEngine` still coordinates persistence, plugins, files, dumps, freezing,
-and search use cases; `Tweak.mm` still coordinates lifecycle through globals
-and polling timers.
+The extracted target/session, result, codec, reader, pointer-search,
+bridge-schema, freezer, file-picker, preferences, script-store, plugin-loader,
+memory-page, memory-dump, and dylib-builder modules improve locality. `RuntimeCoordinator`
+owns bootstrap modes, readiness and GlobalView timers, and floating UI
+lifetime. `h5ggEngine` still coordinates dump jobs and several search use cases.
 
 Acceptance: continue the internal module work described in
 [architecture.md](architecture.md) behind the unchanged JavaScript interface,
 with tests crossing the same seams used by callers.
-
-#### H5-016: GlobalView shared memory has no version or size guard
-
-`GVData` is a cross-process binary interface with no magic, schema version, or
-total-size header and includes a 512 KiB inline image buffer
-([globalview.h](../globalview/globalview.h#L4)).
-
-Acceptance: validate a versioned header before either process uses the mapping;
-represent optional capabilities explicitly; move large payload transfer behind
-a separate bounded mechanism before changing the layout.
 
 #### H5-018: Generated artifacts, IDE state, and large dependencies are tracked
 
@@ -117,11 +98,40 @@ path.
 - `ModalRequestQueue` serializes overlapping synchronous dialogs with
   request-scoped, exactly-once completion; FIFO, cancellation, and blocking
   waits are host-tested.
-- Numeric typed reads and bounded raw-byte reads are distinct interfaces.
+- One `MemoryReader` interface derives exact and typed reads from a clamped
+  partial-byte primitive. Engine, filter, page, dump, façade, buffer, and
+  fault-injecting adapters cross the same seam, including overflow behavior.
+- `PointerSearch` uses that reader seam for exact aligned 64-bit matches and
+  enforces range/result/byte limits with host coverage; only Mach region
+  enumeration remains device-specific.
+- `FreezerController` owns canonical target-bound entries, status/failure
+  recovery, and one timer through injected writer/scheduler adapters.
+- `FilePickerRequest` binds completion to the originating menu/call ID and
+  rejects duplicate or racing selection/cancellation callbacks.
+- `PreferencesStore` owns capped input/search histories and unique bookmarks,
+  filters malformed persisted values, and is tested with isolated defaults and
+  an injected timestamp provider.
+- `RuntimeCoordinator` replaces bootstrap mode/UI globals and detached-thread
+  polling with exactly-once readiness and owned monitoring timers; the same
+  interface has Foundation host coverage.
+- `GVData` and `GVImageTransfer` carry validated magic/version/size/capability
+  headers. Mixed protocol versions fail closed, and image handoff is separate,
+  bounded, and single-slot.
+- Package targets run as fresh top-level Theos invocations, so scheme staging
+  and control metadata cannot leak between variants. `build.sh` unpacks and
+  validates every artifact before collection, and CI runs the host suite first.
 - Target replacement clears results and frozen values and releases old ports.
 - File-picker callbacks capture independent call IDs and settle cancellation.
-- Script and dump names are confined to a single safe Documents entry.
-- WK plugins use JSON-compatible descriptors and `H5GGPluginRPC` calls.
+- Script persistence is confined to one Documents root and uses regular-file,
+  UTF-8, size, atomic-write, and deterministic-listing rules behind a tested
+  `ScriptStore`; dump names use the same single-entry filename policy.
+- `DylibBuilder` validates regular-file inputs and bounded payloads, replaces
+  every matching architecture template, signs temporary output, removes
+  failures, and only then atomically publishes; host tests use the same
+  interface as production.
+- `PluginLoader` caches each loaded image, preserves legacy JavaScriptCore
+  object returns, owns opaque WK RPC handles, and rejects non-JSON arguments or
+  results; loader, resolver, error, exception, and lifecycle paths are tested.
 - Example bridge calls are checked against the production inventory: WK samples
   await Promise methods, synchronous native-object samples carry an explicit
   `LEGACY-JAVASCRIPTCORE-ONLY` marker, and the RPC demo is fixture-checked.

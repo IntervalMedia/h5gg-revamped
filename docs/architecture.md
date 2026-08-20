@@ -26,7 +26,10 @@ Distribution adapters
 └── SpringBoard GlobalView host
           │
           ▼
-Tweak.mm — process bootstrap and floating-window orchestration
+Tweak.mm — process/environment discovery
+          │
+          ▼
+RuntimeCoordinator — run modes, readiness, timers, and floating UI ownership
           │
           ├── FloatButton / FloatWindow / TopShow / ModalShow
           │
@@ -40,13 +43,14 @@ h5ggEngine — JavaScript-facing use-case coordination
           │
           ├── TargetProcess / MemorySession — target and search lifetime
           ├── JJMemoryEngine — scan and target-memory operations
-          ├── MemoryResults / MemoryFilter / MemoryValue
-          ├── MemoryPage / MemoryDump
-          ├── FileNames — filename policy
+          ├── MemoryResults / MemoryFilter / MemoryValue / MemoryReader
+          ├── MemoryPage / MemoryDump / PointerSearch
+          ├── FreezerController / FilePickerRequest — deferred lifecycle ownership
+          ├── ScriptStore / FileNames — confined script persistence and policy
           ├── crossproc — process and Mach-O discovery
-          ├── NSUserDefaults / Documents — persistence
-          ├── dlopen + H5GGPluginRPC — native plugin transport
-          └── makeDYLIB / DylibTemplate / ldid — customized dylib generation
+          ├── PreferencesStore / NSUserDefaults — histories and bookmarks
+          ├── PluginLoader / H5GGPluginRPC — native plugin transport
+          └── DylibBuilder / makeDYLIB / ldid — customized dylib generation
 ```
 
 ## Modules and responsibilities
@@ -60,13 +64,18 @@ memory-search behavior does not.
 
 The compile-time variant (`normal`, `rootless`, or `roothide`) is a working
 build-time seam. Each root and GlobalView compile receives exactly one
-`H5GG_BUILD_*` definition. Content-level verification of the produced packages
-is still required.
+`H5GG_BUILD_*` definition. Each package build starts a fresh top-level Theos
+stage, then `check_package_contents.sh` validates control metadata, the
+variant-specific install root, dylib/plist pairing, executable maintainer
+script, valid filter plist, and both Mach-O slices before publication.
 
 ### Bootstrap and presentation
 
-`Tweak.mm` detects the run mode, creates the floating button/window, owns the
-application-side `GVData` mapping, and connects UI actions to the web view.
+`Tweak.mm` detects the run mode and maps the application side of the GlobalView
+protocol. `RuntimeCoordinator` owns the run-mode state, readiness and
+GlobalView timers, application/floating windows, button, menu, and engine. It
+starts initialization once after a key window becomes available and prevents
+duplicate GlobalView monitors.
 `FloatButton`, `FloatWindow`, `TopShow`, `ModalShow`, and `makeWindow` provide
 UIKit behavior. `ModalRequestQueue` provides the platform-independent FIFO
 lifecycle for synchronous modal requests.
@@ -75,8 +84,8 @@ The floating button preserves its initial position when its first window frame
 arrives. In injected dylib mode its default origin is 35 points from the left,
 with its center at the vertical midpoint of the active window.
 
-This area still relies on process-wide globals and timers. The intended deeper
-module is a runtime coordinator with an explicit lifecycle interface:
+The coordinator exposes this lifecycle through one interface used by the tweak
+and its Foundation host tests:
 
 ```text
 not started → waiting for application window → button ready → menu ready
@@ -114,8 +123,10 @@ numeric values before `NSInvocation`. The method inventory and native argument
 table in `javascript-api.md` are generated and checked by linking against that
 same production schema; operation semantics and examples remain curated prose.
 
-Asynchronous file-picker calls capture their own numeric call ID. Selection and
-cancellation settle that ID once; later bridge calls do not replace it.
+`FilePickerRequest` captures the originating menu's numeric call ID, normalizes
+and deduplicates document types, and accepts selection or cancellation exactly
+once. The UIKit picker is only the presentation adapter, so later bridge calls
+or a different current menu cannot receive the result.
 
 ### Engine façade
 
@@ -132,21 +143,44 @@ Several internal implementation modules now provide locality:
 - `MemorySession` owns the target, memory engine, and façade-visible search
   metadata as one replaceable unit;
 - `MemoryResults` owns result regions, counts, and type-vector invariants;
-- `MemoryFilter` performs typed result refinement through a reader callback;
-- `MemoryPage` and `MemoryDump` implement bounded raw-read workflows through
-  reader callbacks;
-- `FileNames` contains filename confinement and script-extension policy;
+- `MemoryReader` defines one partial-byte primitive with exact and typed helpers;
+  `JJMemoryEngine` is the Mach adapter, while buffer/callback adapters drive
+  host verification;
+- `MemoryFilter`, `MemoryPage`, and `MemoryDump` implement refinement and
+  bounded raw-read workflows through that same interface;
+- `PointerSearch` performs exact aligned 64-bit matching and enforces result,
+  byte, range, and chunk limits through the same reader interface; Mach region
+  enumeration remains in `JJMemoryEngine`;
+- `FreezerController` owns validated canonical entries, target binding,
+  failure/recovery status, and exactly one repeating timer through injected
+  target, writer, and scheduler adapters;
+- `FilePickerRequest` owns normalized types, the originating bridge call ID,
+  and thread-safe exactly-once selection/cancellation;
+- `PreferencesStore` owns input/search history caps, bookmark uniqueness,
+  malformed persisted-value filtering, and timestamp creation over an injected
+  `NSUserDefaults` adapter;
+- `ScriptStore` owns the Documents root, confined regular-file access, strict
+  UTF-8 and size validation, atomic writes, deterministic listing, and errors;
+- `FileNames` contains the shared filename and script-extension policy;
+- `TextEncoding` contains strict UTF-8 validation shared by stored scripts and
+  embedded menus;
 - `BridgeMethods` owns the callable native method inventory and argument rules;
-- `DylibTemplate` performs fixed-size template replacement.
+- `PluginLoader` owns resolved dylib images, legacy-object compatibility,
+  opaque WK handles, JSON RPC validation, invocation, and error conversion;
+- `DylibBuilder` owns regular-file input, bounded payload validation, fixed-size
+  replacement, temporary output, signing, cleanup, and atomic publication;
+- `DylibTemplate` is the builder's fixed-size replacement helper.
+- `RuntimeCoordinator` owns bootstrap modes, exactly-once UI readiness,
+  monitoring timers, and retained floating UI resources;
+- `GVProtocol` owns the fixed-width GlobalView header, capability negotiation,
+  compatibility checks, and bounded single-slot image transfer.
 
-The façade owns one `MemorySession` and still implements plugin, persistence,
-freezer, file, and dump orchestration. Proposed deeper modules remain:
+The façade owns one `MemorySession`, `ScriptStore`, `PluginLoader`,
+`FreezerController`, and `PreferencesStore`; it still implements search and
+dump orchestration. The `makeDYLIB` adapter supplies UIKit image validation,
+the embedded templates, and the linked `ldid` signer to `DylibBuilder`.
 
-- `ScriptStore`: owns the Documents root, atomic I/O, and filename policy;
-- `PluginLoader`: owns loaded handles and the WK RPC contract;
-- `DylibBuilder`: owns validation, replacement, output, and signing.
-
-These are proposed internal modules, not new JavaScript concepts.
+These are internal modules, not new JavaScript concepts.
 
 ### Memory engine
 
@@ -169,13 +203,13 @@ snapshot entries use the same type as the corresponding result
 `MemoryFilter` and masked-hex refinement mutate results through that module.
 Host tests cover typed/untyped regions, counts, filters, and hex refinement.
 
-The read interfaces are deliberately distinct:
-
-- `JJReadMemory` performs a typed read whose validated value type determines
-  byte width;
-- `JJReadBytes` performs a raw read with an explicit byte length;
-- `MemoryPage` and `MemoryDump` layer partial-read behavior on a reader
-  callback so they can be host-tested without a Mach task.
+`JJMemoryReader::readBytes` is the partial-read primitive. Its implementation
+clamps adapter results to the requested length; `readExact` requires full
+completion, and `readValue` validates the H5GG type before deriving its width.
+Engine snapshots, change refinement, numeric/hex result filtering, façade
+typed/raw reads, memory pages, dumps, and pointer matching all cross this
+interface. Numeric/hex bulk-scan mapping and region enumeration remain
+Mach-specific operations.
 
 Mach region enumeration and protected target-memory operations still require a
 device.
@@ -192,13 +226,16 @@ owned non-self port exactly once; the self task port is represented as borrowed.
 ### GlobalView
 
 `globalview/` runs in SpringBoard, hosts the standalone application view, and
-shares `GVData` with the application through a remapped page. The struct layout
-is a cross-process binary interface, but it currently has no magic, schema
-version, total size, or capability fields. Its 512 KiB inline image buffer also
-makes every mapping large.
+shares `GVData` with the application through a remapped page. `GVData` begins
+with a fixed-width header containing magic, schema version, header size, total
+size, and explicit capability bits. Both processes validate that header before
+enabling the mapping. A new client resolves `SetGlobalViewV2`; a missing symbol
+or incompatible header disables hosting instead of interpreting another layout.
 
-The layout must not change until both readers validate a versioned header or a
-compatible migration strategy is implemented.
+The 512 KiB image payload is no longer inline in `GVData`. It uses a separately
+mapped `GVImageTransfer` with its own validated header, fixed upper bound, and
+atomic idle/writing/ready state. This keeps the frequently accessed state
+mapping small while retaining a bounded icon handoff.
 
 ## Data ownership
 
@@ -207,14 +244,18 @@ compatible migration strategy is implemented.
 | Target PID/task port | `TargetProcess` inside `MemorySession` | One selected process |
 | Search engine/type/state | `MemorySession` | One target and search session |
 | Regions/results/snapshot | `JJMemoryEngine` and `Result` | One memory session |
-| Floating UI objects | Globals in `Tweak.mm` | Injected runtime |
+| Runtime modes, timers, and floating UI objects | `RuntimeCoordinator` | Injected runtime |
 | Current bridge invocation | `FloatMenu` | Synchronous native dispatch |
-| Deferred bridge call ID | Operation callback closure | Until that Promise settles |
-| Bookmarks/history | `NSUserDefaults` | App installation |
-| Frozen values | `h5ggEngine` and weak-capturing timer | One target process |
-| Scripts/dumps/log | Documents directory | App installation |
-| Plugin handles | `h5ggEngine` | Engine lifetime |
-| GlobalView state | Remapped `GVData` | Host/application pair |
+| Deferred file-picker call ID | `FilePickerRequest` | Until selection/cancellation settles once |
+| Bookmarks/history | `PreferencesStore` over `NSUserDefaults` | App installation |
+| Frozen values and timer | `FreezerController` | One selected target process |
+| Scripts | `ScriptStore` over the Documents directory | App installation |
+| Dumps/log | Documents directory | App installation |
+| Generated dylib build | `DylibBuilder` request | One atomic build attempt |
+| Plugin RPC objects/handles | `PluginLoader` | Loader lifetime |
+| Dynamically loaded plugin images | `PluginLoader` production adapter | Process lifetime; Objective-C images are not unloaded |
+| GlobalView state | Validated remapped `GVData` | Host/application pair |
+| GlobalView image handoff | Validated remapped `GVImageTransfer` | One pending bounded payload |
 
 Changing the target process atomically replaces the task port and memory engine,
 clears search state and target-bound frozen values, and releases the prior port.
@@ -231,7 +272,8 @@ An in-flight dump retains its own task-port right.
 6. A memory session never survives a target-process change.
 7. WK plugins exchange only JSON-compatible values through `H5GGPluginRPC`;
    native object compatibility is limited to legacy JavaScriptCore callers.
-8. Do not change `GVData` layout without version negotiation.
+8. Change `GVData` only by introducing a negotiated protocol version and
+   capability set; incompatible peers must fail closed.
 9. Package variants differ only in platform paths and bootstrap integration.
 
 ## Verification seams
@@ -244,11 +286,20 @@ bash tests/run_tests.sh
 
 The suite exercises the same internal seams used by production target/session
 ownership, modal request serialization, grouped/ranged search parsing and
-matching, results, raw reads, dumps, filenames, bridge schemas, and dylib
-templates. It also checks JavaScript reference coverage and variant compile
-definitions. The suite is not yet a required CI job.
+matching, results, raw reads, dumps, pointer matching, freezer and file-picker
+lifecycle, filenames, script/preference persistence, bridge schemas, plugin
+loading/RPC, dylib building, runtime lifecycle, and the GlobalView binary contract. Raw,
+exact, typed, partial, filter, page, dump, and pointer reads use buffer/callback
+adapters to the production reader interface. Freezer tests inject target,
+writer, and scheduler adapters; picker tests exercise request IDs and racing
+completion through the production request interface. The plugin contract test
+uses injected image/class adapters with macOS Foundation; the dylib integration
+uses the production builder interface with real temporary files and host
+`ldid`.
+The suite also checks JavaScript reference coverage and variant compile
+definitions. Both build workflows require it before package generation.
 
 Device tests remain necessary for Mach ports, `vm_remap`, protected writes,
 SpringBoard hosting, UIKit lifecycle/orientation, generated-dylib loading, and
-all three jailbreak package layouts. Record those results in
-[validation.md](validation.md).
+installation/runtime behavior of all three jailbreak package variants. Record
+those results in [validation.md](validation.md).

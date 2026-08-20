@@ -1,6 +1,7 @@
 #include "ScriptStore.h"
 
 #include "FileNames.h"
+#include "TextEncoding.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -11,49 +12,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
-
-static bool isValidUTF8(const std::string& text) {
-    size_t index = 0;
-    while(index < text.size()) {
-        uint8_t first = static_cast<uint8_t>(text[index]);
-        if(first <= 0x7F) {
-            index++;
-            continue;
-        }
-
-        size_t continuationCount = 0;
-        uint32_t codePoint = 0;
-        uint32_t minimum = 0;
-        if((first & 0xE0) == 0xC0) {
-            continuationCount = 1;
-            codePoint = first & 0x1F;
-            minimum = 0x80;
-        } else if((first & 0xF0) == 0xE0) {
-            continuationCount = 2;
-            codePoint = first & 0x0F;
-            minimum = 0x800;
-        } else if((first & 0xF8) == 0xF0) {
-            continuationCount = 3;
-            codePoint = first & 0x07;
-            minimum = 0x10000;
-        } else {
-            return false;
-        }
-
-        if(index + continuationCount >= text.size()) return false;
-        for(size_t offset = 1; offset <= continuationCount; offset++) {
-            uint8_t continuation = static_cast<uint8_t>(text[index + offset]);
-            if((continuation & 0xC0) != 0x80) return false;
-            codePoint = (codePoint << 6) | (continuation & 0x3F);
-        }
-        if(codePoint < minimum || codePoint > 0x10FFFF ||
-           (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
-            return false;
-        }
-        index += continuationCount + 1;
-    }
-    return true;
-}
 
 static std::string systemError(const char* operation, int error) {
     return std::string(operation) + ": " + std::strerror(error);
@@ -99,16 +57,31 @@ bool ScriptStore::resolve(const char* name,
 }
 
 bool ScriptStore::save(const char* name, const std::string& content) {
+    return saveContent(name, std::optional<std::string>(content));
+}
+
+bool ScriptStore::save(const char* name, std::nullopt_t) {
+    return saveContent(name, std::nullopt);
+}
+
+bool ScriptStore::saveContent(const char* name,
+                              const std::optional<std::string>& content) {
     std::lock_guard<std::mutex> lock(mutex_);
     lastError_.clear();
+
+    if(!name || !content) {
+        return fail("A file name and content are required");
+    }
 
     std::string normalized;
     std::string path;
     if(!resolve(name, normalized, path)) return false;
-    if(content.size() > MaximumScriptBytes) {
+    if(content->size() > MaximumScriptBytes) {
         return fail("Scripts are limited to 2 MB");
     }
-    if(!isValidUTF8(content)) return fail("Script content must be valid UTF-8");
+    if(!H5GGIsValidUTF8(*content)) {
+        return fail("Script content must be valid UTF-8");
+    }
 
     std::string temporaryTemplate = rootDirectory_ + "/.h5gg-script.XXXXXX";
     std::vector<char> temporary(temporaryTemplate.begin(), temporaryTemplate.end());
@@ -119,9 +92,9 @@ bool ScriptStore::save(const char* name, const std::string& content) {
     bool saved = true;
     int savedError = 0;
     size_t offset = 0;
-    while(offset < content.size()) {
-        ssize_t count = write(descriptor, content.data() + offset,
-                              content.size() - offset);
+    while(offset < content->size()) {
+        ssize_t count = write(descriptor, content->data() + offset,
+                              content->size() - offset);
         if(count < 0 && errno == EINTR) continue;
         if(count <= 0) {
             saved = false;
@@ -162,11 +135,18 @@ bool ScriptStore::load(const char* name, std::string& content) {
     if(descriptor < 0) return fail(systemError("Unable to load script", errno));
 
     struct stat info = {};
-    if(fstat(descriptor, &info) != 0 || !S_ISREG(info.st_mode) ||
-       info.st_size < 0 || static_cast<uint64_t>(info.st_size) > MaximumScriptBytes) {
-        int error = errno ? errno : EFBIG;
+    if(fstat(descriptor, &info) != 0) {
+        int error = errno;
         close(descriptor);
         return fail(systemError("Unable to load script", error));
+    }
+    if(!S_ISREG(info.st_mode)) {
+        close(descriptor);
+        return fail("Unable to load script: not a regular file");
+    }
+    if(info.st_size < 0 || static_cast<uint64_t>(info.st_size) > MaximumScriptBytes) {
+        close(descriptor);
+        return fail("Unable to load script: scripts are limited to 2 MB");
     }
 
     content.resize(static_cast<size_t>(info.st_size));
@@ -187,7 +167,7 @@ bool ScriptStore::load(const char* name, std::string& content) {
         content.clear();
         return fail(systemError("Unable to load script", errno));
     }
-    if(!isValidUTF8(content)) {
+    if(!H5GGIsValidUTF8(content)) {
         content.clear();
         return fail("Script content must be valid UTF-8");
     }

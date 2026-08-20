@@ -1,19 +1,24 @@
 #include "MemoryDump.h"
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 JJMemoryDumpResult JJStreamMemoryDump(
     uint64_t address,
     size_t length,
-    const JJPartialMemoryReader& reader,
+    JJMemoryReader& reader,
     const JJMemoryWriter& writer,
     const JJMemoryDumpCancellation& cancelled,
     const JJMemoryDumpProgress& progress,
     size_t chunkSize) {
     JJMemoryDumpResult result;
     result.failureAddress = address;
-    if(length == 0 || !reader || !writer || chunkSize == 0) return result;
+    if(length == 0 || !writer || chunkSize == 0 ||
+       static_cast<uint64_t>(length - 1) >
+           std::numeric_limits<uint64_t>::max() - address) {
+        return result;
+    }
 
     std::vector<uint8_t> buffer(std::min(chunkSize, length));
     while(result.bytesWritten < length) {
@@ -23,9 +28,8 @@ JJMemoryDumpResult JJStreamMemoryDump(
         }
 
         size_t requested = std::min(buffer.size(), length - result.bytesWritten);
-        size_t read = std::min(
-            reader(buffer.data(), address + result.bytesWritten, requested),
-            requested);
+        size_t read = reader.readBytes(
+            buffer.data(), address + result.bytesWritten, requested);
         if(read == 0) {
             result.status = JJMemoryDumpStatus::ReadFailed;
             result.failureAddress = address + result.bytesWritten;
