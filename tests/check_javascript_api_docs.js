@@ -31,7 +31,7 @@ for(const method of bridgeMethods) {
 }
 
 function collectJavaScriptFiles(directory) {
-    const ignoredDirectories = new Set(['Dobby-fixed', 'node_modules', '.git', '.theos']);
+    const ignoredDirectories = new Set(['node_modules', '.git', '.theos']);
     const files = [];
     for(const entry of fs.readdirSync(directory, {withFileTypes: true})) {
         if(entry.isDirectory()) {
@@ -45,7 +45,7 @@ function collectJavaScriptFiles(directory) {
     return files;
 }
 
-const exampleRoots = ['examples-HTML5', 'examples-JavaScript', 'examples-h5frida', 'pluginDemo'];
+const exampleRoots = ['examples-HTML5', 'examples-JavaScript', 'pluginDemo'];
 const legacyMarker = 'LEGACY-JAVASCRIPTCORE-ONLY';
 for(const exampleRoot of exampleRoots) {
     for(const file of collectJavaScriptFiles(path.join(root, exampleRoot))) {

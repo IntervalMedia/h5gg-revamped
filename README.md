@@ -1,10 +1,12 @@
-# H5GG-Revamped v8.0 - DEV BRANCH (Work in progress)
+# H5GG-Revamped v8.1 - DEV BRANCH (Work in progress)
 
-Fully revamped and actively maintained. Complete rewrite of the original H5GG codebase after years of inactivity. All code modernized for current iOS versions.
+H5GG-Revamped is an iOS memory inspection and modification runtime with
+Promise-based JavaScript APIs, custom HTML interfaces, and a dylib plugin
+system. It supports injected, standalone, and floating GlobalView modes on
+iOS 15 or newer.
 
-**Join the [Discord](https://discord.gg/CnwCJC5jak)** -- please introduce yourself when you join!
-
-iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but with custom HTML interfaces and a dylib plugin system.
+Join the [Discord](https://discord.gg/CnwCJC5jak) and introduce yourself when
+you arrive.
 
 ## Project design and status
 
@@ -16,13 +18,20 @@ iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but
 
 ---
 
-### What changed in v8.0
+### What changed in v8.1
 
-- **WKWebView** -- old UIWebView replaced with WKWebView. JS bridge uses `WKScriptMessageHandler` instead of JavaScriptCore hooking.
-- **Build target** -- now builds for iOS 15.0+ with C++17. No more hardcoded Xcode paths.
-- **Code split** -- all the old monolithic .h files that had implementations inside them were split into proper .h/.m/.mm files. Nullability annotations and generics added.
-- **C++17 memory engine** -- scanner uses templates and structured bindings instead of the old C++11 ext/hash_map.
-- **Actively maintained** -- issues and PRs welcome.
+- **Reliable HTML interface** -- the English and Chinese menus now share tested search overlays, result actions, script editing, memory viewing, and window controls.
+- **Jailbreak-aware paths** -- application paths are normalized for rootful, rootless, and roothide layouts before process matching.
+- **Consistent release metadata** -- the runtime, Debian packages, standalone hosts, Xcode project, and release workflow now identify version 8.1.
+- **Smaller source tree** -- obsolete h5frida examples, binaries, and the nested Dobby snapshot are no longer tracked or scanned by `make test`.
+- **Current examples and docs** -- the HTML examples use the Promise-based bridge and the JavaScript reference is checked against the production method inventory.
+
+### v8 foundation
+
+- **WKWebView** -- UIWebView was replaced with WKWebView. The JavaScript bridge uses `WKScriptMessageHandler` instead of JavaScriptCore hooking.
+- **Build target** -- all targets build for iOS 15.0+ with C++17 and without hardcoded Xcode paths.
+- **Code split** -- implementation was moved out of monolithic headers into paired `.h`, `.m`, and `.mm` files, with nullability annotations and generics.
+- **C++17 memory engine** -- the scanner uses templates and structured bindings instead of the old C++11 `ext/hash_map` implementation.
 
 ### Features
 
@@ -32,7 +41,6 @@ iOS mod engine with JavaScript APIs and HTML5 UI. Think GameGuardian for iOS but
 - JSON-RPC dylib plugin system ([demo](/pluginDemo/customAlert))
 - auto pointer chain search ([example](/examples-JavaScript/AutoSearchPointerChains.js))
 - one-click dylib generation
-- [h5frida](/examples-h5frida) plugin for C/C++/ObjC hooking
 
 ## Build (Theos)
 

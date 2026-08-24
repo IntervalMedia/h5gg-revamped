@@ -1,6 +1,7 @@
 # JavaScript frontend contract
 
-Status: current code inventory verified on 2026-08-20.
+Status: version 8.1 code inventory verified on 2026-08-24. The Promise bridge
+requires runtime version 8.0 or newer.
 
 This is the canonical reference for JavaScript that runs inside H5GG's iOS
 `WKWebView`. It documents the complete frontend contract: engine bridge methods,

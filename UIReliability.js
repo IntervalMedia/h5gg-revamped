@@ -30,6 +30,9 @@
         '.result-row{touch-action:manipulation;-webkit-user-select:none;user-select:none;min-height:58px}' +
         '.result-icon-button.active{color:#f5b400!important;background:rgba(245,180,0,.14)!important}' +
         '.result-icon-button[data-result-action="freeze"].active{color:#43a5ff!important;background:rgba(67,165,255,.16)!important}' +
+        '#resultActionMask{position:fixed;inset:0;z-index:120002;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}' +
+        '#resultActionMenu{width:min(420px,96%);margin-bottom:8px;padding:6px;border-radius:12px;background:var(--panel-bg,var(--bg-color,#fff));color:var(--text-color,#111)}' +
+        '#resultActionMenu button{display:block;width:100%;min-height:40px;margin:3px 0}' +
         '#h5ggResizeHandle{position:fixed;right:0;bottom:0;width:34px;height:34px;z-index:110000;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 45%,rgba(51,147,239,.8) 46% 53%,transparent 54% 62%,rgba(51,147,239,.8) 63% 70%,transparent 71%);border:0}' +
         '.h5gg-api-toolbar{display:flex;gap:4px;align-items:center;margin-bottom:4px}.h5gg-api-toolbar select{min-width:0;flex:1}.h5gg-api-docs{display:none;max-height:38%;overflow:auto;padding:6px;margin-bottom:4px;border:1px solid var(--border-color,#ccc);font-size:10px;line-height:1.4}.h5gg-api-docs.open{display:block}' +
         '.memory-line{display:grid;grid-template-columns:minmax(118px,auto) 1fr auto;gap:8px;align-items:center;padding:5px 3px;border-bottom:1px solid var(--border-color,#ddd);cursor:pointer;touch-action:manipulation}.memory-line:active{background:rgba(51,147,239,.14)}' +
@@ -263,6 +266,46 @@
             showToast(english ? 'Unable to freeze value' : '无法冻结数值');
         }
     }
+
+    function closeResultActions() {
+        var mask = document.getElementById('resultActionMask');
+        if(mask) mask.remove();
+    }
+
+    function showResultActions(row) {
+        closeResultActions();
+        var mask = document.createElement('div');
+        mask.id = 'resultActionMask';
+        mask.innerHTML = '<div id="resultActionMenu"><b style="display:block;padding:8px">'+escape(row.dataset.addr)+'</b>' +
+            '<button type="button" data-sheet-action="edit">'+(english ? 'Edit value' : '修改数值')+'</button>' +
+            '<button type="button" data-sheet-action="bookmark">'+text.bookmark+'</button>' +
+            '<button type="button" data-sheet-action="freeze">'+text.frozen+'</button>' +
+            '<button type="button" data-sheet-action="cancel">'+text.close+'</button></div>';
+        document.body.appendChild(mask);
+        mask.addEventListener('click', async function(event) {
+            var action = event.target.closest('[data-sheet-action]');
+            if(!action) {
+                if(event.target === mask) closeResultActions();
+                return;
+            }
+            if(action.dataset.sheetAction === 'edit' && typeof window.openMemoryEditor === 'function') {
+                closeResultActions();
+                await window.openMemoryEditor(row.dataset.addr, row.dataset.type);
+                return;
+            }
+            if(action.dataset.sheetAction === 'bookmark') {
+                await activateBookmark(row.querySelector('[data-result-action="bookmark"]'), row);
+            }
+            if(action.dataset.sheetAction === 'freeze') {
+                await activateFreeze(row.querySelector('[data-result-action="freeze"]'), row);
+            }
+            closeResultActions();
+        });
+    }
+
+    window.showResultActions = showResultActions;
+    window.closeResultActions = closeResultActions;
+    window.dismissResultActions = closeResultActions;
 
     function installResultDelegation() {
         var display = document.getElementById('listdiv');

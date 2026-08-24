@@ -160,10 +160,14 @@ for every row.
 
 ## Current evidence
 
-As of 2026-08-20:
+As of 2026-08-24 for version 8.1:
 
 - host tests pass;
+- browser regression checks pass for the English and Chinese built-in menus,
+  including their shared reliability layer;
 - normal, rootless, and roothide arm64/arm64e compilation passes;
+- rootful, rootless, and roothide path normalization is covered by source and
+  variant checks; device install paths remain part of the hardware matrix;
 - normal, rootless, and roothide package control metadata and installed layouts
   pass the artifact verifier;
 - universal dylib build, atomic publication, and host signing integration pass;

@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>H5GG v8 Example Explorer</title>
+    <style>
+        /* Base Theme (Original) */
+        :root { color-scheme: dark; --bg:#0c111d; --panel:#151c2b; --raised:#1b2435; --border:#2a364b; --text:#f4f7fb; --muted:#9ba9bd; --accent:#63e2bd; --danger:#ff9b9b; }
+
+        /* New Theme: Botanical Dark */
+        [data-theme="botanical"] { color-scheme: dark; --bg: #0d120f; --panel: #141c17; --raised: #1d2922; --border: #2b3d33; --text: #f0f7f3; --muted: #9eb8a8; --accent: #5ec78d; --danger: #fa8787; }
+
+        /* New Theme: Creative Amethyst */
+        [data-theme="amethyst"] { color-scheme: dark; --bg: #140d17; --panel: #1f1524; --raised: #2a1d30; --border: #3f2e47; --text: #f9f5fa; --muted: #b89ebd; --accent: #d863e2; --danger: #ff7575; }
+
+        /* New Theme: Crisp Canvas (Light) */
+        [data-theme="crisp"] { color-scheme: light; --bg: #f8f9fa; --panel: #ffffff; --raised: #f1f3f5; --border: #dee2e6; --text: #212529; --muted: #868e96; --accent: #20c997; --danger: #fa5252; }
+
+        * { box-sizing:border-box; }
+        html,body { width:100%; min-height:100%; margin:0; background:transparent; color:var(--text); font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
+        button,input,select { font:inherit; }
+        button,select { cursor:pointer; }
+        button:focus-visible,input:focus-visible,select:focus-visible,[role="tab"]:focus-visible { outline:3px solid rgba(99,226,189,.42); outline-offset:2px; }
+        .app { position:fixed; top:12px; left:50%; transform:translateX(-50%); width:min(420px,calc(100vw - 24px)); height:min(620px,calc(100vh - 24px)); display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--border); border-radius:18px; background:var(--bg); box-shadow:0 18px 48px rgba(0,0,0,.42); }
+        [hidden] { display:none!important; }
+        .titlebar { min-height:64px; display:flex; align-items:center; gap:12px; padding:10px 12px 10px 16px; border-bottom:1px solid var(--border); background:var(--panel); touch-action:none; }
+        .brand { flex:1; min-width:0; }
+        .eyebrow { margin:0 0 2px; color:var(--accent); font-size:11px; font-weight:750; letter-spacing:.12em; text-transform:uppercase; }
+        h1 { margin:0; overflow:hidden; font-size:18px; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; }
+        .quiet { min-width:52px; min-height:44px; border:1px solid var(--border); border-radius:10px; background:transparent; color:var(--muted); font-weight:700; }
+
+        /* New utility classes for the top buttons layout */
+        .header-actions { display:flex; gap:8px; }
+        .icon-btn { min-width:44px; display:flex; align-items:center; justify-content:center; padding:0; }
+
+        .tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:10px 12px 0; background:var(--panel); }
+        .tab { min-height:44px; border:0; border-radius:10px 10px 0 0; background:transparent; color:var(--muted); font-weight:750; }
+        .tab[aria-selected="true"] { background:var(--bg); color:var(--accent); }
+        .content { flex:1; min-height:0; overflow-y:auto; padding:18px 16px 20px; -webkit-overflow-scrolling:touch; }
+        h2 { margin:0 0 5px; font-size:20px; line-height:1.25; }
+        p { margin:0; color:var(--muted); }
+        .step { margin:16px 0 8px; color:var(--text); font-size:13px; font-weight:750; }
+        .fields { display:grid; grid-template-columns:minmax(0,1fr) 108px; gap:10px; }
+        label { display:block; margin-bottom:6px; color:var(--muted); font-size:12px; font-weight:700; }
+        input,select { width:100%; min-height:46px; padding:0 12px; border:1px solid var(--border); border-radius:10px; background:var(--raised); color:var(--text); }
+        input::placeholder { color:#718096; }
+        .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+        .button { min-height:44px; padding:0 14px; border:1px solid var(--border); border-radius:10px; background:var(--raised); color:var(--text); font-weight:750; }
+        .primary { border-color:var(--accent); background:var(--accent); color:#061713; }
+        .danger { color:var(--danger); }
+        .notice,.result,.code-note { margin-top:14px; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--panel); }
+        .notice { color:var(--muted); }
+        .notice.error { border-color:rgba(255,155,155,.55); color:#ffd0d0; }
+        .notice.success { border-color:rgba(99,226,189,.5); color:#baf5e2; }
+        .result { display:grid; gap:8px; }
+        .result div { display:flex; justify-content:space-between; gap:12px; }
+        .result span { color:var(--muted); font-size:12px; }
+        code,pre,.bytes { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+        code,.bytes,pre { color:#c8f8ea; overflow-wrap:anywhere; }
+        .code-note summary { min-height:32px; cursor:pointer; font-weight:700; }
+        pre { margin:10px 0 0; overflow-x:auto; font-size:12px; line-height:1.55; white-space:pre; }
+        .bytes { max-height:138px; margin-top:10px; overflow:auto; font-size:12px; white-space:pre-wrap; }
+        .list { display:grid; gap:8px; margin:12px 0 0; padding:0; list-style:none; }
+        .list li { padding:11px 12px; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
+        .list strong,.list code,.list small { display:block; }
+        .list small { margin-top:4px; color:var(--muted); }
+        @media(max-width:360px) { .app{top:6px;width:calc(100vw - 12px);height:calc(100vh - 12px)} .fields{grid-template-columns:1fr} }
+        @media(prefers-reduced-motion:reduce) { *{scroll-behavior:auto!important;transition:none!important} }
+    </style>
+</head>
+<body>
+    <main class="app" id="app">
+        <header class="titlebar">
+            <div class="brand"><p class="eyebrow">H5GG tutorial</p><h1>Memory tools starter</h1></div>
+
+            <!-- Added wrapper and theme icon button -->
+            <div class="header-actions">
+                <button class="quiet icon-btn" id="themeButton" type="button" aria-label="Toggle theme">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                    </svg>
+                </button>
+                <button class="quiet" id="hideButton" type="button">Hide</button>
+            </div>
+
+        </header>
+        <nav class="tabs" role="tablist" aria-label="Tutorial steps">
+            <button class="tab" id="searchTab" role="tab" aria-selected="true" aria-controls="searchPanel" type="button">1. Search</button>
+            <button class="tab" id="inspectTab" role="tab" aria-selected="false" aria-controls="inspectPanel" type="button">2. Inspect</button>
+            <button class="tab" id="saveTab" role="tab" aria-selected="false" aria-controls="savePanel" type="button">3. Save</button>
+        </nav>
+        <div class="content">
+            <section id="searchPanel" role="tabpanel" aria-labelledby="searchTab">
+                <h2>Find a value</h2>
+                <p>Start with a value you can change in the target app. A range such as <code>95~100</code> also works.</p>
+                <p class="step">Step 1: enter the current value</p>
+                <div class="fields">
+                    <div><label for="searchValue">Value or range</label><input id="searchValue" value="100" inputmode="decimal" autocomplete="off"></div>
+                    <div><label for="valueType">Value type</label><select id="valueType"><option>I32</option><option>F32</option><option>F64</option><option>I64</option></select></div>
+                </div>
+                <div class="actions">
+                    <button class="button primary" id="searchButton" type="button">Start search</button>
+                    <button class="button" id="changedButton" type="button">Keep changed</button>
+                    <button class="button" id="clearButton" type="button">Clear</button>
+                </div>
+                <div class="notice" id="searchStatus" role="status" aria-live="polite">Ready to search.</div>
+                <article class="result" id="firstResult" hidden>
+                    <div><span>First match</span><code id="resultAddress"></code></div>
+                    <div><span>Current value</span><code id="resultValue"></code></div>
+                    <button class="button" id="inspectResultButton" type="button">Inspect this address</button>
+                </article>
+                <details class="code-note"><summary>API used in this step</summary><pre>await h5gg.clearResults();
+await h5gg.searchNumber(value, type, start, end);
+await h5gg.searchChange("Changed");
+const count = await h5gg.getResultsCount();</pre></details>
+            </section>
+
+            <section id="inspectPanel" role="tabpanel" aria-labelledby="inspectTab" hidden>
+                <h2>Inspect an address</h2>
+                <p>Read a safe 64-byte page, follow one pointer, or copy the address for another tool.</p>
+                <p class="step">Step 2: choose an address</p>
+                <label for="addressInput">Hexadecimal address</label>
+                <input id="addressInput" placeholder="0x102000000" autocapitalize="off" autocomplete="off">
+                <div class="actions">
+                    <button class="button primary" id="readPageButton" type="button">Read 64 bytes</button>
+                    <button class="button" id="readPointerButton" type="button">Follow pointer</button>
+                    <button class="button" id="copyButton" type="button">Copy address</button>
+                </div>
+                <div class="notice" id="inspectStatus" role="status" aria-live="polite">Enter an address or select a search result.</div>
+                <div class="bytes" id="memoryBytes" aria-label="Memory bytes"></div>
+                <details class="code-note"><summary>API used in this step</summary><pre>const page = await h5gg.readMemoryPage(address, 64);
+const next = await h5gg.readPointer(address);
+await h5gg.copyText(address);</pre></details>
+            </section>
+
+            <section id="savePanel" role="tabpanel" aria-labelledby="saveTab" hidden>
+                <h2>Keep useful values</h2>
+                <p>Bookmarks survive restarts. Freezing writes every 100 ms, so confirm the address first.</p>
+                <p class="step">Step 3: name and save the address</p>
+                <div class="fields">
+                    <div><label for="bookmarkName">Bookmark name</label><input id="bookmarkName" value="Player health" autocomplete="off"></div>
+                    <div><label for="freezeValue">Freeze at</label><input id="freezeValue" value="100" inputmode="decimal" autocomplete="off"></div>
+                </div>
+                <div class="actions">
+                    <button class="button primary" id="bookmarkButton" type="button">Add bookmark</button>
+                    <button class="button danger" id="freezeButton" type="button">Freeze value</button>
+                    <button class="button" id="refreshButton" type="button">Refresh list</button>
+                </div>
+                <div class="notice" id="saveStatus" role="status" aria-live="polite">Select a result before saving it.</div>
+                <ul class="list" id="savedList" aria-label="Saved values"></ul>
+                <details class="code-note"><summary>API used in this step</summary><pre>await h5gg.addBookmark(address, name, type);
+await h5gg.freezeValue(address, value, type);
+const frozen = await h5gg.getFrozenValues();</pre></details>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        "use strict";
+        const state = { address:"", type:"I32" };
+        const $ = (selector) => document.querySelector(selector);
+        const nativeReady = () => window.h5gg && typeof h5gg.require === "function";
+
+        function notice(element, message, kind="") {
+            element.textContent = message;
+            element.className = `notice ${kind}`.trim();
+        }
+
+        function requireNative(element) {
+            if (nativeReady()) return true;
+            notice(element, "Open this page inside H5GG to run native API calls.", "error");
+            return false;
+        }
+
+        function selectTab(id) {
+            document.querySelectorAll('[role="tab"]').forEach((tab) => {
+                const selected = tab.id === id;
+                tab.setAttribute("aria-selected", String(selected));
+                $("#" + tab.getAttribute("aria-controls")).hidden = !selected;
+            });
+        }
+
+        async function showFirstResult(type) {
+            const count = await h5gg.getResultsCount();
+            const [result] = count ? await h5gg.getResults(1, 0) : [];
+            $("#firstResult").hidden = !result;
+            if (!result) return notice($("#searchStatus"), "No matches found. Change the value and try again.");
+            state.address = result.address;
+            state.type = result.type || type;
+            $("#resultAddress").textContent = result.address;
+            $("#resultValue").textContent = `${result.value} (${state.type})`;
+            $("#addressInput").value = result.address;
+            notice($("#searchStatus"), `${count.toLocaleString()} matches found.`, "success");
+        }
+
+        async function startSearch() {
+            const status = $("#searchStatus");
+            if (!requireNative(status)) return;
+            const value = $("#searchValue").value.trim();
+            const type = $("#valueType").value;
+            if (!value) return notice(status, "Enter a value before searching.", "error");
+            notice(status, "Searching…");
+            try {
+                // Clear the last session before starting a new search.
+                await h5gg.clearResults();
+                await h5gg.addInputHistory(value);
+                await h5gg.searchNumber(value, type, "0x100000000", "0x300000000");
+                await showFirstResult(type);
+            } catch (error) { notice(status, `Search failed: ${error.message || error}`, "error"); }
+        }
+
+        async function keepChanged() {
+            const status = $("#searchStatus");
+            if (!requireNative(status)) return;
+            try { await h5gg.searchChange("Changed"); await showFirstResult($("#valueType").value); }
+            catch (error) { notice(status, `Filter failed: ${error.message || error}`, "error"); }
+        }
+
+        async function clearSearch() {
+            const status = $("#searchStatus");
+            if (!requireNative(status)) return;
+            await h5gg.clearResults();
+            $("#firstResult").hidden = true;
+            notice(status, "Results cleared.", "success");
+        }
+
+        async function readPage() {
+            const status = $("#inspectStatus");
+            if (!requireNative(status)) return;
+            const address = $("#addressInput").value.trim();
+            if (!address) return notice(status, "Enter an address first.", "error");
+            try {
+                const page = await h5gg.readMemoryPage(address, 64);
+                if (page.error) return notice(status, `Could not read memory: ${page.error}`, "error");
+                $("#memoryBytes").textContent = page.bytes.map((byte) => byte === null ? "??" : byte.toString(16).padStart(2,"0").toUpperCase()).join(" ");
+                state.address = address;
+                notice(status, page.complete ? "Read 64 bytes." : "Unreadable bytes are marked ??.", "success");
+            } catch (error) { notice(status, `Read failed: ${error.message || error}`, "error"); }
+        }
+
+        async function followPointer() {
+            const status = $("#inspectStatus");
+            if (!requireNative(status)) return;
+            const next = await h5gg.readPointer($("#addressInput").value.trim());
+            if (!next) return notice(status, "No readable pointer was found.", "error");
+            $("#addressInput").value = state.address = next;
+            notice(status, `Pointer resolved to ${next}.`, "success");
+        }
+
+        async function copyAddress() {
+            const status = $("#inspectStatus");
+            if (!requireNative(status)) return;
+            const copied = await h5gg.copyText($("#addressInput").value.trim());
+            notice(status, copied ? "Address copied." : "Nothing was copied.", copied ? "success" : "error");
+        }
+
+        const currentAddress = () => $("#addressInput").value.trim() || state.address;
+
+        async function addBookmark() {
+            const status = $("#saveStatus");
+            if (!requireNative(status)) return;
+            const address = currentAddress();
+            const name = $("#bookmarkName").value.trim();
+            if (!address || !name) return notice(status, "Choose an address and enter a name.", "error");
+            const saved = await h5gg.addBookmark(address, name, state.type);
+            notice(status, saved ? "Bookmark added." : "That address may already be bookmarked.", saved ? "success" : "error");
+            await refreshSaved();
+        }
+
+        async function freezeValue() {
+            const status = $("#saveStatus");
+            if (!requireNative(status)) return;
+            const address = currentAddress();
+            const value = $("#freezeValue").value.trim();
+            if (!address || !value) return notice(status, "Choose an address and enter a value.", "error");
+            const frozen = await h5gg.freezeValue(address, value, state.type);
+            notice(status, frozen ? "Value is now frozen." : "H5GG could not freeze this value.", frozen ? "success" : "error");
+            await refreshSaved();
+        }
+
+        async function refreshSaved() {
+            const status = $("#saveStatus");
+            if (!requireNative(status)) return;
+            const [bookmarks, frozen] = await Promise.all([h5gg.getBookmarks(), h5gg.getFrozenValues()]);
+            const list = $("#savedList");
+            list.replaceChildren();
+            bookmarks.slice(0,3).forEach((item) => addSavedRow(item.name, item.address, `Bookmark · ${item.type}`));
+            frozen.slice(0,3).forEach((item) => addSavedRow(`Frozen at ${item.value}`, item.address, `${item.status} · ${item.type}`));
+            if (!list.children.length) addSavedRow("No saved values", "", "Add a bookmark or freeze a value above.");
+            notice(status, "Saved values refreshed.", "success");
+        }
+
+        function addSavedRow(nameText, addressText, detailText) {
+            const row = document.createElement("li");
+            const name = document.createElement("strong");
+            const address = document.createElement("code");
+            const detail = document.createElement("small");
+            name.textContent = nameText; address.textContent = addressText; detail.textContent = detailText;
+            row.append(name,address,detail); $("#savedList").append(row);
+        }
+
+        function hidePanel() { $("#app").hidden = true; if (typeof setWindowTouch === "function") setWindowTouch(0,0,0,0); }
+        function showPanel() { $("#app").hidden = false; if (typeof setWindowTouch === "function") setWindowTouch(1,0,0,0); }
+
+        document.querySelectorAll('[role="tab"]').forEach((tab) => tab.addEventListener("click", () => selectTab(tab.id)));
+        $("#searchButton").addEventListener("click", startSearch);
+        $("#changedButton").addEventListener("click", keepChanged);
+        $("#clearButton").addEventListener("click", clearSearch);
+        $("#inspectResultButton").addEventListener("click", () => selectTab("inspectTab"));
+        $("#readPageButton").addEventListener("click", readPage);
+        $("#readPointerButton").addEventListener("click", followPointer);
+        $("#copyButton").addEventListener("click", copyAddress);
+        $("#bookmarkButton").addEventListener("click", addBookmark);
+        $("#freezeButton").addEventListener("click", freezeValue);
+        $("#refreshButton").addEventListener("click", refreshSaved);
+        $("#hideButton").addEventListener("click", hidePanel);
+
+        // --- Theme Switcher Logic ---
+        const themes = ["original", "botanical", "amethyst", "crisp"];
+        let currentThemeIndex = 0;
+        $("#themeButton").addEventListener("click", () => {
+            currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+            const selectedTheme = themes[currentThemeIndex];
+            if (selectedTheme === "original") {
+                document.documentElement.removeAttribute("data-theme");
+            } else {
+                document.documentElement.setAttribute("data-theme", selectedTheme);
+            }
+        });
+
+        async function configureWindow() {
+            if (typeof setWindowRect !== "function") return;
+            // Host callbacks must be globals; functions cannot cross the Promise bridge.
+            window.h5gg_onButtonClick = () => $("#app").hidden ? showPanel() : hidePanel();
+            window.h5gg_onLayoutChange = async (width,height) => setWindowRect(-1,-1,Math.min(444,width),Math.min(644,height));
+            await setWindowRect(-1,-1,Math.min(444,window.innerWidth),Math.min(644,window.innerHeight));
+            await setWindowDrag(0,0,Math.min(444,window.innerWidth),64);
+            await setButtonAction();
+            await setLayoutAction();
+        }
+        configureWindow().catch((error) => notice($("#searchStatus"), `Window setup failed: ${error.message || error}`, "error"));
+    </script>
+</body>
+</html>

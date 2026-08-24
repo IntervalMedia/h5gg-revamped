@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-The root Theos tweak builds `H5GG.dylib`. Its primary entry point is `Tweak.mm`; memory, process, and UI behavior live in files such as `MemScan.mm`, `crossproc.mm`, `FloatMenu.mm`, and paired `.h` interfaces. `globalview/` packages the floating-on-screen variant, while `appstand/` packages the standalone/TrollStore app. The Xcode source for that app is in `h5ggapp-src/`. Keep JavaScript, HTML, and Frida examples in their respective `examples-JavaScript/`, `examples-HTML5/`, and `examples-h5frida/` directories. `pluginDemo/` contains independently buildable plugin examples.
+The root Theos tweak builds `H5GG.dylib`. Its primary entry point is `Tweak.mm`; memory, process, and UI behavior live in files such as `MemScan.mm`, `crossproc.mm`, `FloatMenu.mm`, and paired `.h` interfaces. `globalview/` packages the floating-on-screen variant, while `appstand/` packages the standalone/TrollStore app. The Xcode source for that app is in `h5ggapp-src/`. Keep JavaScript and HTML examples in `examples-JavaScript/` and `examples-HTML5/`. `pluginDemo/` contains independently buildable plugin examples.
 
 ## Build, Test, and Development Commands
 

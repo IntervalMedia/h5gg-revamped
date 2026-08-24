@@ -1,6 +1,6 @@
 # Stabilization and feature roadmap
 
-Last verified: 2026-08-20.
+Last verified: 2026-08-24 for version 8.1.
 
 ## Status legend and current phase
 
@@ -143,7 +143,7 @@ Goal: make releases reproducible and the repository navigable.
 |---|---|---|
 | Stop tracking generated packages and Xcode user state | 🟡 Partial | Ignore rules improved; already tracked files remain (H5-018) |
 | Inventory/checksum prebuilt dependencies and provenance | ⬜ Planned | H5-018 |
-| Choose a policy for the nested Dobby source | ⬜ Planned | H5-018 |
+| Remove obsolete h5frida and nested Dobby sources | ✅ Complete | Removed from source, examples, local IDE configuration, and host API scans in version 8.1 |
 | Separate build, package, and release verification | ✅ Complete | `build.sh` isolates artifacts, rejects invalid packages before collection, and publishes only verified outputs |
 | Remove hardcoded local device addresses | ✅ Complete | Only a commented example remains |
 | Run host verification in CI before packaging | ✅ Complete | Both build and manual-release workflows gate packaging on `tests/run_tests.sh` |

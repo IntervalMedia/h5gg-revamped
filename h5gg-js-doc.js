@@ -1,6 +1,6 @@
-**************** H5GG JavaScript 引擎文档 (v8.0, WKWebView, 异步API) ********************
+**************** H5GG JavaScript 引擎文档 (v8.1, WKWebView, 异步API) ********************
 
-注意: 这是 H5GG-Revamped v8.0, 使用全新的 WKWebView 桥接。所有 h5gg 方法都返回 Promise, 必须用 await 调用。旧版 H5GG (< v8.0) 不兼容这些新API。
+注意: H5GG-Revamped v8.1 使用 v8.0 引入的 WKWebView Promise 桥接。所有 h5gg 方法都返回 Promise，必须用 await 调用。H5GG v8.0 之前的版本不兼容这些 API。
 
 未来可能会加入同步/异步双兼容支持。
 

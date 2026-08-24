@@ -1,6 +1,6 @@
-**************** H5GG JavaScript Engine Document (v8.0, WKWebView, async API) ********************
+**************** H5GG JavaScript Engine Document (v8.1, WKWebView, async API) ********************
 
-WARNING: This is H5GG-Revamped v8.0 with a new WKWebView bridge. All h5gg methods now return Promises and must be called with await. These APIs will NOT work with old H5GG versions (< v8.0).
+WARNING: H5GG-Revamped v8.1 uses the Promise-based WKWebView bridge introduced in v8.0. All h5gg methods return Promises and must be called with await. These APIs do not work with H5GG versions older than v8.0.
 
 Dual support (old sync style + new async) may be added in a future release.
 

@@ -3,908 +3,514 @@
 <head>
 <title>H5GG</title>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="color-scheme" content="light dark">
-<!--CSS外观样式表-->
+<meta name="viewport" content="width=400, height=600, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"><meta name="color-scheme" content="light dark">
+
 <style>
+/* Modern iOS-Inspired Design System */
 :root {
     --safe-top: env(safe-area-inset-top, 0px);
-    --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-left: env(safe-area-inset-left, 0px);
-    --ios-control-font-size: 16px;
-    --bg-color: rgba(255,255,255,0.8);
-    --text-color: #000;
-    --btn-bg: #84848450;
-    --btn-hover: #fff;
-    --input-bg: rgba(0,0,0,0);
-    --border-color: #686868F0;
-    --radio-checked-bg: #E8E8E8;
-    --scrollbar-bg: #F5F5F5;
-    --scrollbar-thumb: #B8B8B8;
-    --title-bg: #D1D1D1;
-    --popup-bg: #FDFDFD;
-    --menubox-bg: #E8E8E890;
-    --menubox-current-bg: #848484;
-    --menubox-current-text: #E8E8E8;
-    --result-border: #D1D1D1;
-    --result-font: #848484;
-    --slider-track-bg: #68686830;
-    --slider-track-border: #010101;
-    --slider-thumb-bg: #EEEEEEE0;
-    --slider-thumb-border: #000000;
-    --border-light: #B8B8B880;
-    --checkbox-border: #686868;
-    --checkbox-checked-border: #B8B8B8;
-    --radio-border-color: #000000;
-    --radio-dot-color: #000000;
+
+    /* Light Theme Defaults */
+    --bg-color: #f2f2f7;
+    --panel-bg: #ffffff;
+    --panel-bg-alpha: rgba(255, 255, 255, 0.85);
+    --text-color: #1c1c1e;
+    --text-muted: #8e8e93;
+    --accent: #007aff;
+    --danger: #ff3b30;
+    --border-color: rgba(60, 60, 67, 0.15);
+    --btn-bg: rgba(116, 116, 128, 0.08);
+    --btn-active: rgba(116, 116, 128, 0.15);
+    --input-bg: rgba(116, 116, 128, 0.08);
+    --shadow: 0 8px 30px rgba(0,0,0,0.12);
 }
 
+/* Explicit Dark Theme Class */
 :root.dark {
-    --bg-color: rgba(30,30,30,0.95);
-    --text-color: #E8E8E8;
-    --btn-bg: #48484880;
-    --btn-hover: #686868;
-    --input-bg: rgba(255,255,255,0.1);
-    --border-color: #888888F0;
-    --radio-checked-bg: #484848;
-    --scrollbar-bg: #2A2A2A;
-    --scrollbar-thumb: #686868;
-    --title-bg: #3A3A3A;
-    --popup-bg: #3A3A3A;
-    --menubox-bg: #48484890;
-    --menubox-current-bg: #686868;
-    --menubox-current-text: #D0D0D0;
-    --result-border: #484848;
-    --result-font: #A0A0A0;
-    --slider-track-bg: #48484850;
-    --slider-track-border: #686868;
-    --slider-thumb-bg: #888888E0;
-    --slider-thumb-border: #CCC;
-    --border-light: #68686880;
-    --checkbox-border: #888888;
-    --checkbox-checked-border: #888888;
-    --radio-border-color: #D0D0D0;
-    --radio-dot-color: #D0D0D0;
+    --bg-color: #000000;
+    --panel-bg: #1c1c1e;
+    --panel-bg-alpha: rgba(28, 28, 30, 0.85);
+    --text-color: #f2f2f7;
+    --text-muted: #98989d;
+    --accent: #0a84ff;
+    --danger: #ff453a;
+    --border-color: rgba(84, 84, 88, 0.65);
+    --btn-bg: rgba(118, 118, 128, 0.24);
+    --btn-active: rgba(118, 118, 128, 0.35);
+    --input-bg: rgba(118, 118, 128, 0.24);
+    --shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+/* OS Dark Theme Fallback (Only applies if .light is not forced) */
+@media (prefers-color-scheme: dark) {
+    :root:not(.light) {
+        --bg-color: #000000;
+        --panel-bg: #1c1c1e;
+        --panel-bg-alpha: rgba(28, 28, 30, 0.85);
+        --text-color: #f2f2f7;
+        --text-muted: #98989d;
+        --accent: #0a84ff;
+        --danger: #ff453a;
+        --border-color: rgba(84, 84, 88, 0.65);
+        --btn-bg: rgba(118, 118, 128, 0.24);
+        --btn-active: rgba(118, 118, 128, 0.35);
+        --input-bg: rgba(118, 118, 128, 0.24);
+        --shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
 }
 
 :root.light {
-    --bg-color: rgba(255,255,255,0.8);
-    --text-color: #000;
-    --btn-bg: #84848450;
-    --btn-hover: #fff;
-    --input-bg: rgba(0,0,0,0);
-    --border-color: #686868F0;
-    --radio-checked-bg: #E8E8E8;
-    --scrollbar-bg: #F5F5F5;
-    --scrollbar-thumb: #B8B8B8;
-    --title-bg: #D1D1D1;
-    --popup-bg: #FDFDFD;
-    --menubox-bg: #E8E8E890;
-    --menubox-current-bg: #848484;
-    --menubox-current-text: #E8E8E8;
-    --result-border: #D1D1D1;
-    --result-font: #848484;
-    --slider-track-bg: #68686830;
-    --slider-track-border: #010101;
-    --slider-thumb-bg: #EEEEEEE0;
-    --slider-thumb-border: #000000;
-    --border-light: #B8B8B880;
-    --checkbox-border: #686868;
-    --checkbox-checked-border: #B8B8B8;
-    --radio-border-color: #000000;
-    --radio-dot-color: #000000;
+    --bg-color: #f2f2f7;
+    --panel-bg: #ffffff;
+    --panel-bg-alpha: rgba(255, 255, 255, 0.85);
+    --text-color: #1c1c1e;
+    --text-muted: #8e8e93;
+    --accent: #007aff;
+    --border-color: rgba(60, 60, 67, 0.15);
+    --btn-bg: rgba(116, 116, 128, 0.08);
+    --input-bg: rgba(116, 116, 128, 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-color: rgba(30,30,30,0.95);
-        --text-color: #E8E8E8;
-        --btn-bg: #48484880;
-        --btn-hover: #686868;
-        --input-bg: rgba(255,255,255,0.1);
-        --border-color: #888888F0;
-        --radio-checked-bg: #484848;
-        --scrollbar-bg: #2A2A2A;
-        --scrollbar-thumb: #686868;
-        --title-bg: #3A3A3A;
-        --popup-bg: #3A3A3A;
-        --menubox-bg: #48484890;
-        --menubox-current-bg: #686868;
-        --menubox-current-text: #D0D0D0;
-        --result-border: #484848;
-        --result-font: #A0A0A0;
-        --slider-track-bg: #48484850;
-        --slider-track-border: #686868;
-        --slider-thumb-bg: #888888E0;
-        --slider-thumb-border: #CCC;
-        --border-light: #68686880;
-        --checkbox-border: #888888;
-        --checkbox-checked-border: #888888;
-        --radio-border-color: #D0D0D0;
-        --radio-dot-color: #D0D0D0;
-    }
-}
+/* Global Reset */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+html, body {
+    /* Constrain the size to your exact overlay dimensions */
+    width: 400px;
+    height: 600px;
 
-html,
-body {
-    width: 100%;
-    height: 100%;
+    /* Center it perfectly on the screen if the webview is full-screen */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    /* Round the corners of your new floating overlay */
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+
     margin: 0;
     overflow: hidden;
     background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    font-size: 14px;
     -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
 }
-* {
-    box-sizing: border-box;
-    /*默认文字颜色*/
-    color: var(--text-color);
-    font-size: 13px;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    
-   -webkit-tap-highlight-color: transparent;
-   outline: none;
-    
-    /*默认布局边框:灰色虚线, 开启这个方便查看布局*/
-    /*/
-     border: 1px dashed gray;/**/
-    
+body { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); display: flex; flex-direction: column; }
+*:not(input, textarea) { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+input, textarea { -webkit-user-select: text; user-select: text; }
+
+/* Header */
+header {
+    height: 50px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; background: var(--panel-bg); border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0; cursor: move;
+}
+.brand-title { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.brand-title span.h5 { color: #34c759; }
+.brand-title span.gg { color: var(--danger); }
+.header-actions { display: flex; gap: 8px; }
+.icon-btn {
+    background: transparent; border: none; color: var(--accent); font-size: 18px;
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 
-*:not(input,checkbox,textarea) {
-    /*禁止文本选择*/
-   -webkit-touch-callout: none;
-   -webkit-user-select: none;
-   user-select: none; /* Non-prefixed version, currently */
+/* Main Layout: Tabs */
+.app-content {
+    flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative;
 }
+.tab-pane {
+    position: absolute; inset: 0; display: none; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; padding: 16px; padding-bottom: 80px;
+}
+.tab-pane.active { display: block; }
 
-input {
-    background-color: var(--input-bg);
-    height: 34px;
-    min-width: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    padding: 0 8px;
-}
+/* UI Elements */
+h2.section-title { font-size: 13px; text-transform: uppercase; color: var(--text-muted); margin: 0 0 8px 12px; font-weight: 600; letter-spacing: 0.5px; }
+.card-group { background: var(--panel-bg); border-radius: 12px; overflow: hidden; margin-bottom: 24px; border: 1px solid var(--border-color); }
+.card-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border-color); }
+.card-row:last-child { border-bottom: none; }
+.card-row label { font-weight: 500; font-size: 15px; }
 
-button {
-    min-height: 34px;
-    color: #3393EF;
-    background-color: var(--btn-bg);
-    display: inline-block;
-    cursor: pointer;
-    text-align: center;
-    text-decoration: none;
-    outline: none;
-    border: none;
-    border-radius: 5px;
-    padding: 0 6px;
-    margin: 2px;
+input[type="text"], input[type="number"], select {
+    background: var(--input-bg); border: 1px solid transparent; border-radius: 8px;
+    padding: 8px 12px; color: var(--text-color); font-size: 15px; min-width: 0; width: 100%;
 }
+input:focus, select:focus { border-color: var(--accent); }
+.compact-input { width: 120px !important; text-align: right; }
 
-button:active {
-    background-color: var(--btn-hover);
-    transform: translateY(2px);
+button.action-btn {
+    background: var(--btn-bg); color: var(--accent); border: none; border-radius: 10px;
+    padding: 10px 16px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; transition: transform 0.1s;
 }
+button.action-btn:active { background: var(--btn-active); transform: scale(0.97); }
+button.primary-btn { background: var(--accent); color: #fff; }
+button.primary-btn:active { background: #005bb5; }
+button.danger-btn { color: var(--danger); }
 
-input[type=radio]  {
-    width:16px;
-    height:16px;
-    margin:6px 2px;
-    margin-right:6px;
-    vertical-align:middle;
-    -webkit-appearance:none;
-    appearance:none;
-    border:1px solid var(--radio-border-color);
-    border-radius:50%;
-    background-color:transparent;
-    display:inline-grid;
-    place-content:center;
-}
-input[type=radio]::before {
-    content:"";
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    background:var(--radio-dot-color);
-    transform:scale(0);
-}
-input[type=radio]:checked::before {
-    transform:scale(1);
-}
-    
-input[type=checkbox]{
- visibility: hidden;
- vertical-align:middle; margin-bottom:2px;
- cursor: pointer;
- position: relative;
- width: 24px;
- height: 24px;
-}
-input[type=checkbox]::after{
- position: absolute;
- top: 0;
- margin-top:2px;
- width: 14px; height: 14px;
- border: 1px solid var(--checkbox-border);
- border-radius: 3px;
- background-color: var(--input-bg);
- display: inline-block;
- visibility: visible;
- text-align: center;
- content: ' ';
-}
-input[type=checkbox]:checked::after{
- content: "✓";
- color: #FFF;
- border-color: var(--checkbox-checked-border);
- background-color: #4498F7;
- font-size: 12px;
- font-weight: bold;
-}
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-input[type=range] {
-  -webkit-appearance: none;
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed; bottom: 0; left: 0; width: 100%; height: calc(60px + var(--safe-bottom));
+    background: var(--panel-bg-alpha); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding-bottom: var(--safe-bottom);
+    z-index: 100;
 }
-input[type=range]:focus {
-  outline: none;
+.nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--text-muted); background: transparent; border: none; font-size: 11px; font-weight: 500; gap: 4px; cursor: pointer;
 }
-input[type=range]::-webkit-slider-runnable-track {
-  height: 15px;
-  cursor: pointer;
-  animate: 0.2s;
-  background: var(--slider-track-bg);
-  border-radius: 1.3px;
-  border: 0.2px solid var(--slider-track-border);
-}
-input[type=range]::-webkit-slider-thumb {
-  border: 1px solid var(--slider-thumb-border);
-  height: 18px;
-  width: 16px;
-  border-radius: 3px;
-  background: var(--slider-thumb-bg);
-  cursor: pointer;
-  -webkit-appearance: none;
-  margin-top: -2px;
-}
-input[type=range]:focus::-webkit-slider-runnable-track {
-  background: #367ebd;
-}
+.nav-item.active { color: var(--accent); }
+.nav-icon { font-size: 20px; }
 
-.menubox {
-    display: inline;
-    padding: 5px;
-    width: 300px;
-    height: 20px;
-    line-height: 20px; /*height和line-height设置一样即可文字垂直居中*/
-    text-align:center;
-    background-color: var(--menubox-bg);
-    border-radius: 5px;
+/* Modals & Overlays */
+.overlay-mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; z-index: 1000;
 }
-.menubox.current {
-    color: var(--menubox-current-text);
-    background-color: var(--menubox-current-bg);
+.modal-card {
+    background: var(--panel-bg); width: min(340px, 90%); border-radius: 16px;
+    box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column;
+    animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+@keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-header { padding: 16px; text-align: center; font-weight: 600; border-bottom: 1px solid var(--border-color); font-size: 16px; }
+.modal-body { padding: 16px; flex: 1; overflow-y: auto; }
+.modal-footer { display: flex; border-top: 1px solid var(--border-color); }
+.modal-footer button {
+    flex: 1; background: transparent; border: none; padding: 16px; font-size: 16px; font-weight: 500; color: var(--accent); cursor: pointer;
+}
+.modal-footer button:first-child { border-right: 1px solid var(--border-color); font-weight: 400; }
 
-.menuview {
-    display:none;
+/* Custom Segmented Control for Data Types */
+.segment-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.segment-btn {
+    padding: 8px 0; text-align: center; border-radius: 8px; background: var(--btn-bg);
+    color: var(--text-color); font-size: 13px; font-weight: 500; border: 2px solid transparent; cursor: pointer;
 }
+.segment-btn.selected { background: var(--accent); color: #fff; }
 
-.menuview.current {
-    display:block;
-    overflow-x: hidden;
-    overflow-y: auto;
-}
-    
-/* 滚动条整体部分 */
-.scrollbar {
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
-.scrollbar::-webkit-scrollbar {
-    width: 5px; /* 纵向滚动条宽度 */
-    height: 5px;/* 横向滚动条高度 */
-    background-color: var(--scrollbar-bg); /* 滚动条整体背景，一般被覆盖着 */
-}
-/* 滚动条的轨道（里面装有Thumb） */
-.scrollbar::-webkit-scrollbar-track {
-    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3); /* 滚动条轨道阴影 */
-    /*border-radius: 10px; /* 滚动条轨道圆角 */
-    background-color: var(--scrollbar-bg); /* 滚动条轨道背景 */
-}
-/* 滚动条里面的滑块 */
-.scrollbar::-webkit-scrollbar-thumb {
-    border-radius: 15px; /* 滚动条滑块圆角 */
-    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.3); /* 滚动条滑块阴影 */
-    background-color: var(--scrollbar-thumb); /* 滚动条滑块颜色 */
-}
-
-.popup_container {
-    position:absolute;
-    z-index: 1000;
-    left:50%;
-    top:0;
-}
-    
-#popup_search_edit {
-    display:none;
-    text-align: center;
-    background-color: var(--popup-bg);
-    width:200px;
-    /* height:150px; */
-    position:absolute;
-    left:-100px; top:50px;
-    border:1px solid var(--border-light);
-    border-radius: 5px;
-    padding: 1px;
-}
-    
-#popup_progress {
-    display:none;
-    text-align: center;
-    background-color: var(--popup-bg);
-    width:200px;
-    height:20px;
-    position:absolute;
-    left:-100px; top:100px;
-    border:1px solid var(--border-light);
-    border-radius: 5px;
-    padding: 10px;
-    z-index: 2000;
-}
-    
-#popup_loadscripts {
-    display:none;
-    text-align: center;
-    background-color: var(--popup-bg);
-    width:250px;
-    height:220px;
-    position:absolute;
-    left:-125px; top:20px;
-    border:1px solid var(--border-light);
-    border-radius: 5px;
-    padding: 10px;
-}
-
-#popup_proclist {
-    display:none;
-    text-align: center;
-    background-color: var(--popup-bg);
-    width:180px;
-    max-height:200px;
-    position:absolute;
-    left:-90px; top:50px;
-    border:1px solid var(--border-light);
-    border-radius: 5px;
-    padding: 10px;
-}
-
-#popup_proclist button {
-    display: block;
-    width: 100%;
-    height: 30px;
-    border-radius: 2px;
-    font-weight:bold;
-    color: var(--text-color);
-    text-align: left;
-    background-color: #00000005;
-}
-
-table.datatype {
-    border: 1px solid red;
-    border-radius: 2px;
-    border-collapse: collapse;
-    border-style:hidden;
-    box-shadow: 0 0 0 1px #3393EF;
-}
-
-.datatype td {
-    cursor: hand;
-    padding: 5px;
-    color: #3393EF;
-    border: 1px solid #3393EF;
-    width: 22px;
-    height: 15px;
-    text-align: center;
-}
-
-.datatype td.selected {
-    color: white;
-    background-color: #3393EF;
-}
-
-.maskview {
-    display: none;
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    width: 100%;
-    height: 100%;
-    filter: alpha(opacity=60);
-    background-color: #777;
-    z-index: 1;
-    opacity:0.5;
-}
-
-#listdiv {
-    display:block;
-    flex: 1;
-    min-height: 0;
-    overflow-x:hidden;
-    overflow-y:scroll;
-    height:auto;
-    padding: 0;
-}
-
-#resultList tr.hilight td{
-    color: #3393EF;
-}
-
-#resultList td {
-    border-bottom:solid 1px var(--result-border);
-}
-#resultList td font {
-    font-size:12px;color: var(--result-font);
-}
-
-#theme-toggle {
-    float:right;
-    font-size:14px;
-    line-height:14px;
-    cursor:pointer;
-    padding:0 4px;
-    user-select:none;
-    -webkit-user-select:none;
-}
-
-.control-separator {
-    border: none;
-    border-top: 1px solid var(--result-border);
-    margin: 6px 0;
-}
-
-#titleBar {
-    height: 38px;
-    padding: 0 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    background-color: var(--title-bg);
-    border-bottom: 1px solid var(--result-border);
-    cursor: move;
-}
-
-.title-brand {
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.title-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.title-action {
-    min-height: 30px;
-    height: 30px;
-    margin: 0;
-    padding: 0 9px;
-    background: transparent;
-    color: var(--text-color);
-}
-
-#appShell {
-    height: calc(100% - 38px);
-    display: grid;
-    grid-template-columns: minmax(230px, 42%) minmax(0, 1fr);
-    min-height: 0;
-}
-
-#appShell.controls-collapsed {
-    grid-template-columns: 0 minmax(0, 1fr);
-}
-
-#controlsPanel {
-    min-width: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    padding: 0px;
-    border-right: 1px solid var(--result-border);
-    transition: opacity 120ms ease;
-}
-
-#appShell.controls-collapsed #controlsPanel {
-    padding: 0;
-    border: 0;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.control-section {
-    margin: 0 0 10px;
-    padding: 10px;
-    border: 1px solid var(--result-border);
-    border-radius: 8px;
-    background: rgba(127,127,127,0.05);
-}
-
-.section-title,
-.control-section > summary {
-    display: block;
-    margin: 0 0 8px;
-    font-weight: bold;
-    color: #3393EF;
-}
-
-.control-section > summary {
-    cursor: pointer;
-    min-height: 28px;
-    line-height: 28px;
-}
-
-.field-grid {
-    display: grid;
-    grid-template-columns: 76px minmax(0, 1fr);
-    gap: 7px 8px;
-    align-items: center;
-}
-
-.field-grid label {
-    color: var(--result-font);
-}
-
-.radio-row,
-.inline-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 7px;
-}
-
-.radio-row label {
-    display: flex;
-    align-items: center;
-    min-height: 34px;
-}
-
-.action-grid,
-.tool-grid,
-.sort-grid {
-    display: grid;
-    gap: 6px;
-}
-
-.action-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.tool-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.action-grid button,
-.tool-grid button,
-.sort-grid button {
-    width: 100%;
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.primary-action {
-    color: white;
-    background: #2F7DCD;
-    font-weight: bold;
-}
-
-.compact-input {
-    width: 100%;
-}
-
-.inline-row > input,
-.inline-row > select {
-    flex: 1;
-    min-width: 0;
-}
-
-.inline-row > button {
-    flex: 0 0 auto;
-}
-
-#resultsPanel {
-    min-width: 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-#resultsToolbar {
-    flex: 0 0 auto;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--result-border);
-    background: rgba(127,127,127,0.05);
-}
-
-.results-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 26px;
-    margin-bottom: 6px;
-}
-
-#results_count {
-    display: none;
-    margin: 0;
-    font-weight: bold;
-}
-
-.filter-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-#filterInput {
-    flex: 1;
-    width: 100%;
-}
-
-.sort-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    margin-top: 6px;
-}
-
-.sort-grid button {
-    min-height: 30px;
-    height: 30px;
-    padding: 0 3px;
-    font-size: 11px;
-}
-
-.empty-state {
-    padding: 24px 12px;
-    text-align: center;
-    color: var(--result-font);
-}
-
-#listdiv > div[data-addr] {
-    min-height: 54px;
-}
-
+/* Results List */
+.result-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
 .result-row {
-    position: relative;
-    min-height: 62px;
-    padding: 10px 76px 10px 12px;
-    border-bottom: 1px solid var(--result-border);
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
+    display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color); background: var(--panel-bg); cursor: pointer;
 }
+.result-row:first-child { border-top-left-radius: 12px; border-top-right-radius: 12px; }
+.result-row:last-child { border-bottom: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+.result-info { display: flex; flex-direction: column; gap: 4px; }
+.result-addr { font-family: monospace; font-size: 12px; color: var(--text-muted); }
+.result-val { font-size: 16px; font-weight: 600; color: var(--accent); }
+.result-actions button { font-size: 18px; color: var(--text-muted); background: transparent; border: none; padding: 4px 8px; cursor: pointer; }
+.result-actions button.active { color: #ffcc00; }
+.result-row.frozen .result-val { color: #34c759; }
 
-.result-row:active,
-.result-row.selected {
-    background: rgba(10,132,255,0.16);
-}
+/* Viewer & Script Utilities */
+.memory-line { display: grid; grid-template-columns: 80px 1fr auto; gap: 8px; align-items: center; padding: 5px 3px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+.memory-line:active { background: rgba(51,147,239,0.14); }
 
-.result-address {
-    color: var(--result-font);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
-    line-height: 1.35;
-    word-break: break-all;
-}
+.scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+.scrollbar::-webkit-scrollbar-thumb { background-color: var(--text-muted); border-radius: 10px; }
 
-.result-value {
-    margin-top: 3px;
-    color: #0A84FF;
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1.25;
-    word-break: break-all;
-}
+/* Progress Modals */
+#h5ggSearchProgress { position: fixed; inset: 0; z-index: 120000; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+#h5ggSearchProgress .card { min-width: 190px; padding: 24px; border-radius: 16px; background: var(--panel-bg); color: var(--text-color); text-align: center; box-shadow: var(--shadow); }
+.spinner { width: 32px; height: 32px; margin: 0 auto 16px; border: 3px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.h5gg-toast { position: fixed; bottom: calc(var(--safe-bottom) + 80px); left: 50%; transform: translateX(-50%); z-index: 120005; padding: 10px 20px; border-radius: 20px; background: rgba(0,0,0,0.85); color: #fff; font-size: 13px; font-weight: 500; opacity: 1; transition: opacity 0.3s; pointer-events: none; }
 
-.result-row-actions {
-    position: absolute;
-    top: 50%;
-    right: 8px;
-    display: flex;
-    transform: translateY(-50%);
-}
-
-.result-icon-button {
-    width: 32px;
-    min-height: 36px;
-    margin: 0;
-    padding: 0;
-    background: transparent;
-    font-size: 18px;
-}
-
-@media (max-width: 520px) {
-    #appShell {
-        grid-template-columns: minmax(210px, 58%) minmax(0, 1fr);
-    }
-
-    .action-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-.frozen td { color: #93C5FD !important; }
-.frozen-badge { display: none; font-size: 10px; margin-left: 4px; color: #60A5FA; }
-.frozen .frozen-badge { display: inline; }
-
-#uiTopLayer {
-    position: fixed;
-    inset: 0;
-    z-index: 2147483647;
-    pointer-events: none;
-}
-
-#uiToast {
-    position: absolute;
-    left: 50%;
-    bottom: max(24px, calc(var(--safe-bottom) + 12px));
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.82);
-    color: #fff;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 12px;
-    line-height: 1.3;
-    max-width: min(90vw, 520px);
-    text-align: center;
-    opacity: 0;
-    transition: opacity 0.22s ease;
-}
-
-#uiAlertMask {
-    position: absolute;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.45);
-    pointer-events: auto;
-}
-
-#uiAlertCard {
-    width: min(88vw, 360px);
-    border-radius: 12px;
-    background: var(--popup-bg);
-    border: 1px solid var(--border-light);
-    box-shadow: 0 10px 36px rgba(0,0,0,0.3);
-    overflow: hidden;
-}
-
-#uiAlertBody {
-    padding: 14px 12px;
-    white-space: pre-wrap;
-    word-break: break-word;
-    text-align: center;
-    font-size: 13px;
-}
-
-#uiAlertActions {
-    border-top: 1px solid var(--result-border);
-    padding: 8px;
-    display: flex;
-    justify-content: center;
-}
-
-#uiAlertOk {
-    min-width: 96px;
-}
-
-#uiResultActionMask {
-    position: absolute;
-    inset: 0;
-    display: none;
-    align-items: flex-end;
-    padding: 8px 8px max(8px, var(--safe-bottom));
-    background: rgba(0,0,0,0.42);
-    pointer-events: auto;
-}
-
-#uiResultActionSheet {
-    width: 100%;
-    max-width: 520px;
-    margin: 0 auto;
-}
-
-.ui-result-action-group {
-    overflow: hidden;
-    border: 1px solid var(--border-light);
-    border-radius: 14px;
-    background: var(--popup-bg);
-    box-shadow: 0 12px 36px rgba(0,0,0,0.32);
-}
-
-#uiResultActionTitle {
-    padding: 12px 14px 9px;
-    color: var(--result-font);
-    font-size: 12px;
-    line-height: 1.35;
-    text-align: center;
-    word-break: break-all;
-}
-
-.ui-result-action {
-    width: 100%;
-    min-height: 50px;
-    margin: 0;
-    border-top: 1px solid var(--result-border);
-    border-radius: 0;
-    background: transparent;
-    color: #0A84FF;
-    font-size: 17px;
-}
-
-#uiResultActionCancel {
-    width: 100%;
-    min-height: 50px;
-    margin: 8px 0 0;
-    border: 1px solid var(--border-light);
-    border-radius: 14px;
-    background: var(--popup-bg);
-    color: #0A84FF;
-    font-size: 17px;
-    font-weight: 600;
-}
-
-/* iOS/iPadOS WKWebView tuning */
-@supports (-webkit-touch-callout: none) {
-    html,
-    body {
-        min-height: -webkit-fill-available;
-    }
-
-    body {
-        padding-top: var(--safe-top);
-        padding-right: var(--safe-right);
-        padding-bottom: var(--safe-bottom);
-        padding-left: var(--safe-left);
-        overscroll-behavior: none;
-    }
-
-    #appShell {
-        height: calc(100dvh - 38px - var(--safe-top) - var(--safe-bottom));
-    }
-
-    input,
-    select,
-    textarea,
-    button {
-        font-size: var(--ios-control-font-size);
-    }
-
-    input,
-    textarea,
-    select {
-        -webkit-user-select: text;
-        user-select: text;
-    }
-
-    .scrollbar,
-    #controlsPanel,
-    #listdiv,
-    .menuview.current {
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-    }
+/* Optional Resize Handle */
+#h5ggResizeHandle {
+    position: fixed; right: 0; bottom: 0; width: 34px; height: 34px;
+    z-index: 110000; cursor: nwse-resize; touch-action: none;
+    background: linear-gradient(135deg, transparent 0% 45%, rgba(0, 122, 255, 0.8) 46% 53%, transparent 54% 62%, rgba(0, 122, 255, 0.8) 63% 70%, transparent 71%);
+    border: 0;
 }
 </style>
+<script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+</head>
 
+<body>
+<header id="titleBar">
+    <div class="brand-title">
+        <span class="h5">H5</span><span class="gg">GG</span>
+        <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">v8.1</span>
+        <span id="crossproc" style="display:none; margin-left:8px; font-size:11px; background:var(--accent); color:#fff; padding:2px 6px; border-radius:10px; cursor:pointer;" onclick="$('#popup_proclist').css('display','flex');">Target: <span id="procname">...</span></span>
+    </div>
+    <div class="header-actions">
+        <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">☾</button>
+        <button class="icon-btn" onclick="setWindowVisible(false)" title="Close">✕</button>
+    </div>
+</header>
+
+<div class="app-content">
+    <!-- TAB: SEARCH -->
+    <div id="tab-search" class="tab-pane active scrollbar">
+        <h2 class="section-title">Memory Search</h2>
+        <div class="card-group">
+            <div class="card-row">
+                <label>Memory Range</label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input id="range_min" class="compact-input" value="0x10000000" type="text" />
+                    <span style="color:var(--text-muted)">-</span>
+                    <input id="range_max" class="compact-input" value="0x300000000" type="text" />
+                </div>
+            </div>
+            <div class="card-row" style="justify-content: flex-start; gap: 16px;">
+                <label style="display:flex; align-items:center; gap:6px;">
+                    <input type="radio" name="numtype" value="signed" checked> Signed
+                </label>
+                <label style="display:flex; align-items:center; gap:6px;">
+                    <input type="radio" name="numtype" value="unsigned"> Unsigned
+                </label>
+            </div>
+            <div class="grid-2" style="padding: 12px;">
+                <button class="action-btn primary-btn" onclick="onClickSearchNumber()">New Search</button>
+                <button class="action-btn" onclick="onClickSearchNearby()">Nearby Search</button>
+            </div>
+        </div>
+
+        <h2 class="section-title">Refine & Filters</h2>
+        <div class="card-group">
+            <div class="card-row">
+                <input id="refineValue" type="text" placeholder="Refine value..." style="flex:2" />
+                <select id="refineMode" style="flex:1; margin:0 8px;"><option value="0">=</option><option value="2">&gt;</option><option value="3">&lt;</option></select>
+                <select id="refineType" style="flex:1;"><option>I8</option><option>U8</option><option>I16</option><option>U16</option><option selected>I32</option><option>U32</option><option>I64</option><option>U64</option><option>F32</option><option>F64</option></select>
+            </div>
+            <div style="padding: 12px;">
+                <button class="action-btn" onclick="refineNumericResults()">Refine Results</button>
+            </div>
+            <div class="card-row">
+                <label>Float Tolerance</label>
+                <div style="display:flex; gap:8px;">
+                    <input id="float_tolerance" class="compact-input" value="0.0" type="text" />
+                    <button class="action-btn" style="width:auto; padding:8px 12px;" onclick="applyTolerance()">Apply</button>
+                </div>
+            </div>
+            <div class="card-row">
+                <input id="hexInput" type="text" placeholder="Hex pattern e.g. 90 ?? E? AF" style="flex:1; margin-right:8px;" />
+                <button class="action-btn" style="width:auto; padding:8px 16px;" onclick="doHexSearch()">Hex Search</button>
+                    </div>
+            </div>
+            <div class="card-row">
+                <label for="nearby_range">Nearby range</label>
+                <input id="nearby_range" class="compact-input" value="0x100" type="text" />
+            </div>
+
+    <!-- TAB: RESULTS -->
+    <div id="tab-results" class="tab-pane scrollbar">
+        <div class="result-toolbar">
+            <input id="filterInput" type="search" placeholder="Filter current results..." style="flex:1" oninput="filterResults()" />
+            <button class="action-btn" style="width:auto; padding:8px 12px;" onclick="onClickRefreshResults()">↻</button>
+            <button class="action-btn danger-btn" style="width:auto; padding:8px 12px;" onclick="onClickClearResults()">Clear</button>
+        </div>
+        <div id="results_count" style="padding:0 4px 8px; color:var(--text-muted);">Results Count: 0</div>
+
+        <div class="result-toolbar" style="background:var(--panel-bg); border-radius:8px; padding:4px;">
+            <button class="action-btn" style="background:transparent; font-size:12px;" onclick="sortResults('addr')">Addr ↑</button>
+            <button class="action-btn" style="background:transparent; font-size:12px;" onclick="sortResults('val')">Val ↑</button>
+            <button class="action-btn" style="background:transparent; font-size:12px;" onclick="onClickEditAll()">Edit All</button>
+        </div>
+
+        <div id="listdiv" class="card-group scrollbar" style="margin-top:12px; border:none; border-radius:12px;" onscroll="showMoreResults(this);">
+            <div class="empty-state" style="padding: 40px 16px; text-align: center; color: var(--text-muted);">No results found. Start a search.</div>
+        </div>
+    </div>
+
+    <!-- TAB: TOOLS -->
+    <div id="tab-tools" class="tab-pane scrollbar">
+        <h2 class="section-title">Memory Utilities</h2>
+        <div class="card-group grid-2" style="padding: 12px; gap: 8px;">
+            <button class="action-btn" onclick="openMemoryViewer()">Hex Viewer</button>
+            <button class="action-btn" onclick="openPointerChain()">Pointer Chain</button>
+            <button class="action-btn" onclick="openDumpPanel()">Dump Memory</button>
+            <button class="action-btn" onclick="openOffsetCalc()">Offset Calc</button>
+        </div>
+
+        <h2 class="section-title">Data & Scripts</h2>
+        <div class="card-group grid-2" style="padding: 12px; gap: 8px;">
+            <button class="action-btn" onclick="openBookmarksPanel()">Bookmarks</button>
+            <button class="action-btn" onclick="openFreezePanel()">Frozen Values</button>
+            <button class="action-btn" onclick="openHistoryPanel()">Search History</button>
+            <button class="action-btn" onclick="openScriptEditor()">Script Editor</button>
+            <button class="action-btn" onclick="onShowLoadScript(true)">Load Script</button>
+            <button class="action-btn" onclick="onClickMakeTweak()">Make Tweak</button>
+        </div>
+
+        <h2 class="section-title">Settings</h2>
+        <div class="card-group">
+            <div class="card-row">
+                <label>Auto-run Script</label>
+                <select id="autorunSelect" class="compact-input" style="width:160px;" onchange="setAutorun()">
+                    <option value="">-- None --</option>
+                </select>
+            </div>
+            <div style="padding: 12px;">
+                <button class="action-btn" onclick="openSettings()">Advanced Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Navigation Bar -->
+<nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchTab('search', this)">
+        <span class="nav-icon">⌕</span><span>Search</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('results', this)">
+        <span class="nav-icon">≡</span><span id="tab-results-badge">Results (0)</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('tools', this)">
+        <span class="nav-icon">⚙</span><span>Tools</span>
+    </button>
+</nav>
+
+<!-- Modals -->
+
+<!-- Search Number Modal -->
+<div id="maskview" class="overlay-mask">
+    <div id="popup_search_edit" class="modal-card">
+        <div id="popupTitle" class="modal-header">Search Number</div>
+        <div class="modal-body">
+            <div class="segment-group" id="datatype_segments">
+                <div class="segment-btn" data-type="F32">F32</div>
+                <div class="segment-btn" data-type="F64">F64</div>
+                <div class="segment-btn" data-type="I8">I8</div>
+                <div class="segment-btn" data-type="I16">I16</div>
+                <div class="segment-btn selected" data-type="I32">I32</div>
+                <div class="segment-btn" data-type="I64">I64</div>
+            </div>
+            <input type="text" id="datavalue" placeholder="Enter value..." style="font-size:16px; padding:12px; border:1px solid var(--border-color);" autocomplete="off" />
+            <table id="datatype" style="display:none;"><tr>
+                <td>F32</td><td>F64</td><td>I8</td><td>I16</td><td class="selected">I32</td><td>I64</td>
+            </tr></table>
+        </div>
+        <div class="modal-footer">
+            <button id="cancel" style="color:var(--text-color);">Cancel</button>
+            <button id="action" style="font-weight:600;">Search</button>
+        </div>
+    </div>
+</div>
+
+<!-- Target Process Selector -->
+<div id="popup_proclist" class="overlay-mask">
+    <div class="modal-card">
+        <div class="modal-header">Select Target Process</div>
+        <div class="modal-body scrollbar" id="proctable" style="max-height:60vh; padding:8px;">
+            <!-- Process buttons injected here -->
+        </div>
+        <div class="modal-footer">
+            <button onclick="$('#popup_proclist').hide();">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Load Scripts Modal -->
+<div id="popup_loadscripts" class="overlay-mask">
+    <div class="modal-card">
+        <div class="modal-header" style="display:flex; padding:8px; gap:4px;">
+            <button class="action-btn" style="flex:1; background:var(--accent); color:#fff;" onclick="$('#netjs').hide(); $('#localjslist').show();">Local</button>
+            <button class="action-btn" style="flex:1;" onclick="$('#localjslist').hide(); $('#netjs').show();">Network</button>
+        </div>
+        <div class="modal-body scrollbar" style="padding:0; max-height:50vh;">
+            <table id="localjslist" style="width:100%; border-collapse:collapse;"><tbody></tbody></table>
+            <div id="netjs" style="display:none; padding:16px;">
+                <input id="netjsurl" type="text" placeholder="https://..." style="margin-bottom:12px;"/>
+                <div class="grid-2">
+                    <button class="action-btn primary-btn" onclick="onClickLoadScript($('#netjsurl').val(), 'js')">Load JS</button>
+                    <button class="action-btn" onclick="onClickLoadScript($('#netjsurl').val(), 'h5')">Load HTML</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button onclick="onShowLoadScript(false)">Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="maskview_script" class="overlay-mask" style="z-index: 120000; background:rgba(0,0,0,0.6);">
+    <div style="background:var(--panel-bg); padding:20px; border-radius:12px; box-shadow:var(--shadow);">Running Script...</div>
+</div>
+
+<!-- Core Scripts Section -->
 <script>
-// Override console.log to write to Documents/h5gg.log immediately
+// --- UI Layout Management ---
+function switchTab(tabId, btnElement) {
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+    btnElement.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+}
+
+function closeOverlay(id) {
+    var el = document.getElementById(id);
+    if(el) el.remove();
+}
+
+function showToast(msg) {
+    var toast = document.createElement('div');
+    toast.className = 'h5gg-toast';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(()=>toast.remove(), 300); }, 2000);
+}
+
+// Hook Segment Control to fake Table clicks for underlying logic
+document.querySelectorAll('.segment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        let type = btn.getAttribute('data-type');
+        $('table#datatype td').removeClass('selected');
+        $('table#datatype td:contains('+type+')').addClass('selected');
+    });
+});
+
+// Update Badge Logic
+const originalText = $.fn.text;
+$.fn.text = function(val) {
+    if(this.attr('id') === 'results_count' && val !== undefined) {
+        let count = val.replace(/\D/g, '');
+        document.getElementById('tab-results-badge').textContent = `Results (${count})`;
+    }
+    return originalText.apply(this, arguments);
+};
+
+// Fixed Theme Management (Solves the media query overriding issue)
+function toggleTheme() {
+    let root = document.documentElement;
+    if(root.classList.contains('dark')) {
+        root.classList.remove('dark');
+        root.classList.add('light');
+        localStorage.setItem('h5gg_theme', 'light');
+    } else if(root.classList.contains('light')) {
+        root.classList.remove('light');
+        root.classList.add('dark');
+        localStorage.setItem('h5gg_theme', 'dark');
+    } else {
+        // Toggle from auto -> explicit opposite
+        let isSystemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if(isSystemDark) {
+            root.classList.add('light');
+            localStorage.setItem('h5gg_theme', 'light');
+        } else {
+            root.classList.add('dark');
+            localStorage.setItem('h5gg_theme', 'dark');
+        }
+    }
+}
+(function() {
+    let theme = localStorage.getItem('h5gg_theme');
+    if(theme === 'dark') document.documentElement.classList.add('dark');
+    else if(theme === 'light') document.documentElement.classList.add('light');
+})();
+
+// ============================================================================
+// H5GG CORE LOGIC
+// ============================================================================
+
 (function() {
     var origLog = console.log;
     console.log = function() {
@@ -918,240 +524,157 @@ table.datatype {
     };
 })();
 
-var h5gg_jquery_stub;
-
-(function() {
-    var theme = localStorage.getItem('h5gg_theme');
-    if(theme === 'dark') document.documentElement.classList.add('dark');
-    else if(theme === 'light') document.documentElement.classList.add('light');
-})();
-
-if(typeof $ == 'undefined')
-    document.write("<script src=\"https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js\"><\/script>");
-
-//根据选择的有符号/无符号数确定搜索类型
-function h5ggType(type)
-{
+function h5ggType(type) {
     if($("input:radio[name=numtype]:checked").val()=="unsigned") {
         switch(type) {
-            case "I8":
-                return "U8";
-            case "I16":
-                return "U16";
-            case "I32":
-                return "U32";
-            case "I64":
-                return "U64";
+            case "I8": return "U8";
+            case "I16": return "U16";
+            case "I32": return "U32";
+            case "I64": return "U64";
         }
     }
-    
     return type;
 }
 
-    
-//页面显示完毕事件
 document.addEventListener("DOMContentLoaded", function(){
-
-    if(typeof $ == 'undefined') {
-        alert("jquery load failed!");
-        return;
-    }
-
-    /*禁止文本选择和拖动*/
-    document.body.onselectstart = document.body.ondrag = function(){
-        return false;
-    }
-    //文本框等输入完毕后页面自动滚动到顶部
-    $("input").blur(function(){
-        window.scroll(0,0);
-    });
-    
-    //激活webkit的button:active
+    if(typeof $ == 'undefined') { alert("jquery load failed!"); return; }
+    document.body.onselectstart = document.body.ondrag = function(){ return false; }
+    $("input").blur(function(){ window.scroll(0,0); });
     document.body.addEventListener('touchstart', function () {});
-    
-    //绑定菜单点击切换子页面
-    $("div.menubox").unbind('click').click(function(){
-        $("div.menubox").removeClass("current");
-        $("div.menuview").removeClass("current");
-        $(this).addClass("current");
-        
-        var menuid = $(this).attr("menu");
-        $("div#"+menuid).addClass("current");
-    });
-    
-    $("#datavalue").focus(function(){
-        var input = $(this);
-        input.attr("type","number");
-        setTimeout(function(){
-            input.attr("type","text");
-        }, 500);
-    });
-    
-    
-    $("#crossproc").click(function() {
-        $("#popup_proclist").show();
-        $("#maskview").show();
-    });
-        
-    if(typeof h5gg!='undefined')
-    {
-        
-        $("#version").text(h5gg_internel_version);
-        
-        //清除设计演示的结果列表
-        onClickClearResults();
-    
-        //设置标题栏区域可拖动悬浮窗
-        setWindowDrag(0, 0, 400, 80);
-        
-        //布局调整函数
-        setLayoutAction(function(w,h) {
-            var width = 400; var height = 600; //默认尺寸
-            if(w<h) {
-                height = 600; //竖屏模式加大显示高度
-            }
-            width = Math.min(width, w); //适配iPad浮窗, 最大宽度不超出
-            height = Math.min(height, h); //适配老设备, 最大高度不超出
-            var x = (w-width)/2;
-            var y = (h-height)/2;
-            if(w<h) {
-                y = Math.max(20, y);
-                height = Math.min(height, h-y);
-            }
-            setWindowRect(x,y,width,height);
-        });
 
-        var checkprocs = async function()
-        {
+    if(typeof h5gg!='undefined') {
+        onClickClearResults();
+
+        // --- 400x800 Hardcoded Dimension Logic ---
+        setWindowDrag(0, 0, 400, 50);
+
+        // The host calls this global callback after setLayoutAction().
+        window.h5gg_onLayoutChange = function(screenWidth, screenHeight) {
+            // Check if user set a custom dragged size in localstorage, fallback to fixed 400x800.
+            let savedSize = localStorage.getItem('h5gg_window_size');
+            let w = 400, h = 800;
+            if(savedSize) {
+                try { let p = JSON.parse(savedSize); w = p.w || 400; h = p.h || 800; } catch(e){}
+            }
+
+            // Respect device boundaries just in case screen is smaller than 400x800
+            let finalW = Math.round(Math.min(w, screenWidth));
+            let finalH = Math.round(Math.min(h, screenHeight));
+
+            var x = (screenWidth - finalW) / 2;
+            var y = Math.max(20, (screenHeight - finalH) / 2);
+            setWindowRect(Math.round(x), Math.round(y), finalW, finalH);
+        };
+
+        setLayoutAction();
+
+        // Initialize immediately
+        let s = localStorage.getItem('h5gg_window_size');
+        let initW = 400, initH = 800;
+        if(s) { try { let p = JSON.parse(s); initW = p.w || 400; initH = p.h || 800; } catch(e){} }
+        setWindowRect(-1, -1, Math.round(initW), Math.round(initH));
+
+        var checkprocs = async function() {
             var procs = await h5gg.getProcList();
-            if(procs)  //不为空(null)说明是具有跨进程权限
-            {
+            if(procs) {
                 refreshProcList(procs);
                 $("#crossproc").show();
-                $("#closeMenu").hide();
-                
                 if(!$("#procname").attr('pid')) {
-                    $("#popup_proclist").show();
-                    $("#maskview").show();
+                    $("#popup_proclist").css('display','flex');
                     $("#procname").text('');
                 }
-                
                 setInterval(async function(){
-                    if($("#popup_proclist").is(":visible"))
-                        refreshProcList(await h5gg.getProcList());
-
-                    if($("#procname").attr('pid'))
-                    {
+                    if($("#popup_proclist").is(":visible")) refreshProcList(await h5gg.getProcList());
+                    if($("#procname").attr('pid')) {
                         var targetStatus = await h5gg.getTargetStatus();
-                        var alive = targetStatus && targetStatus.available;
-                        
-                        if(!alive) {
-                            alert("Target process terminated\n\nPlease click on the title bar to select a new target");
+                        if(!(targetStatus && targetStatus.available)) {
+                            alert("Target process terminated");
                             $("#procname").removeAttr('pid');
-                            $("#procname").text('');
+                            $("#procname").text('...');
                         }
                     }
-                    
                 }, 1500);
-                
-            } else  {
-                $("#crossproc").hide();
             }
-            
-        }; //end of checkprocs
-        
+        };
         checkprocs();
-        //setInterval(checkprocs, 1500);
         checkAutorun();
-    
-    } //end of h5gg check
-    
-    //点击结果列表里面的地址时弹出修改窗口, 要在listdiv刷新html之后绑定
-    $("table#resultList").on('click','tr', async function()
-    {
-        $("table#resultList tr").removeClass("hilight");
-        $(this).addClass("hilight");
-        
-        var address = $(this).attr("address");
-        var datatype = $(this).attr("datatype");
-        var datavalue = $(this).attr("datavalue");
-        
-        //读取该地址最新数据
-        if(typeof h5gg!='undefined')
-            datavalue = await h5gg.getValue(address, h5ggType(datatype));
-        
-        showPopView("&nbsp;&nbsp;Edit&nbsp;&nbsp;", async function(type, value){
-            
-            if(!await h5gg.setValue(address, value, h5ggType(type))) {
-                alert("The modification failed, the address may be invalid!");
-            }
-            
-            await onClickRefreshResults();
-            
-        }, datatype, datavalue);
-    });
+    }
 });
 
-function refreshProcList(procs)
-{
+// Resize Handle Logic
+window.toggleResizeHandle = function() {
+    let handle = document.getElementById('h5ggResizeHandle');
+    if(handle) {
+        handle.remove();
+        showToast("Window resizing disabled");
+    } else {
+        installResizeHandle();
+        showToast("Drag the bottom right corner to resize");
+    }
+};
+
+window.installResizeHandle = function() {
+    if(document.getElementById('h5ggResizeHandle')) return;
+    var handle = document.createElement('button');
+    handle.id = 'h5ggResizeHandle';
+    document.body.appendChild(handle);
+    var drag = null;
+
+    handle.addEventListener('pointerdown', function(e) {
+        let savedSize = localStorage.getItem('h5gg_window_size');
+        let w = 400, h = 800;
+        if(savedSize) { try { let p = JSON.parse(savedSize); w = p.w; h = p.h; } catch(e){} }
+        drag = { x: e.clientX, y: e.clientY, w: w, h: h };
+        handle.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    });
+
+    handle.addEventListener('pointermove', function(e) {
+        if(!drag) return;
+        let newW = Math.max(300, drag.w + (e.clientX - drag.x));
+        let newH = Math.max(400, drag.h + (e.clientY - drag.y));
+        setWindowRect(-1, -1, Math.round(newW), Math.round(newH));
+        localStorage.setItem('h5gg_window_size', JSON.stringify({w: newW, h: newH}));
+    });
+
+    handle.addEventListener('pointerup', function() { drag = null; });
+    handle.addEventListener('pointercancel', function() { drag = null; });
+};
+
+
+function refreshProcList(procs) {
     $("#proctable button").remove();
-    
     for(var i=0; i<procs.length; i++) {
         var proc = procs[i];
-        var btn = $("<button>"+proc.name+"</button>");
+        var btn = $("<button class='action-btn' style='margin-bottom:8px; text-align:left; background:var(--btn-bg);'>"+proc.name+"</button>");
         btn.attr("pid", proc.pid);
-        btn.click(async function()
-        {
-            if(!await h5gg.setTargetProc($(this).attr('pid'))) {
-                alert("Cannot Select Target!");
-                return;
-            }
-            
+        btn.click(async function() {
+            if(!await h5gg.setTargetProc(Number($(this).attr('pid')))) { alert("Cannot Select Target!"); return; }
             onClickClearResults();
-            
             $("#procname").attr('pid', $(this).attr('pid'));
             $("#procname").text($(this).text());
             $("#popup_proclist").hide();
-            $("#maskview").hide();
         });
-        
         $("#proctable").append(btn);
     }
 }
 
-async function refreshLocalSrcipts()
-{
-    console.log('FUNC refreshLocalSrcipts');
+async function refreshLocalSrcipts() {
     $("table#localjslist tr").remove();
-    
     var jsfiles = await h5gg.getLocalScripts();
-
     setTimeout(function(){
-        
-        if(jsfiles.length==0) {
-            $("table#localjslist tbody").append("<tr><td colspan=2>Searching App's Documents Directory...<br/>Searching .app Bundle Directory...<br/>No (*.js) or (*.html) files found!</td></td>");
-        }
-        
-        $("table#localjslist tbody").append('<tr><td style="border-right-style:none; color:blue">Browser on File App</td><td style="border-left-style:none;width:45px"><button onclick="pickFileForScript()">Load</button></td></tr>');
-        
+        if(jsfiles.length==0) $("table#localjslist tbody").append("<tr><td colspan=2 style='padding:12px;text-align:center;'>No scripts found!</td></tr>");
+        $("table#localjslist tbody").append('<tr><td style="padding:12px;">Browser on File App</td><td style="text-align:right;padding:12px;"><button class="action-btn" style="width:auto;padding:6px 12px;" onclick="pickFileForScript()">Load</button></td></tr>');
         for(var i=0; i<jsfiles.length; i++) {
-            var row = '<tr><td style="border-right-style:none;font-weight:bold;color:green">'+jsfiles[i].name+'</td><td style="border-left-style:none;width:45px"><button onclick="onClickLoadScript(\''+jsfiles[i].path+'\')">Load</button></td></tr>';
+            var row = '<tr><td style="padding:12px; font-weight:600; color:var(--accent);">'+jsfiles[i].name+'</td><td style="text-align:right;padding:12px;"><button class="action-btn" style="width:auto;padding:6px 12px;" onclick="onClickLoadScript(\''+jsfiles[i].path+'\')">Load</button></td></tr>';
             $("table#localjslist tbody").append(row);
         }
     }, 300);
 }
 
-function onShowLoadScript(show)
-{
-    if(show) {
-        $("#maskview").show();
-        $("#popup_loadscripts").show();
-        
-        if(typeof h5gg!='undefined') refreshLocalSrcipts();
-    } else {
-        $("#maskview").hide();
-        $("#popup_loadscripts").hide();
-    }
+function onShowLoadScript(show) {
+    if(show) { $("#popup_loadscripts").css('display','flex'); if(typeof h5gg!='undefined') refreshLocalSrcipts(); }
+    else { $("#popup_loadscripts").hide(); }
 }
 
 async function pickFileForScript() {
@@ -1159,649 +682,50 @@ async function pickFileForScript() {
     if(path) onClickLoadScript(path);
 }
 
-function onClickLoadScript(url, type)
-{
-    if(!url) return;
-    
-    if(/^\w+\:/.test(url)==false) url = "file://"+url;
-    
-    try{
-        url = new URL(url);
-        url.searchParams.append("_", Math.random());
-    }catch(e){
-        alert("invliad URL!");
-        return;
-    }
-    
-    $("#popup_progress").show();
-    $("#maskview_script").show();
-    
-    if(type=='h5' || (!type&&!/\.js$/.test(url.pathname))) {
-        window.location = url.href;
-        return;
-    }
-    
-    var script = document.createElement("script");
+window.gAllResults = [];
+window.gCurrentCount = 0;
 
-    script.type = "text/javascript";
-    
-    script.onload = function () {
-      alert("JS Run Complete!");
-        $("#popup_progress").hide();
-        $("#maskview_script").hide();
-    };
-    
-    script.onerror = function () {
-        alert("Load Error!\nURL Invalid or Network Exception!");
-        $("#popup_progress").hide();
-        $("#maskview_script").hide();
-    };
-
-    script.src = url.href;
-    document.body.appendChild(script);
-}
-
-
-//弹出搜索或修改窗口
-function showPopView(name, action, type, value)
-{
-    $("#maskview").show();
-    $("#popup_search_edit").show();
-        $("#popup_search_edit").find("#popupTitle").html(name);
-    $("#popup_search_edit").find("button#action").html(name);
-    
-    if(type) {
-        $("table#datatype td").each(function(){
-            if($(this).text()==type)
-                $(this).addClass("selected");
-            else
-                $(this).removeClass("selected");
-        });
-    }
-    
-    if(value) {
-        $("input#datavalue").val(value);
-    }
-    
-    $("input#datavalue").focus();
-    
-    $("#popup_search_edit").find("button#action").unbind("click").click(function(){
-        var type = $("table#datatype td.selected").text();
-        var value = $("input#datavalue").val();
-        
-        $("#popup_search_edit").hide();
-        $("#popup_progress").show();
-        
-        setTimeout(function() {
-            
-            action(type, value);
-            
-            $("#popup_progress").hide();
-            $("#maskview").hide();
-        }, 200);
-        
-    });
-    
-    $("#popup_search_edit").find("button#cancel").unbind("click").click(function(){
-        $("#maskview").hide();
-        $("#popup_search_edit").hide();
-    });
-    
-    $("table#datatype td").unbind("click").click(function(){
-        $("table#datatype td").removeClass("selected");
-        $(this).addClass("selected");
-        $("input#datavalue").focus();
-    });
-}
-
-function onClickClearResults()
-{
+function onClickClearResults() {
     $("input#datavalue").val("");
-    $("#results_count").hide();
+    $("#results_count").text('Results Count: 0').show();
     gAllResults = [];
     gCurrentCount = 0;
     renderResults([]);
     if(typeof h5gg!='undefined') h5gg.clearResults();
+    $('#tab-results-badge').text('Results (0)');
 }
 
-async function loadResults(from, count)
-{
-    console.log('FUNC loadResults');
+async function loadResults(from, count) {
     var results = await h5gg.getResults(count, from);
-    
-    for(var i=0; i<results.length; i++)
-    {
-        if(results[i].type=='F32' || results[i].type=='F64')
-            results[i].value = '('+results[i].value+')';
+    for(var i=0; i<results.length; i++) {
+        if(results[i].type=='F32' || results[i].type=='F64') results[i].value = '('+results[i].value+')';
     }
-    if(from == 0) {
-        gAllResults = results;
-        cacheResults(gAllResults);
-        renderResults(gAllResults);
-    } else {
-        gAllResults = gAllResults.concat(results);
-        renderResults(gAllResults);
-    }
-}
-
-async function onClickRefreshResults(clean)
-{
-    console.log('FUNC onClickRefreshResults');
-   if(clean) {
-       $("#listdiv").get(0).scroll(0,0);
-       gCurrentCount = 0;
-   }
-
-    var count = await h5gg.getResultsCount();
-    $("#results_count").text("Results Count: "+count);
-    $("#results_count").show();
-    
-    if(gCurrentCount == 0) {
-        gCurrentCount = 100;
-    }
-    
-    loadResults(0, gCurrentCount);
+    if(from == 0) gAllResults = results;
+    else gAllResults = gAllResults.concat(results);
+    renderResults(gAllResults);
 }
 
 async function loadMoreResults() {
-    console.log('FUNC loadMoreResults');
     var from = gCurrentCount;
     gCurrentCount += 100;
     await loadResults(from, 100);
 }
 
-async function showMoreResults(div)
-{
-    console.log('FUNC showMoreResults');
+async function showMoreResults(div) {
     var lh = div.scrollHeight - div.scrollTop;
-    console.log(div.clientHeight+","+div.offsetHeight +" : " +div.scrollTop+","+div.scrollHeight + " : " + lh);
-    
-    if(lh <= div.clientHeight) {
-        console.log("trigger bottom!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        await loadMoreResults();
-    }
+    if(lh <= div.clientHeight + 10) await loadMoreResults();
 }
 
-function onClickEditAll()
-{
-    console.log('FUNC onClickEditAll');
-    /*
-    if($("table#resultList tr").length==0) {
-        alert("没有可修改的数据");
-        return;
-    }*/
-    
-    showPopView("EditAll", async function(type, value){
-
+function onClickEditAll() {
+    showPopView("Edit All", async function(type, value){
         var count = await h5gg.editAll(value, h5ggType(type));
-        
         await onClickRefreshResults();
-        
-        alert("Success to modify count: "+count);
+        showToast("Successfully modified: "+count);
     });
-}
-
-function onClickSearchNumber()
-{
-    console.log('FUNC onClickSearchNumber');
-    showPopView("Search Number", async function(type, value) {
-        
-        await h5gg.setFloatTolerance($("#float_tolerance").val());
-        
-        var memoryFrom = $("input#range_min").val();
-        var memoryTo = $("input#range_max").val();
-        await h5gg.searchNumber(value, h5ggType(type), memoryFrom, memoryTo);
-        await h5gg.addSearchHistory(value, h5ggType(type), await h5gg.getResultsCount());
-        await onClickRefreshResults(true);
-    });
-}
-
-function onClickSearchNearby()
-{
-    console.log('FUNC onClickSearchNearby');
-    /*
-    if($("table#resultList tr").length==0) {
-        alert("没有可继续搜索的数据");
-        return;
-    }*/
-    
-    showPopView("Nearby Search", async function(type, value){
-        
-        await h5gg.setFloatTolerance($("#float_tolerance").val());
-        
-        var nearbyRange = $("input#nearby_range").val();
-        await h5gg.searchNearby(value, h5ggType(type), nearbyRange);
-        await onClickRefreshResults(true);
-    });
-}
-    
-async function onClickMakeTweak()
-{
-    console.log('FUNC onClickMakeTweak');
-    alert("Make your custom dylib\n\nStep 1: Select a picture file for float button");
-    var icon = await h5gg.pickScriptFile(["public.image"]);
-    if(!icon) return;
-    
-    alert("Step 2: Select a html file that needs to load automatically");
-    var html = await h5gg.pickScriptFile(["public.html"]);
-    if(!html) return;
-    
-    alert(await h5gg.makeTweak(icon, html));
-}
-
-// Bookmarks panel
-async function openBookmarksPanel() {
-    console.log('FUNC openBookmarksPanel');
-    var list = await h5gg.getBookmarks();
-    var html = '<div id="bmOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeBookmarksPanel()">';
-    html += '<div style="position:absolute;top:10%;left:5%;width:90%;height:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center">';
-    html += '<span>Bookmarks ('+list.length+')</span>';
-    html += '<span><button onclick="clearAllBookmarks()" style="font-size:11px;padding:2px 6px">Clear All</button> <span onclick="closeBookmarksPanel()" style="cursor:pointer;font-size:18px">&times;</span></span>';
-    html += '</div>';
-    html += '<div class="scrollbar" style="flex:1;overflow-y:auto;padding:4px">';
-    if(list.length==0) html += '<div style="padding:12px;text-align:center;color:var(--text-color,#888)">No bookmarks saved</div>';
-    for(var i=0;i<list.length;i++) {
-        var b = list[i];
-        html += '<div style="display:flex;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
-        html += '<div style="flex:1;cursor:pointer" onclick="useBookmark('+i+')">';
-        html += '<div style="font-size:12px;font-weight:bold">'+b.name+'</div>';
-        html += '<div style="font-size:10px;color:var(--text-color,#888)">'+b.address+'  ['+b.type+']</div>';
-        html += '</div>';
-        html += '<button onclick="deleteBookmark('+i+')" style="font-size:16px;color:red;background:none;border:none;padding:4px">&times;</button>';
-        html += '</div>';
-    }
-    html += '</div></div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function closeBookmarksPanel() {
-    var el = document.getElementById('bmOverlay');
-    if(el) el.remove();
-}
-
-function useBookmark(idx) {
-    closeBookmarksPanel();
-}
-
-async function deleteBookmark(idx) {
-    var list = await h5gg.getBookmarks();
-    if(idx < list.length) await h5gg.removeBookmark(list[idx].address);
-    closeBookmarksPanel();
-    openBookmarksPanel();
-}
-
-async function clearAllBookmarks() {
-    await h5gg.clearBookmarks();
-    closeBookmarksPanel();
-    openBookmarksPanel();
-}
-
-async function saveBookmark(addr, type) {
-    var name = prompt('Bookmark name:');
-    if(!name) return;
-    await h5gg.addBookmark(addr, name, type);
-}
-
-async function freezeResult(addr, val, type) {
-    if(!await h5gg.freezeValue(addr, val, type)) {
-        showToast('Unable to freeze value');
-        return;
-    }
-    var el = document.querySelector('[data-addr="'+addr+'"]');
-    if(el) el.classList.add('frozen');
-}
-
-async function openFreezePanel() {
-    console.log('FUNC openFreezePanel');
-    var list = await h5gg.getFrozenValues();
-    var html = '<div id="fzOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeFreezePanel()">';
-    html += '<div style="position:absolute;top:10%;left:5%;width:90%;height:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center">';
-    html += '<span>Frozen Values ('+list.length+')</span>';
-    html += '<span><button onclick="unfreezeAll()" style="font-size:11px;padding:2px 6px">Unfreeze All</button> <span onclick="closeFreezePanel()" style="cursor:pointer;font-size:18px">&times;</span></span>';
-    html += '</div>';
-    html += '<div class="scrollbar" style="flex:1;overflow-y:auto;padding:4px">';
-    if(list.length==0) html += '<div style="padding:12px;text-align:center;color:var(--text-color,#888)">No frozen values</div>';
-    for(var i=0;i<list.length;i++) {
-        var f = list[i];
-        html += '<div style="display:flex;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee)">';
-        html += '<div style="flex:1;font-size:12px">';
-        html += '<span style="font-weight:bold">'+f.type+'</span> <span>'+f.address+'</span> = <span style="color:#3393EF">'+f.value+'</span>';
-        html += '<div style="font-size:10px;color:'+(f.status == 'active' ? 'green' : 'red')+'">'+f.status+(f.failures ? ' ('+f.failures+' failures)' : '')+(f.lastError ? ': '+f.lastError : '')+'</div>';
-        html += '</div>';
-        html += '<button onclick="unfreezeAddr(\''+f.address+'\')" style="font-size:16px;color:red;background:none;border:none;padding:4px">&times;</button>';
-        html += '</div>';
-    }
-    html += '</div></div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function closeFreezePanel() {
-    var el = document.getElementById('fzOverlay');
-    if(el) el.remove();
-}
-
-async function unfreezeAddr(addr) {
-    await h5gg.unfreezeValue(addr);
-    closeFreezePanel();
-    openFreezePanel();
-}
-
-async function unfreezeAll() {
-    await h5gg.clearFrozenValues();
-    closeFreezePanel();
-    openFreezePanel();
-}
-
-function toggleTheme() {
-    var html = document.documentElement;
-    if(html.classList.contains('dark')) {
-        html.classList.remove('dark');
-        html.classList.add('light');
-        localStorage.setItem('h5gg_theme', 'light');
-    } else if(html.classList.contains('light')) {
-        html.classList.remove('light');
-        localStorage.setItem('h5gg_theme', 'auto');
-    } else {
-        html.classList.add('dark');
-        localStorage.setItem('h5gg_theme', 'dark');
-    }
-}
-
-function toggleControlPanel() {
-    var shell = document.getElementById('appShell');
-    var button = document.getElementById('controlsToggle');
-    if(!shell || !button) return;
-    var collapsed = shell.classList.toggle('controls-collapsed');
-    button.textContent = collapsed ? 'Show controls' : 'Hide controls';
-    button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-}
-
-async function loadSearchResults() {
-    gAllResults = [];
-    gCurrentCount = 0;
-    var count = await h5gg.getResultsCount();
-    $("#results_count").text("Results Count: "+count);
-    $("#results_count").show();
-    await loadResults(0, 100);
-}
-
-async function openHistoryPanel() {
-    console.log('FUNC openHistoryPanel');
-    var list = await h5gg.getSearchHistory();
-    var html = '<div id="histOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'histOverlay\')">';
-    html += '<div style="position:absolute;top:10%;left:5%;width:90%;height:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center">';
-    html += '<span>Search History ('+list.length+')</span>';
-    html += '<span><button onclick="clearHistory()" style="font-size:11px;padding:2px 6px">Clear</button> <span onclick="closeOverlay(\'histOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
-    html += '</div>';
-    html += '<div class="scrollbar" style="flex:1;overflow-y:auto;padding:4px">';
-    if(list.length==0) html += '<div style="padding:12px;text-align:center;color:var(--text-color,#888)">No history</div>';
-    for(var i=0;i<list.length;i++) {
-        var h = list[i];
-        html += '<div onclick="reRunSearch('+i+')" style="padding:6px 8px;border-bottom:1px solid var(--border-color,#eee);cursor:pointer">';
-        html += '<div style="font-size:12px"><b>'+h.value+'</b> ['+h.type+'] <span style="color:#888">'+h.count+' results</span></div>';
-        html += '<div style="font-size:10px;color:var(--text-color,#888)">'+h.time+'</div>';
-        html += '</div>';
-    }
-    html += '</div></div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function closeOverlay(id) {
-    var el = document.getElementById(id);
-    if(el) el.remove();
-    if(id == 'scriptOverlay') loadAutorunList();
-}
-
-async function reRunSearch(idx) {
-    var list = await h5gg.getSearchHistory();
-    if(idx < list.length) {
-        var h = list[idx];
-        var valInput = document.querySelector('input[name="svalue"]') || document.querySelector('input[placeholder*="value"]');
-        if(valInput) valInput.value = h.value;
-    }
-    closeOverlay('histOverlay');
-}
-
-async function clearHistory() {
-    await h5gg.clearSearchHistory();
-    closeOverlay('histOverlay');
-    openHistoryPanel();
-}
-
-async function openScriptEditor() {
-    console.log('FUNC openScriptEditor');
-    if(typeof h5gg == 'undefined' || !h5gg.listScripts) {
-        showToast('Script API is unavailable in this environment');
-        return;
-    }
-
-    var list = [];
-    try {
-        var loaded = await h5gg.listScripts();
-        if(Array.isArray(loaded)) list = loaded;
-    } catch(error) {
-        console.error('openScriptEditor listScripts failed:', error);
-        showToast('Unable to load script list');
-    }
-
-    var html = '<div id="scriptOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'scriptOverlay\')">';
-    html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
-    html += '<span>Script Editor</span>';
-    html += '<span><button onclick="runCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Run JS</button><button onclick="saveCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Save</button><button onclick="deleteCurrentScript()" style="font-size:11px;padding:2px 6px;margin-right:4px">Delete</button> <span onclick="closeOverlay(\'scriptOverlay\')" style="cursor:pointer;font-size:18px">&times;</span></span>';
-    html += '</div>';
-    html += '<div style="display:flex;flex:1;overflow:hidden">';
-    html += '<div class="scrollbar" style="width:100px;border-right:1px solid var(--border-color,#ccc);overflow-y:auto;flex-shrink:0;padding:2px">';
-    html += '<button onclick="newScript()" style="width:100%;font-size:11px;margin:2px 0">+ New</button>';
-    for(var i=0;i<list.length;i++) {
-        html += '<div data-script="'+encodeURIComponent(list[i])+'" onclick="loadScript(decodeURIComponent(this.dataset.script))" style="padding:4px;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border-color,#eee);word-break:break-all">'+escapeScriptText(list[i])+'</div>';
-    }
-    html += '</div>';
-    html += '<div style="flex:1;display:flex;flex-direction:column;padding:4px">';
-    html += '<input id="scriptFileName" value="untitled.js" style="width:100%;margin-bottom:4px;padding:4px;font-size:12px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
-    html += '<textarea id="scriptEditor" style="flex:1;width:100%;font-family:monospace;font-size:11px;padding:4px;resize:none;background:var(--input-bg,transparent);color:var(--text-color,#000);border:1px solid var(--border-color,#ccc);border-radius:3px">// Explicit save only; there is no autosave.</textarea>';
-    html += '</div></div></div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
 }
 
 function escapeScriptText(value) {
-    return String(value).replace(/[&<>"']/g, function(character) {
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];
-    });
-}
-
-async function loadScript(name) {
-    if(typeof h5gg == 'undefined' || !h5gg.loadScript) {
-        showToast('Script API is unavailable in this environment');
-        return;
-    }
-
-    var content = null;
-    try {
-        content = await h5gg.loadScript(name);
-    } catch(error) {
-        console.error('loadScript failed:', error);
-    }
-
-    var input = document.getElementById('scriptFileName');
-    var editor = document.getElementById('scriptEditor');
-    if(input) input.value = name;
-    if(editor && content !== null) editor.value = content;
-    if(content === null) {
-        var err = null;
-        try {
-            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
-        } catch(_) {}
-        showToast(err || 'Unable to load script');
-    }
-}
-
-async function saveCurrentScript() {
-    console.log('FUNC saveCurrentScript');
-    if(typeof h5gg == 'undefined' || !h5gg.saveScript) {
-        showToast('Script API is unavailable in this environment');
-        return;
-    }
-
-    var input = document.getElementById('scriptFileName');
-    var editor = document.getElementById('scriptEditor');
-    if(!input || !editor) return;
-    var name = input.value.trim();
-    var content = editor.value;
-    if(!name) return alert('Enter a file name');
-
-    var ok = false;
-    try {
-        ok = await h5gg.saveScript(name, content);
-    } catch(error) {
-        console.error('saveCurrentScript failed:', error);
-    }
-
-    if(ok) {
-        showToast('Saved');
-    } else {
-        var err = null;
-        try {
-            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
-        } catch(_) {}
-        showToast(err || 'Unable to save script');
-    }
-}
-
-async function deleteCurrentScript() {
-    if(typeof h5gg == 'undefined' || !h5gg.deleteScript) {
-        showToast('Script API is unavailable in this environment');
-        return;
-    }
-
-    var input = document.getElementById('scriptFileName');
-    if(!input || !confirm('Delete '+input.value+'?')) return;
-
-    var ok = false;
-    try {
-        ok = await h5gg.deleteScript(input.value);
-    } catch(error) {
-        console.error('deleteCurrentScript failed:', error);
-    }
-
-    if(ok) {
-        closeOverlay('scriptOverlay');
-        await openScriptEditor();
-    } else {
-        var err = null;
-        try {
-            if(h5gg.getLastFileError) err = await h5gg.getLastFileError();
-        } catch(_) {}
-        showToast(err || 'Unable to delete script');
-    }
-}
-
-function newScript() {
-    var input = document.getElementById('scriptFileName');
-    var editor = document.getElementById('scriptEditor');
-    if(input) input.value = 'untitled.js';
-    if(editor) editor.value = '// Write your script here';
-}
-
-function openOffsetCalc() {
-    console.log('FUNC openOffsetCalc');
-    var html = '<div id="calcOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'calcOverlay\')">';
-    html += '<div style="position:absolute;top:25%;left:10%;width:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
-    html += '<span>Offset Calculator</span>';
-    html += '<span onclick="closeOverlay(\'calcOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
-    html += '</div>';
-    html += '<div style="padding:12px">';
-    html += '<div style="margin:6px 0"><label>Base Address:</label><br><input id="calcBase" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<div style="margin:6px 0"><label>Offset:</label><br><input id="calcOffset" type="text" placeholder="0x... or decimal" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<div style="margin:6px 0"><label>Result:</label><br><input id="calcResult" type="text" readonly style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;color:#3393EF"></div>';
-    html += '<button onclick="doCalc()" style="width:100%;margin:6px 0">Calculate</button>';
-    html += '<button onclick="copyCalcResult()" style="width:100%;margin:6px 0">Copy to Clipboard</button>';
-    html += '</div></div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function doCalc() {
-    console.log('FUNC doCalc');
-    var base = document.getElementById('calcBase').value.trim();
-    var off = document.getElementById('calcOffset').value.trim();
-    if(!base || !off) return;
-    var baseNum = Number(base.startsWith('0x') ? BigInt(base) : parseInt(base));
-    var offNum = Number(off.startsWith('0x') ? BigInt(off) : parseInt(off));
-    var baseHex = base.startsWith('0x') ? base.substring(2) : Number(base).toString(16);
-    var offHex = off.startsWith('0x') ? off.substring(2) : Number(off).toString(16);
-    var result = (parseInt(baseHex, 16) + parseInt(offHex, 16)).toString(16);
-    document.getElementById('calcResult').value = '0x' + result.toUpperCase();
-}
-
-function copyCalcResult() {
-    var r = document.getElementById('calcResult');
-    if(r && r.value) {
-        prompt('Copy:', r.value);
-    }
-}
-
-var gPointerChain = [];
-var gAllResults = [];
-var gCurrentCount = 0;
-var gSelectedResult = null;
-
-function cacheResults(results) {
-    gAllResults = results || [];
-    document.getElementById('filterInput').value = '';
-    document.getElementById('filterCount').textContent = '';
-}
-
-function filterResults() {
-    console.log('FUNC filterResults');
-    var query = document.getElementById('filterInput').value.trim().toLowerCase();
-    var display = document.getElementById('listdiv');
-    if(!display) return;
-    var filtered = gAllResults;
-    if(query) {
-        filtered = gAllResults.filter(function(r) {
-            return r.value.toLowerCase().indexOf(query) >= 0 || r.address.toLowerCase().indexOf(query) >= 0;
-        });
-    }
-    document.getElementById('filterCount').textContent = filtered.length + '/' + gAllResults.length;
-    renderResults(filtered);
-}
-
-function renderResults(results) {
-    var display = document.getElementById('listdiv');
-    if(!display) return;
-    var html = '';
-    for(var i = 0; i < results.length; i++) {
-        var r = results[i];
-        var address = escapeScriptText(r.address);
-        var type = escapeScriptText(r.type);
-        var value = escapeScriptText(r.value);
-        html += '<div class="result-row" role="button" tabindex="0" data-addr="'+address+'" data-type="'+type+'" data-value="'+value+'" aria-label="Value '+value+', address '+address+'" onclick="showResultActions(this)" onkeydown="handleResultKeydown(event,this)">';
-        html += '<div class="result-address">'+address+' ['+type+']</div>';
-        html += '<div class="result-value">'+value+'</div>';
-        html += '<div class="result-row-actions">';
-        html += '<button class="result-icon-button" type="button" aria-label="Bookmark '+address+'" onclick="bookmarkResultRow(event,this)">\u2606</button>';
-        html += '<button class="result-icon-button" type="button" aria-label="Freeze '+address+'" onclick="freezeResultRow(event,this)">\u2744</button>';
-        html += '</div>';
-        html += '</div>';
-    }
-    if(results.length == 0) html += '<div style="padding:12px;text-align:center;color:#888">No results</div>';
-    display.innerHTML = html;
-}
-
-function bookmarkResultRow(event, button) {
-    event.stopPropagation();
-    var row = button.closest('.result-row');
-    if(row) saveBookmark(row.dataset.addr, row.dataset.type);
-}
-
-function freezeResultRow(event, button) {
-    event.stopPropagation();
-    var row = button.closest('.result-row');
-    if(row) freezeResult(row.dataset.addr, row.dataset.value, row.dataset.type);
+    return String(value).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
 }
 
 function getResultCopyText(result, action) {
@@ -1812,621 +736,621 @@ function getResultCopyText(result, action) {
     return null;
 }
 
-function handleResultKeydown(event, row) {
-    if(event.key !== 'Enter' && event.key !== ' ') return;
-    event.preventDefault();
-    showResultActions(row);
+async function applyTolerance() {
+    var val = document.getElementById('float_tolerance').value.trim();
+    if(val === '') return;
+    try {
+        await h5gg.setFloatTolerance(val);
+        showToast('Tolerance set to ' + val);
+    } catch(error) {
+        showToast('Unable to set tolerance');
+    }
 }
 
-function showResultActions(row) {
-    if(!row) return;
-    gSelectedResult = {
-        address: row.dataset.addr,
-        value: row.dataset.value,
-        type: row.dataset.type
+// Search wrappers
+(function() {
+    'use strict';
+
+    function showSearchProgress() {
+        var overlay = document.createElement('div');
+        overlay.id = 'h5ggSearchProgress';
+        overlay.innerHTML = '<div class="card"><div class="spinner"></div><div style="font-weight:600;">Searching memory...</div></div>';
+        document.body.appendChild(overlay);
+    }
+    function finishSearchProgress(succeeded, message) {
+        var overlay = document.getElementById('h5ggSearchProgress');
+        if(overlay) overlay.remove();
+        showToast(message || (succeeded ? "Search complete" : "Search failed"));
+    }
+
+    async function runSearch(operation) {
+        showSearchProgress();
+        try { await operation(); finishSearchProgress(true); return true; }
+        catch(error) { finishSearchProgress(false, error.message); return false; }
+    }
+
+    window.showPopView = function(name, action, type, value) {
+        var mask = $('#maskview');
+        var popup = $('#popup_search_edit');
+        mask.css('display','flex');
+        popup.find('#popupTitle').html(name);
+        popup.find('button#action').html(name);
+
+        if(type) {
+            $('.segment-btn').removeClass('selected');
+            $('.segment-btn[data-type="'+type+'"]').addClass('selected');
+            $('table#datatype td').removeClass('selected');
+            $('table#datatype td:contains('+type+')').addClass('selected');
+        }
+
+        popup.find('#datavalue').val(value == null ? '' : value);
+        popup.find('button#action').off('click').on('click', async function() {
+            var selectedType = $('table#datatype td.selected').text() || 'I32';
+            var selectedValue = popup.find('#datavalue').val();
+            mask.hide();
+            await action(selectedType, selectedValue);
+        });
+        popup.find('button#cancel').off('click').on('click', function() { mask.hide(); });
     };
 
-    document.querySelectorAll('.result-row.selected').forEach(function(selectedRow) {
-        selectedRow.classList.remove('selected');
-    });
-    row.classList.add('selected');
+    window.onClickSearchNumber = function() {
+        showPopView("New Search", function(type, value) {
+            return runSearch(async function() {
+                await h5gg.setFloatTolerance($('#float_tolerance').val());
+                await h5gg.searchNumber(value, h5ggType(type), $('#range_min').val(), $('#range_max').val());
+                await h5gg.addSearchHistory(value, h5ggType(type), await h5gg.getResultsCount());
+                await window.onClickRefreshResults(true);
+                switchTab('results', document.querySelectorAll('.nav-item')[1]);
+            });
+        });
+    };
 
-    var layer = ensureTopLayer();
-    layer.querySelector('#uiResultActionTitle').textContent =
-        gSelectedResult.address + '  \u2022  ' + gSelectedResult.value + ' [' + gSelectedResult.type + ']';
-    layer.querySelector('#uiResultActionMask').style.display = 'flex';
-    setTimeout(function() {
-        try { layer.querySelector('[data-result-copy="value"]').focus(); } catch(_) {}
-    }, 0);
-}
+    window.onClickSearchNearby = function() {
+        showPopView("Nearby Search", function(type, value) {
+            return runSearch(async function() {
+                await h5gg.setFloatTolerance($('#float_tolerance').val());
+                await h5gg.searchNearby(value, h5ggType(type), $('#nearby_range').val());
+                await window.onClickRefreshResults(true);
+                switchTab('results', document.querySelectorAll('.nav-item')[1]);
+            });
+        });
+    };
 
-function dismissResultActions() {
-    var layer = ensureTopLayer();
-    layer.querySelector('#uiResultActionMask').style.display = 'none';
-    document.querySelectorAll('.result-row.selected').forEach(function(row) {
-        row.classList.remove('selected');
-    });
-}
+    window.onClickRefreshResults = async function(clean) {
+        if(clean) { var d = document.getElementById('listdiv'); if(d) d.scrollTop = 0; window.gCurrentCount = 0; }
+        var count = await h5gg.getResultsCount();
+        $('#results_count').text('Results Count: ' + count);
+        document.getElementById('results_count').style.display = 'block';
+        if(window.gCurrentCount === 0) window.gCurrentCount = 100;
+        await loadResults(0, window.gCurrentCount);
+    };
 
-async function copySelectedResult(action) {
-    var text = getResultCopyText(gSelectedResult, action);
-    if(text === null) return;
+    window.doHexSearch = function() {
+        var value = document.getElementById('hexInput').value.trim();
+        if(!value) return;
+        return runSearch(async function() {
+            await h5gg.searchHex(value, $('#range_min').val(), $('#range_max').val());
+            window.gAllResults = []; window.gCurrentCount = 0;
+            var count = await h5gg.getResultsCount();
+            $('#results_count').text("Results Count: "+count);
+            document.getElementById('results_count').style.display = 'block';
+            await loadResults(0, 100);
+            await h5gg.addSearchHistory(value, 'Hex', count);
+            switchTab('results', document.querySelectorAll('.nav-item')[1]);
+        });
+    };
 
-    var copied = false;
-    try {
-        if(typeof h5gg !== 'undefined' && typeof h5gg.copyText === 'function') {
-            copied = await h5gg.copyText(text);
-        } else if(navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(text);
-            copied = true;
-        }
-    } catch(error) {
-        console.error('copySelectedResult failed:', error);
-    }
+    window.refineNumericResults = function() {
+        var value = document.getElementById('refineValue').value.trim();
+        if(!value) return;
+        return runSearch(async function() {
+            await h5gg.searchFilter(value, document.getElementById('refineType').value, Number(document.getElementById('refineMode').value));
+            await window.onClickRefreshResults(true);
+            switchTab('results', document.querySelectorAll('.nav-item')[1]);
+        });
+    };
 
-    dismissResultActions();
-    showToast(copied ? 'Copied to clipboard' : 'Unable to copy');
-}
+    window.renderResults = function(results) {
+        var display = document.getElementById('listdiv');
+        if(!display) return;
+        var html = '';
+        (results || []).forEach(function(result) {
+            var address = escapeScriptText(result.address);
+            var type = escapeScriptText(result.type);
+            var value = escapeScriptText(result.value);
+            html += '<div class="result-row" data-addr="'+address+'" data-type="'+type+'" data-value="'+value+'" onclick="openMemoryEditor(\''+address+'\',\''+type+'\')">';
+            html += '<div class="result-info"><div class="result-addr">'+address+' ['+type+']</div><div class="result-val">'+value+'</div></div>';
+            html += '<div class="result-actions" onclick="event.stopPropagation()">';
+            html += '<button onclick="saveBookmark(\''+address+'\',\''+type+'\')">☆</button>';
+            html += '<button onclick="freezeResult(\''+address+'\',\''+value+'\',\''+type+'\')">❄</button></div></div>';
+        });
+        if(!results || results.length === 0) html = '<div class="empty-state" style="padding:40px 16px;text-align:center;color:var(--text-muted);">No results</div>';
+        display.innerHTML = html;
+    };
+})();
 
-function editSelectedResult() {
-    if(!gSelectedResult) return;
-    var result = gSelectedResult;
-    dismissResultActions();
-    openMemoryEditor(result.address, result.type);
-}
+// ============================================================================
+// TOOL FUNCTIONS
+// ============================================================================
 
-async function openMemoryEditor(address, type) {
-    console.log('FUNC openMemoryEditor');
+window.openMemoryEditor = async function(address, type) {
     var datavalue = typeof h5gg != 'undefined' ? await h5gg.getValue(address, h5ggType(type)) : '';
-    showPopView("&nbsp;&nbsp;Edit&nbsp;&nbsp;", async function(type, value) {
-        if(!await h5gg.setValue(address, value, h5ggType(type))) {
-            alert("The modification failed, the address may be invalid!");
-        }
-        await onClickRefreshResults();
+    showPopView("Edit Memory", async function(type, value) {
+        if(!await h5gg.setValue(address, value, h5ggType(type))) showToast("Write failed!");
+        await window.onClickRefreshResults();
     }, type, datavalue);
-}
+};
 
-async function openPointerChain() {
-    console.log('FUNC openPointerChain');
-    gPointerChain = [];
-    var html = '<div id="ptrOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'ptrOverlay\')">';
-    html += '<div style="position:absolute;top:15%;left:5%;width:90%;height:70%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center">';
-    html += '<span>Pointer Chain</span>';
-    html += '<span onclick="closeOverlay(\'ptrOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+// --- Bookmarks ---
+window.openBookmarksPanel = async function() {
+    var list = typeof h5gg != 'undefined' ? await h5gg.getBookmarks() : [];
+    var html = '<div id="bmOverlay" class="overlay-mask" style="display:flex;">';
+    html += '<div class="modal-card" style="max-height:80vh;">';
+    html += '<div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;"><span>Bookmarks ('+list.length+')</span><button class="icon-btn" onclick="clearAllBookmarks()">🗑</button></div>';
+    html += '<div class="modal-body scrollbar" style="padding:0;">';
+    if(list.length==0) html += '<div style="padding:16px; text-align:center; color:var(--text-muted);">No bookmarks saved</div>';
+    for(var i=0;i<list.length;i++) {
+        var b = list[i];
+        html += '<div class="card-row" style="cursor:pointer;" onclick="useBookmark('+i+')">';
+        html += '<div><div style="font-weight:600; font-size:14px;">'+b.name+'</div><div style="font-size:11px; color:var(--text-muted); font-family:monospace;">'+b.address+' ['+b.type+']</div></div>';
+        html += '<button class="icon-btn" style="color:var(--danger);" onclick="deleteBookmark('+i+'); event.stopPropagation();">✕</button></div>';
+    }
     html += '</div>';
-    html += '<div style="padding:8px;border-bottom:1px solid var(--border-color,#eee)">';
-    html += '<input id="ptrBase" type="text" placeholder="Base address (0x...)" style="width:100%;padding:4px;margin:4px 0;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
-    html += '<div style="display:flex;gap:4px">';
-    html += '<input id="ptrOffset" type="text" placeholder="Offset" style="flex:1;padding:4px;margin:4px 0;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
-    html += '<button onclick="addPtrStep()" style="padding:4px 8px;margin:4px 0">Add + Read</button>';
+    html += '<div class="modal-footer"><button onclick="closeOverlay(\'bmOverlay\')">Close</button></div>';
     html += '</div></div>';
-    html += '<div id="ptrChainDisplay" class="scrollbar" style="flex:1;overflow-y:auto;padding:8px;font-family:monospace;font-size:11px">';
-    html += '<div style="color:var(--text-color,#888)">Enter a base address, add offset, then the pointer value at that address is read and becomes the next base.</div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveBookmark = async function(addr, type) {
+    var name = prompt('Bookmark name:');
+    if(name) {
+        await h5gg.addBookmark(addr, name, type);
+        showToast("Bookmark added");
+    }
+};
+
+window.deleteBookmark = async function(idx) {
+    var list = await h5gg.getBookmarks();
+    if(idx < list.length) await h5gg.removeBookmark(list[idx].address);
+    closeOverlay('bmOverlay');
+    openBookmarksPanel();
+};
+
+window.clearAllBookmarks = async function() {
+    await h5gg.clearBookmarks();
+    closeOverlay('bmOverlay');
+    openBookmarksPanel();
+};
+
+window.useBookmark = function(idx) {
+    closeOverlay('bmOverlay');
+};
+
+// --- Freeze Values ---
+window.openFreezePanel = async function() {
+    var list = typeof h5gg != 'undefined' ? await h5gg.getFrozenValues() : [];
+    var html = '<div id="fzOverlay" class="overlay-mask" style="display:flex;">';
+    html += '<div class="modal-card" style="max-height:80vh;">';
+    html += '<div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;"><span>Frozen Values ('+list.length+')</span><button class="icon-btn" style="font-size:14px;" onclick="unfreezeAll()">Unfreeze All</button></div>';
+    html += '<div class="modal-body scrollbar" style="padding:0;">';
+    if(list.length==0) html += '<div style="padding:16px; text-align:center; color:var(--text-muted);">No frozen values</div>';
+    for(var i=0;i<list.length;i++) {
+        var f = list[i];
+        html += '<div class="card-row">';
+        html += '<div style="font-size:12px;"><span style="font-weight:bold">'+f.type+'</span> <span style="font-family:monospace;">'+f.address+'</span> = <span style="color:var(--accent);">'+f.value+'</span>';
+        html += '<div style="font-size:10px; color:'+(f.status == 'active' ? '#34c759' : 'var(--danger)')+'">'+f.status+'</div></div>';
+        html += '<button class="icon-btn" style="color:var(--danger);" onclick="unfreezeAddr(\''+f.address+'\')">✕</button></div>';
+    }
+    html += '</div>';
+    html += '<div class="modal-footer"><button onclick="closeOverlay(\'fzOverlay\')">Close</button></div>';
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.freezeResult = async function(addr, val, type) {
+    if(!await h5gg.freezeValue(addr, val, type)) showToast('Unable to freeze value');
+    else showToast('Value frozen');
+};
+
+window.unfreezeAddr = async function(addr) {
+    await h5gg.unfreezeValue(addr);
+    closeOverlay('fzOverlay');
+    openFreezePanel();
+};
+
+window.unfreezeAll = async function() {
+    await h5gg.clearFrozenValues();
+    closeOverlay('fzOverlay');
+    openFreezePanel();
+};
+
+// --- History ---
+window.openHistoryPanel = async function() {
+    var list = typeof h5gg != 'undefined' ? await h5gg.getSearchHistory() : [];
+    var html = '<div id="histOverlay" class="overlay-mask" style="display:flex;">';
+    html += '<div class="modal-card" style="max-height:80vh;">';
+    html += '<div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;"><span>History ('+list.length+')</span><button class="icon-btn" onclick="clearHistory()">🗑</button></div>';
+    html += '<div class="modal-body scrollbar" style="padding:0;">';
+    if(list.length==0) html += '<div style="padding:16px; text-align:center; color:var(--text-muted);">No history</div>';
+    for(var i=0;i<list.length;i++) {
+        var h = list[i];
+        html += '<div class="card-row" style="cursor:pointer;" onclick="reRunSearch('+i+')">';
+        html += '<div><div style="font-size:14px; font-weight:600;">'+h.value+' <span style="font-weight:normal; color:var(--text-muted);">['+h.type+']</span></div>';
+        html += '<div style="font-size:11px; color:var(--text-muted);">'+h.count+' results • '+h.time+'</div></div></div>';
+    }
+    html += '</div>';
+    html += '<div class="modal-footer"><button onclick="closeOverlay(\'histOverlay\')">Close</button></div>';
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.reRunSearch = async function(idx) {
+    var list = await h5gg.getSearchHistory();
+    if(idx < list.length) {
+        document.getElementById('datavalue').value = list[idx].value;
+        showPopView("Re-run Search", async function(type, value){
+            await h5gg.searchNumber(value, h5ggType(type), $('#range_min').val(), $('#range_max').val());
+            await h5gg.addSearchHistory(value, h5ggType(type), await h5gg.getResultsCount());
+            await window.onClickRefreshResults(true);
+            switchTab('results', document.querySelectorAll('.nav-item')[1]);
+        }, list[idx].type, list[idx].value);
+    }
+    closeOverlay('histOverlay');
+};
+
+window.clearHistory = async function() {
+    await h5gg.clearSearchHistory();
+    closeOverlay('histOverlay');
+    openHistoryPanel();
+};
+
+// --- Script Editor ---
+window.openScriptEditor = async function() {
+    var list = typeof h5gg != 'undefined' && h5gg.listScripts ? await h5gg.listScripts() : [];
+    var html = '<div id="scriptOverlay" class="overlay-mask" style="display:flex;">';
+    html += '<div class="modal-card" style="width:95%; height:90vh;">';
+    html += '<div class="modal-header">Script Editor</div>';
+    html += '<div class="modal-body" style="display:flex; flex-direction:column; gap:8px; padding:12px;">';
+    html += '<div style="display:flex; gap:8px;">';
+    html += '<select id="scriptSelect" class="compact-input" style="flex:1; text-align:left;" onchange="if(this.value) loadScript(this.value); else newScript();">';
+    html += '<option value="">-- New Script --</option>';
+    for(var i=0;i<list.length;i++) html += '<option value="'+list[i]+'">'+list[i]+'</option>';
+    html += '</select>';
+    html += '<button class="action-btn danger-btn" style="width:auto;" onclick="deleteCurrentScript()" title="Delete">🗑</button>';
+    html += '</div>';
+    html += '<input id="scriptFileName" type="text" value="untitled.js" placeholder="Filename" />';
+    html += '<textarea id="scriptEditor" style="flex:1; width:100%; border:1px solid var(--border-color); border-radius:8px; padding:8px; font-family:monospace; background:var(--input-bg); color:var(--text-color); resize:none;">// Write your script here</textarea>';
+    html += '</div>';
+    html += '<div class="modal-footer">';
+    html += '<button onclick="closeOverlay(\'scriptOverlay\')">Close</button>';
+    html += '<button onclick="saveCurrentScript()">Save</button>';
+    html += '<button onclick="runCurrentScript()" style="font-weight:600;">Run</button>';
     html += '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
-}
+};
 
-async function addPtrStep() {
-    console.log('FUNC addPtrStep');
-    if(gPointerChain.length > 32) {
-        showToast('Pointer chains are limited to 32 reads');
-        return;
+window.loadScript = async function(name) {
+    if(!h5gg.loadScript) return showToast('Script API unavailable');
+    var content = await h5gg.loadScript(name);
+    if(content !== null) {
+        document.getElementById('scriptFileName').value = name;
+        document.getElementById('scriptEditor').value = content;
+    } else {
+        showToast('Unable to load script');
     }
+};
+
+window.saveCurrentScript = async function() {
+    var name = document.getElementById('scriptFileName').value.trim();
+    var content = document.getElementById('scriptEditor').value;
+    if(!name) return showToast('Enter a file name');
+    var ok = await h5gg.saveScript(name, content);
+    showToast(ok ? 'Saved successfully' : 'Failed to save');
+};
+
+window.deleteCurrentScript = async function() {
+    var name = document.getElementById('scriptFileName').value;
+    if(!name || !confirm('Delete '+name+'?')) return;
+    var ok = await h5gg.deleteScript(name);
+    if(ok) { closeOverlay('scriptOverlay'); openScriptEditor(); }
+    else showToast('Failed to delete');
+};
+
+window.newScript = function() {
+    document.getElementById('scriptFileName').value = 'untitled.js';
+    document.getElementById('scriptEditor').value = '// Write your script here';
+};
+
+window.runCurrentScript = function() {
+    var fn = document.getElementById('scriptFileName').value;
+    if(fn.toLowerCase().endsWith('.html')) return showToast('HTML files cannot be run here.');
+    runScript(document.getElementById('scriptEditor').value, fn);
+};
+
+window.runScript = function(code, filename) {
+    try {
+        var sandbox = { console:console, setTimeout:setTimeout, alert:alert, confirm:confirm, prompt:prompt, h5gg:window.h5gg, Number:Number, String:String, Math:Math, JSON:JSON, parseInt:parseInt, parseFloat:parseFloat };
+        var argNames = Object.keys(sandbox);
+        var argValues = argNames.map(k => sandbox[k]);
+        var fn = new Function(argNames.join(','), code);
+        fn.apply(null, argValues);
+        showToast('Script ran: ' + (filename || 'unnamed'));
+        return true;
+    } catch(e) {
+        showToast('Script error: ' + e.message);
+        return false;
+    }
+};
+
+window.onClickLoadScript = async function(source, type) {
+    if(!source) return;
+    var isRemote = /^https?:\/\//i.test(source);
+    var isJavaScript = type === 'js' || (!type && /\.js(?:$|[?#])/i.test(source));
+    $('#maskview_script').css('display', 'flex');
+    try {
+        if(isRemote) {
+            if(!isJavaScript) { location.href = source; return; }
+            await new Promise((resolve, reject) => {
+                var script = document.createElement('script');
+                script.onload = resolve; script.onerror = reject; script.src = source;
+                document.body.appendChild(script);
+            });
+        } else {
+            var content = await h5gg.loadScript(source);
+            if(content == null) throw new Error("Load failed");
+            if(isJavaScript) runScript(content, source);
+            else { document.open(); document.write(content); document.close(); return; }
+        }
+        showToast('Script loaded');
+    } catch(e) {
+        showToast('Failed to load script');
+    } finally {
+        $('#maskview_script').hide();
+        $('#popup_loadscripts').hide();
+    }
+};
+
+window.checkAutorun = async function() {
+    var name = localStorage.getItem('h5gg_autorun');
+    if(!name || !name.toLowerCase().endsWith('.js') || typeof h5gg == 'undefined') return;
+    try {
+        var content = await h5gg.loadScript(name);
+        if(content) runScript(content, name);
+    } catch(e) {}
+};
+
+window.setAutorun = function() {
+    var sel = document.getElementById('autorunSelect');
+    localStorage.setItem('h5gg_autorun', sel ? sel.value : '');
+    showToast("Autorun saved");
+};
+
+// --- Calculator ---
+window.openOffsetCalc = function() {
+    var html = '<div id="calcOverlay" class="overlay-mask" style="display:flex;">';
+    html += '<div class="modal-card">';
+    html += '<div class="modal-header">Offset Calculator</div>';
+    html += '<div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">';
+    html += '<div><label style="font-weight:600; font-size:12px;">Base Address:</label><input id="calcBase" type="text" placeholder="0x..." /></div>';
+    html += '<div><label style="font-weight:600; font-size:12px;">Offset:</label><input id="calcOffset" type="text" placeholder="0x... or decimal" /></div>';
+    html += '<div><label style="font-weight:600; font-size:12px;">Result:</label><input id="calcResult" type="text" readonly style="color:var(--accent); font-family:monospace;" /></div>';
+    html += '<div class="grid-2"><button class="action-btn" onclick="doCalc()">Calculate</button><button class="action-btn" onclick="copyCalcResult()">Copy</button></div>';
+    html += '</div>';
+    html += '<div class="modal-footer"><button onclick="closeOverlay(\'calcOverlay\')">Close</button></div>';
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.doCalc = function() {
+    var base = document.getElementById('calcBase').value.trim();
+    var off = document.getElementById('calcOffset').value.trim();
+    if(!base || !off) return;
+    try {
+        var baseHex = base.startsWith('0x') ? base.substring(2) : Number(base).toString(16);
+        var offHex = off.startsWith('0x') ? off.substring(2) : Number(off).toString(16);
+        var result = (parseInt(baseHex, 16) + parseInt(offHex, 16)).toString(16);
+        document.getElementById('calcResult').value = '0x' + result.toUpperCase();
+    } catch(e) { showToast("Invalid format"); }
+};
+
+window.copyCalcResult = async function() {
+    var r = document.getElementById('calcResult').value;
+    if(r) { await h5gg.copyText(r); showToast("Copied"); }
+};
+
+// --- Pointer Chain ---
+window.openPointerChain = function() {
+    window.gPointerChain = [];
+    var html = '<div id="ptrOverlay" class="overlay-mask" style="display:flex;">';
+    html += '<div class="modal-card" style="height:70vh;">';
+    html += '<div class="modal-header">Pointer Chain</div>';
+    html += '<div class="modal-body scrollbar" style="display:flex; flex-direction:column; gap:8px;">';
+    html += '<input id="ptrBase" type="text" placeholder="Base address (0x...)" />';
+    html += '<div style="display:flex; gap:8px;"><input id="ptrOffset" type="text" placeholder="Offset" style="flex:1;" /><button class="action-btn" style="width:auto;" onclick="addPtrStep()">Add+Read</button></div>';
+    html += '<div id="ptrChainDisplay" style="flex:1; background:var(--input-bg); border-radius:8px; padding:8px; font-family:monospace; font-size:12px; overflow-y:auto; border:1px solid var(--border-color);">Enter base, then offset to read chain.</div>';
+    html += '</div>';
+    html += '<div class="modal-footer"><button onclick="closeOverlay(\'ptrOverlay\')">Close</button></div>';
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.addPtrStep = async function() {
     if(gPointerChain.length == 0) {
         var base = document.getElementById('ptrBase').value.trim();
         if(!base) return;
         gPointerChain.push(base);
     }
-    
     var off = document.getElementById('ptrOffset').value.trim();
     if(!off) return;
-    
+
     var currentAddr = gPointerChain[gPointerChain.length - 1];
     var target;
     try {
         var offset = off.startsWith('-0x') ? -BigInt('0x'+off.substring(3)) : BigInt(off);
         target = BigInt(currentAddr) + offset;
-        if(target < 0n || target > 0xFFFFFFFFFFFFFFFFn) throw new Error('range');
-    } catch(error) {
-        showToast('Invalid pointer address or offset');
-        return;
-    }
+    } catch(e) { return showToast('Invalid offset'); }
+
     var targetAddr = '0x' + target.toString(16).toUpperCase();
-    
     var value = await h5gg.readPointer(targetAddr);
-    
+
     var display = document.getElementById('ptrChainDisplay');
-    if(display) {
-        var line = document.createElement('div');
-        line.style.padding = '4px';
-        line.style.borderBottom = '1px solid var(--border-color,#eee)';
-        line.innerHTML = '['+gPointerChain.length+'] <span style="color:#3393EF">'+targetAddr+'</span> + '+off+' = <b>'+value+'</b>';
-        display.appendChild(line);
-    }
-    
-    if(!value) {
+    if(display.innerHTML.includes("Enter base")) display.innerHTML = "";
+
+    var line = '<div style="padding:4px; border-bottom:1px solid var(--border-color);">['+gPointerChain.length+'] <span style="color:var(--accent);">'+targetAddr+'</span> + '+off+' = <b>'+(value||'FAILED')+'</b></div>';
+    display.insertAdjacentHTML('beforeend', line);
+
+    if(value) {
+        gPointerChain.push(value);
+        document.getElementById('ptrOffset').value = '';
+    } else {
         showToast('Pointer read failed');
-        return;
     }
-    gPointerChain.push(value);
-    document.getElementById('ptrOffset').value = '';
-    document.getElementById('ptrOffset').focus();
-}
+};
 
-async function doHexSearch() {
-    console.log('FUNC doHexSearch');
-    var hex = document.getElementById('hexInput').value.trim();
-    if(!hex) return;
-    var start = document.getElementById('range_min').value;
-    var end = document.getElementById('range_max').value;
-    await h5gg.searchHex(hex, start, end);
-    await loadSearchResults();
-    await h5gg.addSearchHistory(hex, 'Hex', await h5gg.getResultsCount());
-}
-
-async function refineNumericResults() {
-    var value = document.getElementById('refineValue').value.trim();
-    var type = document.getElementById('refineType').value;
-    var mode = Number(document.getElementById('refineMode').value);
-    if(!value) return;
-    await h5gg.searchFilter(value, type, mode);
-    await onClickRefreshResults(true);
-}
-
-async function openDumpPanel() {
-    console.log('FUNC openDumpPanel');
-    var html = '<div id="dumpOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'dumpOverlay\')">';
-    html += '<div style="position:absolute;top:25%;left:10%;width:80%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
-    html += '<span>Dump Memory</span>';
-    html += '<span onclick="closeOverlay(\'dumpOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+// --- Memory Dump ---
+window.openDumpPanel = function() {
+    var html = '<div id="dumpOverlay" class="overlay-mask" style="display:flex;">';
+    html += '<div class="modal-card">';
+    html += '<div class="modal-header">Memory Dump</div>';
+    html += '<div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">';
+    html += '<div><label style="font-size:12px;">Start Address:</label><input id="dumpStart" type="text" placeholder="0x..." /></div>';
+    html += '<div><label style="font-size:12px;">End Address:</label><input id="dumpEnd" type="text" placeholder="0x..." /></div>';
+    html += '<div><label style="font-size:12px;">File Name:</label><input id="dumpName" type="text" value="dump.bin" /></div>';
+    html += '<div id="dumpStatus" style="font-size:12px; color:var(--text-muted); text-align:center;"></div>';
+    html += '<div class="grid-2"><button class="action-btn primary-btn" onclick="doDump()">Dump</button><button class="action-btn" onclick="cancelDump()">Cancel</button></div>';
     html += '</div>';
-    html += '<div style="padding:12px">';
-    html += '<div style="margin:6px 0"><label>Start Address:</label><br><input id="dumpStart" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<div style="margin:6px 0"><label>End Address:</label><br><input id="dumpEnd" type="text" placeholder="0x..." style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<div style="margin:6px 0"><label>File Name:</label><br><input id="dumpName" type="text" value="dump.bin" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<div style="display:flex;gap:4px"><button onclick="doDump()" style="flex:1;margin:6px 0">Dump</button><button onclick="cancelDump()" style="flex:1;margin:6px 0">Cancel</button></div>';
-    html += '<div id="dumpStatus" style="font-size:11px;color:#888"></div>';
-    html += '</div></div></div>';
+    html += '<div class="modal-footer"><button onclick="closeOverlay(\'dumpOverlay\')">Close</button></div>';
+    html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
-}
+};
 
-async function doDump() {
-    console.log('FUNC doDump');
+window.doDump = async function() {
     var start = document.getElementById('dumpStart').value.trim();
     var end = document.getElementById('dumpEnd').value.trim();
     var name = document.getElementById('dumpName').value.trim();
     if(!start || !end || !name) return;
+
     var status = document.getElementById('dumpStatus');
-    if(status) status.textContent = 'Dumping... 0%';
+    status.textContent = 'Dumping... 0%';
+
     var poll = setInterval(async function() {
         var current = await h5gg.getDumpStatus();
-        if(status && current && current.state == 'running') {
-            status.textContent = 'Dumping... ' + Math.floor((current.progress || 0) * 100) + '%';
-        }
+        if(current && current.state == 'running') status.textContent = 'Dumping... ' + Math.floor((current.progress || 0) * 100) + '%';
     }, 250);
+
     try {
         var ok = await h5gg.dumpMemory(start, end, name);
-        var finalStatus = await h5gg.getDumpStatus();
-        if(status) status.textContent = ok ? 'Saved to Documents/'+name :
-            (finalStatus.state == 'cancelled' ? 'Dump cancelled' :
-             'Dump failed' + (finalStatus.error ? ': ' + finalStatus.error : ''));
-        if(ok) setTimeout(function(){ closeOverlay('dumpOverlay'); }, 1500);
-    } catch(error) {
-        if(status) status.textContent = 'Dump failed: ' + error;
-    } finally {
-        clearInterval(poll);
-    }
-}
-
-async function cancelDump() {
-    await h5gg.cancelDump();
-}
-
-async function openMemoryEditor(addr, type) {
-    var typeSize = {'U8':1,'I8':1,'U16':2,'I16':2,'U32':4,'I32':4,'U64':8,'I64':8,'F32':4,'F64':8};
-    var bytes = typeSize[type] || 4;
-    var vals = [];
-    for(var i = 0; i < bytes; i++) {
-        var v = await h5gg.getValue(Number(addr) + i + '', 'U8');
-        vals.push(('0' + Number(v).toString(16)).slice(-2));
-    }
-    var hex = vals.join(' ').toUpperCase();
-    var curVal = await h5gg.getValue(addr, type);
-    var html = '<div id="memEditorOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'memEditorOverlay\')">';
-    html += '<div style="position:absolute;top:20%;left:8%;width:84%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
-    html += '<span>Memory Editor</span>';
-    html += '<span onclick="closeOverlay(\'memEditorOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
-    html += '</div>';
-    html += '<div style="padding:12px;font-size:12px">';
-    html += '<div style="margin:4px 0"><b>Address:</b> <span style="color:#3393EF">' + addr + '</span></div>';
-    html += '<div style="margin:4px 0"><b>Type:</b> ' + type + ' <b>Value:</b> <span style="color:#3393EF">' + curVal + '</span></div>';
-    html += '<div style="margin:8px 0"><b>Edit Value (Decimal/Typed):</b></div>';
-    html += '<input id="memEditorValue" type="text" value="' + escapeScriptText(curVal) + '" style="width:100%;font-size:12px;padding:6px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin:4px 0">';
-    html += '<button onclick="writeMemoryValue(\'' + addr + '\',\'' + type + '\')" style="width:100%;margin:6px 0;height:32px">Write Value</button>';
-    html += '<div style="margin:4px 0"><b>Hex:</b> <span style="font-family:monospace;font-size:11px">' + hex + '</span></div>';
-    html += '<div style="margin:8px 0"><b>Edit Hex:</b></div>';
-    html += '<input id="memEditorInput" type="text" value="' + hex + '" style="width:100%;font-family:monospace;font-size:12px;padding:6px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px;margin:4px 0">';
-    html += '<div style="font-size:10px;color:#888;margin:4px 0">Edit hex bytes separated by spaces. Example: 90 00 E0 AF</div>';
-    html += '<button onclick="writeMemoryEditor(\'' + addr + '\',\'' + type + '\',\'' + bytes + '\')" style="width:100%;margin:6px 0;height:32px">Write</button>';
-    html += '<div id="memEditorStatus" style="font-size:11px;color:#888;text-align:center"></div>';
-    html += '</div></div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-async function writeMemoryValue(addr, type) {
-    console.log('FUNC writeMemoryValue');
-    var input = document.getElementById('memEditorValue');
-    var status = document.getElementById('memEditorStatus');
-    if(!input || !status) return;
-
-    var value = input.value.trim();
-    if(value === '') {
-        status.textContent = 'Enter a value';
-        status.style.color = 'red';
-        return;
-    }
-
-    var ok = false;
-    try {
-        ok = await h5gg.setValue(addr, value, h5ggType(type));
-    } catch(error) {
-        console.error('writeMemoryValue failed:', error);
-    }
-
-    if(!ok) {
-        status.textContent = 'Value write failed';
-        status.style.color = 'red';
-        return;
-    }
-
-    var newVal = await h5gg.getValue(addr, h5ggType(type));
-    status.textContent = 'Value written successfully';
-    status.style.color = 'green';
-
-    var rows = document.querySelectorAll('[data-addr="' + addr + '"]');
-    if(rows.length > 0) {
-        var row = rows[0];
-        var valEl = row.querySelector('.result-value');
-        if(valEl) valEl.textContent = newVal;
-    }
-}
-
-async function writeMemoryEditor(addr, type, bytes) {
-    console.log('FUNC writeMemoryEditor');
-    var input = document.getElementById('memEditorInput');
-    if(!input) return;
-    var hexStr = input.value.trim();
-    var parts = hexStr.split(/\s+/);
-    var status = document.getElementById('memEditorStatus');
-    if(!status) return;
-    for(var i = 0; i < parts.length; i++) {
-        if(!/^[0-9a-fA-F]{2}$/.test(parts[i])) {
-            status.textContent = 'Invalid hex at position ' + (i+1);
-            status.style.color = 'red';
-            return;
-        }
-    }
-    var success = 0;
-    for(var i = 0; i < parts.length; i++) {
-        var val = parseInt(parts[i], 16);
-        var ok = await h5gg.setValue(Number(addr) + i + '', val + '', 'U8');
-        if(ok) success++;
-    }
-    if(success == parts.length) {
-        status.textContent = 'Written ' + success + ' bytes successfully';
-        status.style.color = 'green';
-    } else {
-        status.textContent = 'Wrote ' + success + '/' + parts.length + ' bytes';
-        status.style.color = 'orange';
-    }
-    if(success > 0) {
-        var newVal = await h5gg.getValue(addr, type);
-        var rows = document.querySelectorAll('[data-addr="' + addr + '"]');
-        if(rows.length > 0) {
-            var row = rows[0];
-            var valEl = row.querySelector('.result-value');
-            if(valEl) valEl.textContent = newVal;
-        }
-    }
-}
-
-function sortResults(mode) {
-    console.log('FUNC sortResults');
-    if(!gAllResults || gAllResults.length == 0) return;
-    gAllResults.sort(function(a, b) {
-        var aAddr = parseInt(a.address, 16);
-        var bAddr = parseInt(b.address, 16);
-        if(mode == 'addr') return aAddr - bAddr;
-        if(mode == 'addrD') return bAddr - aAddr;
-        var aVal = parseFloat(a.value);
-        var bVal = parseFloat(b.value);
-        if(isNaN(aVal)) aVal = 0;
-        if(isNaN(bVal)) bVal = 0;
-        if(mode == 'val') return aVal - bVal;
-        if(mode == 'valD') return bVal - aVal;
-        return 0;
-    });
-    filterResults();
-}
-
-function showToast(msg) {
-    gToastQueue.push({
-        message: String(msg == null ? '' : msg),
-        duration: 2000
-    });
-    processToastQueue();
-}
-
-var gToastQueue = [];
-var gToastShowing = false;
-var gAlertQueue = [];
-var gAlertShowing = false;
-
-function processToastQueue() {
-    if(gToastShowing || !gToastQueue.length) return;
-
-    var layer = ensureTopLayer();
-    var el = layer.querySelector('#uiToast');
-    var current = gToastQueue[0];
-
-    gToastShowing = true;
-    el.textContent = current.message;
-    el.style.opacity = '1';
-
-    clearTimeout(el._hideTimer);
-    clearTimeout(el._nextTimer);
-
-    el._hideTimer = setTimeout(function() {
-        el.style.opacity = '0';
-        el._nextTimer = setTimeout(function() {
-            gToastQueue.shift();
-            gToastShowing = false;
-            processToastQueue();
-        }, 240);
-    }, current.duration);
-}
-
-function ensureTopLayer() {
-    var layer = document.getElementById('uiTopLayer');
-    if(layer) return layer;
-
-    layer = document.createElement('div');
-    layer.id = 'uiTopLayer';
-    layer.innerHTML =
-        '<div id="uiToast" aria-live="polite"></div>' +
-        '<div id="uiAlertMask" role="dialog" aria-modal="true">' +
-            '<div id="uiAlertCard">' +
-                '<div id="uiAlertBody"></div>' +
-                '<div id="uiAlertActions">' +
-                    '<button id="uiAlertOk" type="button">OK</button>' +
-                '</div>' +
-            '</div>' +
-        '</div>' +
-        '<div id="uiResultActionMask" role="dialog" aria-modal="true" aria-label="Result actions">' +
-            '<div id="uiResultActionSheet">' +
-                '<div class="ui-result-action-group">' +
-                    '<div id="uiResultActionTitle"></div>' +
-                    '<button class="ui-result-action" type="button" data-result-copy="value" onclick="copySelectedResult(\'value\')">Copy Value</button>' +
-                    '<button class="ui-result-action" type="button" data-result-copy="address" onclick="copySelectedResult(\'address\')">Copy Address</button>' +
-                    '<button class="ui-result-action" type="button" data-result-copy="both" onclick="copySelectedResult(\'both\')">Copy Address and Value</button>' +
-                    '<button class="ui-result-action" type="button" onclick="editSelectedResult()">Edit Value</button>' +
-                '</div>' +
-                '<button id="uiResultActionCancel" type="button" onclick="dismissResultActions()">Cancel</button>' +
-            '</div>' +
-        '</div>';
-
-    document.documentElement.appendChild(layer);
-
-    var mask = layer.querySelector('#uiAlertMask');
-    mask.addEventListener('click', function(event) {
-        if(event.target === mask) {
-            dismissActiveAlert();
-        }
-    });
-
-    var resultMask = layer.querySelector('#uiResultActionMask');
-    resultMask.addEventListener('click', function(event) {
-        if(event.target === resultMask) dismissResultActions();
-    });
-
-    return layer;
-}
-
-function dismissActiveAlert() {
-    var layer = ensureTopLayer();
-    var mask = layer.querySelector('#uiAlertMask');
-    if(mask.style.display !== 'flex') return;
-
-    mask.style.display = 'none';
-    gAlertShowing = false;
-    if(gAlertQueue.length) gAlertQueue.shift();
-
-    if(layer._alertKeydownHandler) {
-        document.removeEventListener('keydown', layer._alertKeydownHandler);
-        layer._alertKeydownHandler = null;
-    }
-
-    setTimeout(processAlertQueue, 0);
-}
-
-function processAlertQueue() {
-    if(gAlertShowing || !gAlertQueue.length) return;
-
-    var layer = ensureTopLayer();
-    var mask = layer.querySelector('#uiAlertMask');
-    var body = layer.querySelector('#uiAlertBody');
-    var ok = layer.querySelector('#uiAlertOk');
-
-    gAlertShowing = true;
-    body.textContent = String(gAlertQueue[0]);
-    mask.style.display = 'flex';
-
-    ok.onclick = dismissActiveAlert;
-
-    layer._alertKeydownHandler = function(event) {
-        if(mask.style.display !== 'flex') return;
-        if(event.key === 'Escape' || event.key === 'Enter') {
-            event.preventDefault();
-            dismissActiveAlert();
-        }
-    };
-
-    document.addEventListener('keydown', layer._alertKeydownHandler);
-    setTimeout(function() {
-        try { ok.focus(); } catch(_) {}
-    }, 0);
-}
-
-function showCustomAlert(message) {
-    gAlertQueue.push(message == null ? '' : message);
-    processAlertQueue();
-}
-
-window.alert = function(message) {
-    showCustomAlert(message);
+        status.textContent = ok ? 'Saved to Documents/'+name : 'Dump failed';
+        if(ok) setTimeout(() => closeOverlay('dumpOverlay'), 1500);
+    } catch(e) { status.textContent = 'Error: ' + e; }
+    finally { clearInterval(poll); }
 };
 
-function applyTolerance() {
-    console.log('FUNC applyTolerance');
-    var val = document.getElementById('tolInput').value.trim();
-    if(val === '') return;
-    h5gg.setFloatTolerance(val);
-    showToast('Tolerance set to ' + val);
-}
+window.cancelDump = async function() { await h5gg.cancelDump(); };
 
-async function loadAutorunList() {
-    var sel = document.getElementById('autorunSelect');
-    if(!sel) return;
-    var saved = localStorage.getItem('h5gg_autorun') || '';
-    if(typeof h5gg == 'undefined' || !h5gg.listScripts) {
-        sel.innerHTML = '<option value="">-- Auto-run --</option>';
-        return;
+// --- Memory Viewer ---
+var binaryBaseAddress = null;
+window.getBinaryBaseAddress = async function() {
+    if(binaryBaseAddress) return binaryBaseAddress;
+    if(typeof h5gg !== 'undefined') {
+        var ranges = await h5gg.getRangesList('0');
+        if(ranges && ranges.length) binaryBaseAddress = ranges[0].start;
     }
+    return binaryBaseAddress;
+};
 
-    var list = [];
-    try {
-        var loaded = await h5gg.listScripts();
-        if(Array.isArray(loaded)) list = loaded;
-    } catch(error) {
-        console.error('loadAutorunList failed:', error);
-    }
-
-    sel.innerHTML = '<option value="">-- Auto-run --</option>';
-    for(var i=0;i<list.length;i++) {
-        if(!list[i].toLowerCase().endsWith('.js')) continue;
-        var opt = document.createElement('option');
-        opt.value = list[i];
-        opt.textContent = list[i];
-        if(list[i] == saved) opt.selected = true;
-        sel.appendChild(opt);
-    }
-}
-
-function setAutorun() {
-    var sel = document.getElementById('autorunSelect');
-    localStorage.setItem('h5gg_autorun', sel ? sel.value : '');
-}
-
-function runCurrentScript() {
-    var filename = document.getElementById('scriptFileName').value;
-    if(filename.toLowerCase().endsWith('.html')) {
-        showToast('HTML files can be edited and saved, but only JavaScript files can run here');
-        return;
-    }
-    runScript(document.getElementById('scriptEditor').value, filename);
-}
-
-function runScript(code, filename) {
-    try {
-        var sandbox = {
-            console: console,
-            setTimeout: setTimeout,
-            clearTimeout: clearTimeout,
-            setInterval: setInterval,
-            clearInterval: clearInterval,
-            alert: alert,
-            confirm: confirm,
-            prompt: prompt,
-            h5gg: window.h5gg,
-            Number: Number,
-            String: String,
-            Boolean: Boolean,
-            Array: Array,
-            Object: Object,
-            Math: Math,
-            JSON: JSON,
-            parseInt: parseInt,
-            parseFloat: parseFloat,
-            isNaN: isNaN,
-            Date: Date,
-            RegExp: RegExp,
-            Error: Error,
-            Promise: Promise,
-        };
-        
-        var argNames = Object.keys(sandbox);
-        var argValues = argNames.map(function(k) { return sandbox[k]; });
-        var fn = new Function(argNames.join(','), code);
-        var result = fn.apply(null, argValues);
-        
-        if(result && typeof result.then === 'function') {
-            result.catch(function(e) { showToast('Script error: ' + e.message); });
-        }
-        
-        showToast('Script ran: ' + (filename || 'unnamed'));
-        return true;
-    } catch(e) {
-        showToast('Script error: ' + e.message);
-        console.error('Script error in', filename, ':', e);
-        return false;
-    }
-}
-
-async function checkAutorun() {
-    console.log('FUNC checkAutorun');
-    var name = localStorage.getItem('h5gg_autorun');
-    if(!name) return;
-    if(!name.toLowerCase().endsWith('.js')) {
-        localStorage.removeItem('h5gg_autorun');
-        return;
-    }
-    if(typeof h5gg == 'undefined' || !h5gg.loadScript) return;
-
-    try {
-        var content = await h5gg.loadScript(name);
-        if(content) runScript(content, name);
-    } catch(error) {
-        console.error('checkAutorun failed:', error);
-    }
-}
-
-function openSettings() {
-    var html = '<div id="settingsOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'settingsOverlay\')">';
-    html += '<div style="position:absolute;top:20%;left:8%;width:84%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between">';
-    html += '<span>Settings</span>';
-    html += '<span onclick="closeOverlay(\'settingsOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
+window.openMemoryViewer = async function() {
+    var base = await getBinaryBaseAddress();
+    if(base) window.gViewerAddr = base;
+    var html = '<div id="viewerOverlay" class="overlay-mask" style="display:flex; z-index:119999;">';
+    html += '<div class="modal-card" style="width:95%; height:90vh;">';
+    html += '<div class="modal-header">Memory Viewer</div>';
+    html += '<div class="modal-body" style="display:flex; flex-direction:column; padding:0;">';
+    html += '<div style="display:flex; gap:4px; padding:8px; border-bottom:1px solid var(--border-color);">';
+    html += '<input id="viewerAddr" type="text" value="'+(window.gViewerAddr||'0x0')+'" style="font-family:monospace; flex:1;" />';
+    html += '<button class="action-btn" style="width:auto; padding:8px 12px;" onclick="viewerGo()">Go</button>';
     html += '</div>';
-    html += '<div style="padding:12px;font-size:12px">';
-    html += '<div style="margin:8px 0"><label>Default Search Start:</label><br><input id="setRangeStart" type="text" value="'+ (localStorage.getItem('h5gg_rangeStart') || '0x0') +'" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<div style="margin:8px 0"><label>Default Search End:</label><br><input id="setRangeEnd" type="text" value="'+ (localStorage.getItem('h5gg_rangeEnd') || '0xFFFFFFFF00000000') +'" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px"></div>';
-    html += '<div style="margin:8px 0"><label>Default Search Type:</label><br><select id="setSearchType" style="width:100%;padding:4px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
+    html += '<div style="display:flex; padding:4px; gap:4px; background:var(--panel-bg);">';
+    html += '<button class="action-btn" style="padding:4px; font-size:11px;" onclick="viewerPage(-1)">-Pg</button>';
+    html += '<button class="action-btn" style="padding:4px; font-size:11px;" onclick="viewerStep(-16)">-16</button>';
+    html += '<button class="action-btn" style="padding:4px; font-size:11px;" onclick="viewerStep(16)">+16</button>';
+    html += '<button class="action-btn" style="padding:4px; font-size:11px;" onclick="viewerPage(1)">+Pg</button>';
+    html += '</div>';
+    html += '<div id="viewerDump" class="scrollbar" style="flex:1; overflow-y:auto; padding:4px;"></div>';
+    html += '</div>';
+    html += '<div class="modal-footer"><button onclick="closeOverlay(\'viewerOverlay\')">Close</button></div>';
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    await viewerGo();
+};
+
+window.viewerGo = async function() {
+    var input = document.getElementById('viewerAddr');
+    if(!input) return;
+    try {
+        var address = BigInt(input.value.trim());
+        window.gViewerAddr = '0x' + address.toString(16).toUpperCase();
+    } catch(error) { return document.getElementById('viewerDump').textContent = 'Invalid address'; }
+    input.value = window.gViewerAddr;
+    await viewerRefresh();
+};
+
+window.viewerStep = async function(delta) {
+    var addr = BigInt(window.gViewerAddr) + BigInt(delta);
+    if(addr < 0n) addr = 0n;
+    window.gViewerAddr = '0x' + addr.toString(16).toUpperCase();
+    document.getElementById('viewerAddr').value = window.gViewerAddr;
+    await viewerRefresh();
+};
+
+window.viewerPage = async function(dir) { await viewerStep(dir * 256); };
+
+window.viewerRefresh = async function() {
+    var dump = document.getElementById('viewerDump');
+    if(!dump || !window.gViewerAddr) return;
+    var address = BigInt(window.gViewerAddr);
+    var page = await h5gg.readMemoryPage(window.gViewerAddr, 256);
+    if(!page || page.error) { dump.textContent = 'Failed to read memory'; return; }
+
+    dump.innerHTML = '';
+    for(var line = 0; line < page.bytes.length; line += 16) {
+        var lineAddress = '0x' + (address + BigInt(line)).toString(16).toUpperCase().padStart(12, '0');
+        var values = page.bytes.slice(line, line + 16);
+
+        var row = document.createElement('div');
+        row.className = 'memory-line';
+
+        var hex = values.map(function(v) { return v == null ? '??' : Number(v).toString(16).toUpperCase().padStart(2, '0'); }).join(' ');
+        var ascii = values.map(function(v) { return v >= 32 && v <= 126 ? String.fromCharCode(v) : '.'; }).join('');
+
+        row.innerHTML = '<span style="font-family:monospace; font-size:10px; color:var(--accent);">'+lineAddress+'</span><span style="font-family:monospace; font-size:10px;">'+hex+'</span><span style="font-family:monospace; font-size:10px;">|'+escapeScriptText(ascii)+'|</span>';
+        dump.appendChild(row);
+    }
+};
+
+// --- Settings ---
+window.openSettings = function() {
+    var html = '<div id="settingsOverlay" class="overlay-mask" style="display:flex;">';
+    html += '<div class="modal-card">';
+    html += '<div class="modal-header">Settings</div>';
+    html += '<div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">';
+    html += '<div><label style="font-size:12px;">Default Search Start:</label><input id="setRangeStart" type="text" value="'+(localStorage.getItem('h5gg_rangeStart')||'0x0')+'" /></div>';
+    html += '<div><label style="font-size:12px;">Default Search End:</label><input id="setRangeEnd" type="text" value="'+(localStorage.getItem('h5gg_rangeEnd')||'0xFFFFFFFF00000000')+'" /></div>';
+    html += '<div><label style="font-size:12px;">Default Search Type:</label><select id="setSearchType">';
     var types = ['I8','U8','I16','U16','I32','U32','I64','U64','F32','F64'];
     var savedType = localStorage.getItem('h5gg_searchType') || 'I32';
-    for(var i=0;i<types.length;i++) {
-        html += '<option value="'+types[i]+'"'+(types[i]==savedType?' selected':'')+'>'+types[i]+'</option>';
-    }
+    types.forEach(t => { html += '<option value="'+t+'"'+(t===savedType?' selected':'')+'>'+t+'</option>'; });
     html += '</select></div>';
-    html += '<button onclick="saveSettings()" style="width:100%;margin:12px 0;height:32px">Save Settings</button>';
-    html += '<div id="settingsStatus" style="font-size:11px;color:#888;text-align:center"></div>';
-    html += '</div></div></div>';
+    html += '<div><label style="font-size:12px;">Window Resizing:</label><button class="action-btn" style="margin-top:4px;" onclick="toggleResizeHandle()">Toggle Resize Handle</button></div>';
+    html += '<div id="settingsStatus" style="font-size:12px; color:var(--accent); text-align:center;"></div>';
+    html += '<button class="action-btn primary-btn" onclick="saveSettings()">Save Configuration</button>';
+    html += '</div>';
+    html += '<div class="modal-footer"><button onclick="closeOverlay(\'settingsOverlay\')">Close</button></div>';
+    html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
-}
+};
 
-function saveSettings() {
+window.saveSettings = function() {
     var start = document.getElementById('setRangeStart').value.trim();
     var end = document.getElementById('setRangeEnd').value.trim();
     var type = document.getElementById('setSearchType').value;
@@ -2434,298 +1358,19 @@ function saveSettings() {
     if(end) localStorage.setItem('h5gg_rangeEnd', end);
     localStorage.setItem('h5gg_searchType', type);
     document.getElementById('settingsStatus').textContent = 'Settings saved';
-    setTimeout(function() { closeOverlay('settingsOverlay'); }, 1000);
-}
+    setTimeout(() => closeOverlay('settingsOverlay'), 1000);
+};
 
-var gViewerAddr = '0x0';
-
-function openMemoryViewer() {
-    console.log('FUNC openMemoryViewer');
-    var html = '<div id="viewerOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999" onclick="closeOverlay(\'viewerOverlay\')">';
-    html += '<div style="position:absolute;top:5%;left:3%;width:94%;height:90%;background:var(--bg-color,#fff);border-radius:8px;overflow:hidden;display:flex;flex-direction:column" onclick="event.stopPropagation()">';
-    html += '<div style="padding:8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--border-color,#ccc);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">';
-    html += '<span>Memory Viewer</span>';
-    html += '<span onclick="closeOverlay(\'viewerOverlay\')" style="cursor:pointer;font-size:18px">&times;</span>';
-    html += '</div>';
-
-    html += '<div style="display:flex;padding:6px 8px;border-bottom:1px solid var(--border-color,#eee);align-items:center;flex-shrink:0">';
-    html += '<span style="font-size:12px;margin-right:4px">Address:</span>';
-    html += '<input id="viewerAddr" type="text" value="'+gViewerAddr+'" style="flex:1;padding:4px;font-family:monospace;font-size:12px;background:var(--input-bg,transparent);border:1px solid var(--border-color,#ccc);border-radius:3px">';
-    html += '<button onclick="viewerGo()" style="margin-left:4px;padding:4px 8px;font-size:12px">Go</button>';
-    html += '</div>';
-
-    html += '<div style="display:flex;padding:2px 8px;border-bottom:1px solid var(--border-color,#eee);flex-shrink:0">';
-    html += '<button onclick="viewerPage(-1)" style="flex:1;font-size:11px;padding:4px;margin:2px">-Page</button>';
-    html += '<button onclick="viewerStep(-16)" style="flex:1;font-size:11px;padding:4px;margin:2px">-16</button>';
-    html += '<button onclick="viewerStep(-1)" style="flex:1;font-size:11px;padding:4px;margin:2px">-1</button>';
-    html += '<button onclick="viewerStep(1)" style="flex:1;font-size:11px;padding:4px;margin:2px">+1</button>';
-    html += '<button onclick="viewerStep(16)" style="flex:1;font-size:11px;padding:4px;margin:2px">+16</button>';
-    html += '<button onclick="viewerPage(1)" style="flex:1;font-size:11px;padding:4px;margin:2px">+Page</button>';
-    html += '</div>';
-
-    html += '<div id="viewerDump" class="scrollbar" style="flex:1;overflow-y:auto;padding:8px;font-family:monospace;font-size:10px;line-height:1.6;white-space:pre"></div>';
-
-    html += '</div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-
-    viewerGo();
-}
-
-async function viewerGo() {
-    var input = document.getElementById('viewerAddr');
-    if(!input) return;
-    try {
-        var address = BigInt(input.value.trim());
-        if(address < 0n || address > 0xFFFFFFFFFFFFFFFFn) throw new Error('range');
-        gViewerAddr = '0x' + address.toString(16).toUpperCase();
-    } catch(error) {
-        document.getElementById('viewerDump').textContent = 'Invalid address';
-        return;
-    }
-    input.value = gViewerAddr;
-    await viewerRefresh();
-}
-
-async function viewerRefresh() {
-    console.log('FUNC viewerRefresh');
-    var dump = document.getElementById('viewerDump');
-    if(!dump || !gViewerAddr) return;
-
-    var addr = BigInt(gViewerAddr);
-    var page = await h5gg.readMemoryPage(gViewerAddr, 256);
-    if(!page || page.error) { dump.textContent = 'Failed to read memory'; return; }
-
-    var out = '';
-    for(var line = 0; line < page.bytes.length; line += 16) {
-        var offset = (addr + BigInt(line)).toString(16).toUpperCase().padStart(16, '0');
-        var hex = '';
-        var ascii = '';
-        for(var column = 0; column < 16; column++) {
-            var value = page.bytes[line + column];
-            hex += value === null ? '?? ' : value.toString(16).toUpperCase().padStart(2, '0') + ' ';
-            if(column == 7) hex += ' ';
-            ascii += value === null ? '\u00b7' : (value >= 32 && value <= 126 ? String.fromCharCode(value) : '.');
-        }
-        out += offset + '  ' + hex + ' |' + ascii + '|\n';
-    }
-    if(!page.complete) out += '\nUnreadable bytes are shown as ??.';
-    dump.textContent = out;
-}
-
-async function viewerStep(delta) {
-    var addr = BigInt(gViewerAddr) + BigInt(delta);
-    var maximum = 0xFFFFFFFFFFFFFFFFn - 255n;
-    if(addr < 0n) addr = 0n;
-    if(addr > maximum) addr = maximum;
-    gViewerAddr = '0x' + addr.toString(16).toUpperCase();
-    var input = document.getElementById('viewerAddr');
-    if(input) input.value = gViewerAddr;
-    await viewerRefresh();
-}
-
-async function viewerPage(dir) {
-    await viewerStep(dir * 256);
-}
+window.onClickMakeTweak = async function() {
+    alert("Make your custom dylib\nStep 1: Select a picture file for float button");
+    var icon = await h5gg.pickScriptFile(["public.image"]);
+    if(!icon) return;
+    alert("Step 2: Select a html file that needs to load automatically");
+    var html = await h5gg.pickScriptFile(["public.html"]);
+    if(!html) return;
+    alert(await h5gg.makeTweak(icon, html));
+};
 </script>
-
-</head>
-<body>
-<header id="titleBar">
-    <div class="title-brand">
-        <span style="color:green">H5</span> <span style="color:red">GG</span>v8.0<span id="version"></span>
-        <span id="crossproc" style="display:none"><span style="color:blue">&nbsp;CrossProc&nbsp;</span><span id="procname">procname</span></span>
-    </div>
-    <div class="title-actions">
-        <button id="controlsToggle" class="title-action" type="button" aria-controls="controlsPanel" aria-expanded="true" onclick="toggleControlPanel()">Hide controls</button>
-        <button id="theme-toggle" class="title-action" type="button" aria-label="Change theme" onclick="toggleTheme()">&#9790;</button>
-        <button id="closeMenu" class="title-action" type="button" aria-label="Close H5GG" onclick="setWindowVisible(false)">&#10005;</button>
-    </div>
-</header>
-
-<div id="appShell">
-    <aside id="controlsPanel" class="scrollbar" aria-label="Search controls">
-        <section class="control-section">
-            <h2 class="section-title">Memory search</h2>
-            <div class="field-grid">
-                <label for="range_min">Start</label>
-                <input id="range_min" class="compact-input" value="0x10000000" inputmode="text" autocomplete="off" />
-                <label for="range_max">End</label>
-                <input id="range_max" class="compact-input" value="0x300000000" inputmode="text" autocomplete="off" />
-            </div>
-            <div class="radio-row" role="group" aria-label="Number sign">
-                <label><input type="radio" name="numtype" value="signed" checked />Signed</label>
-                <label><input type="radio" name="numtype" value="unsigned" />Unsigned</label>
-            </div>
-            <div class="action-grid">
-                <button class="primary-action" onclick="onClickSearchNumber()">Search</button>
-                <button onclick="onClickSearchNearby()">Nearby</button>
-                <button onclick="onClickRefreshResults()">Refresh</button>
-                <button onclick="onClickClearResults()">Clear</button>
-                <button onclick="onClickEditAll()">Edit all</button>
-            </div>
-        </section>
-
-        <details class="control-section" open>
-            <summary>Search options</summary>
-            <div class="field-grid">
-                <label for="nearby_range">Nearby</label>
-                <input id="nearby_range" class="compact-input" value="0x100" />
-                <label for="float_tolerance">Float tolerance</label>
-                <input id="float_tolerance" class="compact-input" value="0.0" />
-            </div>
-            <div class="inline-row">
-                <input id="hexInput" type="text" placeholder="Hex: 90 ?? E? AF" aria-label="Hex pattern" title="? is a wildcard nibble; searching again refines current results" />
-                <button onclick="doHexSearch()">Hex search</button>
-            </div>
-            <div class="inline-row">
-                <input id="refineValue" type="text" placeholder="Refine value" aria-label="Refine value" />
-                <select id="refineType" aria-label="Refine type"><option>I8</option><option>U8</option><option>I16</option><option>U16</option><option selected>I32</option><option>U32</option><option>I64</option><option>U64</option><option>F32</option><option>F64</option></select>
-                <select id="refineMode" aria-label="Refine comparison"><option value="0">=</option><option value="2">&gt;</option><option value="3">&lt;</option></select>
-                <button onclick="refineNumericResults()">Refine</button>
-            </div>
-            <div class="inline-row">
-                <label for="tolInput">Tolerance</label>
-                <input id="tolInput" type="text" value="0" placeholder="0.0" />
-                <button onclick="applyTolerance()">Apply</button>
-            </div>
-        </details>
-
-        <details class="control-section">
-            <summary>Tools and scripts</summary>
-            <div class="tool-grid">
-                <button onclick="onShowLoadScript(true)">Load script</button>
-                <button onclick="openScriptEditor()">Script editor</button>
-                <button onclick="onClickMakeTweak()">Make tweak</button>
-                <button onclick="openBookmarksPanel()">Bookmarks</button>
-                <button onclick="openFreezePanel()">Frozen values</button>
-                <button onclick="openOffsetCalc()">Calculator</button>
-                <button onclick="openPointerChain()">Pointers</button>
-                <button onclick="openDumpPanel()">Memory dump</button>
-                <button onclick="openHistoryPanel()">History</button>
-                <button onclick="openMemoryViewer()">Memory viewer</button>
-            </div>
-            <div class="inline-row">
-                <select id="autorunSelect" onchange="setAutorun()" aria-label="Auto-run script">
-                    <option value="">-- Auto-run --</option>
-                </select>
-                <button onclick="openSettings()">Settings</button>
-            </div>
-        </details>
-    </aside>
-
-    <main id="resultsPanel" aria-label="Search results">
-        <div id="resultsToolbar">
-            <div class="results-heading">
-                <strong>Results</strong>
-                <p id="results_count">Results Count: 0</p>
-            </div>
-            <div class="filter-row">
-                <input id="filterInput" type="search" placeholder="Filter by address or value" aria-label="Filter results" oninput="filterResults()" />
-                <span id="filterCount" aria-live="polite"></span>
-            </div>
-            <div class="sort-grid" aria-label="Sort results">
-                <button onclick="sortResults('addr')">Address &#8593;</button>
-                <button onclick="sortResults('addrD')">Address &#8595;</button>
-                <button onclick="sortResults('val')">Value &#8593;</button>
-                <button onclick="sortResults('valD')">Value &#8595;</button>
-            </div>
-        </div>
-        <div id="listdiv" class="scrollbar" ontouchend="showMoreResults(this);">
-            <table id="resultList" hidden><tbody></tbody></table>
-            <div class="empty-state">No results yet</div>
-        </div>
-    </main>
-</div>
-
-<!--全局灰色遮罩层(弹出搜索框的时候用)-->
-<div id="maskview" class="maskview"></div>
-
-<!--全屏居中布局层-->
-<div class="popup_container">
-    
-<div id="popup_search_edit">
-<B id="popupTitle">Search Number</B>
-<br/><br/>
-<center>
-<table id="datatype" class="datatype">
-<tr>
-<td>F32</td><td>F64</td><td>I8</td><td>I16</td><td class="selected">I32</td><td>I64</td>
-</tr>
-</table>
-</center>
-<br/>
-<input type="text" id="datavalue" style="width:100%; border:none" placeholder="Number" />
-<hr/>
-<button id="cancel">Cancel</button>
-&nbsp;&nbsp;&nbsp;
-<button id="action">Search</button>
-</div>
-
-
-<!--居中的加载脚本窗口,默认隐藏-->
-<div id="popup_loadscripts" class="popup_view3">
-<center>
-<div class="menubox current" menu="localjs" onclick="refreshLocalSrcipts()">Local ⟳</div>
-<div class="menubox" menu="netjs">Network</div>
-<div style="float:right; font-size:16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;" onclick="onShowLoadScript(false)">&nbsp;X&nbsp;</div>
-</center>
-<hr/>
-<div id="localjs" class="menuview current scrollbar" style="height:190px">
-<table id="localjslist" style="width:100%;" border="1" cellspacing=0 cellpadding=0>
-<tr><td style="border-right-style:none; color:blue">选择其他位置</td><td style="border-left-style:none;width:45px"><button>浏览</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-<tr><td style="border-right-style:none;">测试脚本1.js</td><td style="border-left-style:none;width:45px"><button>加载</button></td></tr>
-</table>
-</div>
-<div id="netjs" class="menuview">
-<br/><br/>
-<input id="netjsurl" style="width:100%" placeholder="URL start with http/https" />
-<br/><br/><br/>
-<hr/>
-<button onclick="onClickLoadScript($('#netjsurl').val(), 'js')">Load JS</button>
-<button onclick="onClickLoadScript($('#netjsurl').val(), 'h5');">Load HTML</button>
-</div>
-
-<!--运行脚本灰色遮罩层(执行脚本时用)-->
-<div id="maskview_script" class="maskview"></div>
-
-</div>
-
-<!--居中的提示框, 默认隐藏-->
-<div id="popup_progress">
-<center>
-    Running...
-</center>
-</div>
-
-<div id="popup_proclist">
-<center>
-Select Target
-<hr/>
-<div id="proctable" class="scrollbar" style="min-height:50px; max-height:170px">
-<button>Process1</button>
-<button>Process2</button>
-<button>Process3</button>
-<button>Process4</button>
-<button>Process5</button>
-<button>Process6</button>
-<button>Process7</button>
-<button>Process8</button>
-</div>
-</center>
-</div>
-
-
-<!--全屏居中布局层结束-->
-</div>
-
 <script src="UIReliability.js"></script>
 </body>
 </html>

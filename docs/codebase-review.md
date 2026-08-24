@@ -1,6 +1,6 @@
 # Codebase review
 
-Verified against `c69d0c6` plus the current working tree on 2026-08-20.
+Verified against the version 8.1 working tree on 2026-08-24.
 
 ## Executive finding
 
@@ -23,7 +23,7 @@ remain open.
 
 ## Evidence and validation
 
-- `bash tests/run_tests.sh`: passed on 2026-08-20.
+- `make test`: passed on 2026-08-24.
 - The host suite covers target/session lifetime, modal request serialization,
   result invariants, value and grouped-search parsing/matching, numeric filtering,
   masked hex matching, partial raw reads, dump streaming, filename confinement,
@@ -58,16 +58,16 @@ remaining verification are tracked in [roadmap.md](roadmap.md).
 
 ### P2 — Verification, architecture, and delivery debt
 
-#### H5-018: Generated artifacts, IDE state, and large dependencies are tracked
+#### H5-018: Generated artifacts and IDE state are tracked
 
-The repository still tracks `.deb`/`.tipa` outputs, prebuilt application and
-plugin binaries, Xcode `xcuserdata`, and the nested Dobby source snapshot. The
-ignore rules prevent some new outputs but do not remove existing tracked files
-or document dependency provenance.
+Version 8.1 removes the obsolete h5frida examples, prebuilt binaries, local IDE
+path, and nested Dobby source snapshot. The repository still tracks some
+`.deb`/`.tipa` outputs, prebuilt application and plugin binaries, and Xcode
+`xcuserdata`. Ignore rules prevent new package output, but the remaining files
+still need classification and provenance.
 
-Acceptance: classify required binaries, record versions/checksums and licenses,
-remove regenerable outputs and user state from source history, and choose an
-explicit policy for the Dobby snapshot.
+Acceptance: classify required binaries, record versions, checksums, and
+licenses, and remove regenerable outputs and user state from source history.
 
 #### H5-020: Debug logging is unconditional and may expose target details
 
@@ -138,10 +138,16 @@ path.
   injected dylibs default to 35 points from the left and vertical center.
 - All build adapters use an iOS 15.0 deployment baseline and explicit variant
   definitions.
+- Rootful, rootless, and roothide application paths are normalized through the
+  matching Theos path convention before bundle discovery.
+- Both built-in HTML interfaces share regression-tested overlays, result
+  actions, script editing, memory viewing, and window controls.
+- Host API checks ignore removed h5frida content and continue checking the
+  supported JavaScript and HTML examples.
 
 ## Review limits
 
 This is a source, host-test, and build-evidence review, not an exploit audit of
-vendored Frida/Dobby/ldid code. Private iOS interfaces, Mach task operations,
+the bundled `ldid` tool. Private iOS interfaces, Mach task operations,
 SpringBoard hosting, orientation, signing acceptance, and jailbreak layouts
 still require the device evidence listed in [validation.md](validation.md).

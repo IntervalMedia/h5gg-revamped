@@ -1,7 +1,7 @@
 # Phase 2 feature contracts
 
-This document is the support boundary for the v8 features implemented through
-Phase 2. "Implemented" describes the current source contract; it does not imply
+This document is the support boundary for the version 8.1 features implemented
+through Phase 2. "Implemented" describes the current source contract; it does not imply
 device verification. The per-capability completion status is maintained in
 [roadmap.md](roadmap.md), and device-dependent behavior remains experimental
 until its row in [validation.md](validation.md) is recorded on supported

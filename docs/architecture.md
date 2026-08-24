@@ -1,6 +1,6 @@
 # H5GG architecture
 
-Status: current implementation baseline verified on 2026-08-20. Active defects
+Status: version 8.1 implementation baseline verified on 2026-08-24. Active defects
 and debt are tracked in [codebase-review.md](codebase-review.md); implementation
 status is tracked in [roadmap.md](roadmap.md).
 
@@ -69,6 +69,11 @@ stage, then `check_package_contents.sh` validates control metadata, the
 variant-specific install root, dylib/plist pairing, executable maintainer
 script, valid filter plist, and both Mach-O slices before publication.
 
+At runtime, `Tweak.mm` normalizes application paths before comparing them.
+Rootless builds use the Theos rootless prefix and roothide builds use
+`rootfs()`, while boundary checks prevent one bundle path from matching a
+similarly prefixed directory.
+
 `H5GG_DEVICE_VALIDATION=1` is a separate opt-in test seam. It links the stable
 fixture in `tests/device/` so the Phase 2 Promise-bridge runner can exercise
 real Mach reads and writes. The root Makefile omits this fixture from every
@@ -115,6 +120,11 @@ while background callers use the same queue's condition-variable seam.
 `FloatMenu` owns the `WKWebView`, installs `window.h5gg`, receives
 `WKScriptMessage` values, invokes native operations, and settles JavaScript
 Promises.
+
+`Index.html` and `Index-en.html` load `UIReliability.js` for shared input,
+dialog, and accessibility behavior. The host suite checks both pages for the
+search overlay, result actions, script editor, memory viewer, localized labels,
+and safe window resizing.
 
 Its external interface consists of:
 

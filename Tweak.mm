@@ -612,6 +612,45 @@ void initload()
     }
 }
 
+static NSString* H5GGRootFSPath(NSString* path)
+{
+    if(path.length == 0) return path;
+
+#ifdef H5GG_BUILD_ROOTHIDE
+    NSString* resolvedPath = rootfs(path);
+    return resolvedPath ?: path;
+#elif defined(H5GG_BUILD_ROOTLESS)
+    NSString* resolvedPath = ROOTFS_PATH_NSSTRING(path);
+    return resolvedPath ?: path;
+#else
+    return path;
+#endif
+}
+
+static BOOL H5GGPathIsInsideDirectory(NSString* path, NSString* directory)
+{
+    NSString* normalizedPath = path.stringByStandardizingPath;
+    NSString* normalizedDirectory = directory.stringByStandardizingPath;
+    if([normalizedPath isEqualToString:normalizedDirectory]) return YES;
+    return [normalizedPath hasPrefix:[normalizedDirectory stringByAppendingString:@"/"]];
+}
+
+static BOOL H5GGIsCommonApplicationPath(NSString* bundlePath)
+{
+    NSString* rootFSPath = H5GGRootFSPath(bundlePath);
+    NSArray<NSString*>* applicationRoots = @[
+        @"/var/containers/Bundle/Application",
+        @"/private/var/containers/Bundle/Application",
+        @"/var/mobile/Applications",
+        @"/private/var/mobile/Applications"
+    ];
+
+    for(NSString* applicationRoot in applicationRoots) {
+        if(H5GGPathIsInsideDirectory(rootFSPath, applicationRoot)) return YES;
+    }
+    return NO;
+}
+
 
 //初始化函数, 插件加载后系统自动调用
 static void __attribute__((constructor)) _init_()
@@ -646,7 +685,7 @@ static void __attribute__((constructor)) _init_()
     if([[NSString stringWithUTF8String:di.dli_fname] hasSuffix:@".dylib"])
         modes |= H5GGRuntimeModeDylib;
     
-    if([app_path containsString:@"/var/"]||[app_path containsString:@"/Application/"])
+    if(H5GGIsCommonApplicationPath(app_path))
         modes |= H5GGRuntimeModeCommonApp;
     
     if((modes & H5GGRuntimeModeTestApp) && (modes & H5GGRuntimeModeDylib))
