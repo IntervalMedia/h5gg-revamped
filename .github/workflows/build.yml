@@ -28,7 +28,7 @@ jobs:
           echo "THEOS=$PWD/theos" >> $GITHUB_ENV
           brew install ldid xz
           # Download SDK
-          curl -L https://github.com/theos/sdks/releases/download/latest/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
+          curl -L https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
           mkdir -p $PWD/theos/sdks
           tar xf sdk.tar.xz -C $PWD/theos/sdks
           rm sdk.tar.xz
@@ -45,7 +45,7 @@ jobs:
           rm tc.tar.xz
           echo "/opt/swift-5.8-ubuntu20.04/usr/bin" >> $GITHUB_PATH
           # Download SDK
-          curl -L https://github.com/theos/sdks/releases/download/latest/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
+          curl -L https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
           mkdir -p $PWD/theos/sdks
           tar xf sdk.tar.xz -C $PWD/theos/sdks
           rm sdk.tar.xz
