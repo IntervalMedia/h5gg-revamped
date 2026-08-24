@@ -102,7 +102,7 @@ H5GG_COMMON_FLAGS += -DH5GG_BUILD_ROOTHIDE=1
 endif
 
 H5GG_CFLAGS = -fobjc-arc -Wno-deprecated-declarations $(H5GG_COMMON_FLAGS)
-H5GG_CCFLAGS = -std=c++17
+H5GG_CCFLAGS = -std=c++17 -fexceptions
 H5GG_FRAMEWORKS = UIKit Foundation CoreGraphics QuartzCore JavaScriptCore CoreFoundation
 
 H5GG_LOGOS_DEFAULT_GENERATOR = internal
