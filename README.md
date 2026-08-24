@@ -15,6 +15,7 @@ you arrive.
 - [Stabilization and feature roadmap](docs/roadmap.md)
 - [Phase 2 feature contracts and limits](docs/phase-2-features.md)
 - [Validation matrix](docs/validation.md)
+- [JavaScript API reference](docs/javascript-api.md)
 
 ---
 
@@ -35,7 +36,7 @@ you arrive.
 
 ### Features
 
-- memory search/read/write [APIs](/examples-JavaScript/) from JavaScript
+- memory search, read, and write through the [JavaScript API](docs/javascript-api.md)
 - fully custom HTML5 UI
 - load scripts (.js or .html) from local storage or network
 - JSON-RPC dylib plugin system ([demo](/pluginDemo/customAlert))
@@ -67,15 +68,3 @@ Compile-time flags exposed to source:
 - `H5GG_BUILD_ROOTHIDE`
 
 Build outputs are collected in `packages/release-artifacts/` so CI/manual release workflows can publish all generated `.deb` files.
-
-## Running modes
-
-1. [inject H5GG.dylib into ipa for non-jailbroken devices](/packages/)
-2. [tweak (deb) auto-loads into all apps for jailbroken devices](/packages/)
-3. [standalone app for jailbroken devices (iPad SlideOver+SplitView compatible)](/appstand/packages/)
-4. [Float On Screen for jailbroken devices (iOS 15+ tested)](/globalview/packages/)
-
-## Dependencies (GlobalView / Float On Screen)
-
-- [BackgrounderAction2](https://github.com/akusio): libH5GG.B.dylib (jp.akusio.backgrounderaction13) for iOS 15+
-- [libAPAppView](https://github.com/Baw-Appie/libAPAppView): libH5GG.A.dylib (com.rpgfarm.libapappview) for iOS 15+

@@ -43,7 +43,7 @@ collect_variant_artifacts() (
   done
 )
 
-publish_to_new_path() (
+publish_to_new_path() {
   local artifact="$1"
   local destination="$2"
   local destination_dir
@@ -51,29 +51,23 @@ publish_to_new_path() (
 
   destination_dir="$(dirname "$destination")"
   temporary="$(mktemp "$destination_dir/.h5gg-artifact.XXXXXX")"
-  cleanup_publish_temp() {
-    rm -f "$temporary"
-  }
-  trap cleanup_publish_temp EXIT
-  trap 'exit 129' HUP
-  trap 'exit 130' INT
-  trap 'exit 143' TERM
-
   if ! cp "$artifact" "$temporary"; then
+    rm -f "$temporary"
     return 1
   fi
-  chmod 0644 "$temporary"
 
   # A hard link publishes the fully copied file atomically and fails rather
   # than replacing a destination created by another build.
   if ln "$temporary" "$destination" 2>/dev/null; then
+    rm -f "$temporary"
     return 0
   fi
 
+  rm -f "$temporary"
   [ -e "$destination" ] && return 2
   echo "Unable to publish artifact at ${destination}" >&2
   return 1
-)
+}
 
 publish_artifact() {
   local artifact="$1"

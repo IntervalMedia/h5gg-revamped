@@ -57,7 +57,7 @@ check_variant() {
   fi
 }
 
-check_variant normal H5GG_BUILD_NORMAL 15.6
+check_variant normal H5GG_BUILD_NORMAL 16.5
 check_variant rootless H5GG_BUILD_ROOTLESS 16.5
 check_variant roothide H5GG_BUILD_ROOTHIDE 16.5
 
