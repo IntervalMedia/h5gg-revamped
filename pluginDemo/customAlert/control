@@ -1,9 +1,0 @@
-Package: com.h5gg.plugin.customalertv8
-Name: customAlertv8
-Depends: 
-Version: 0.1.0
-Architecture: iphoneos-arm
-Description: h5gg.plugin.customAlertv8
-Maintainer: silentninjabee
-Author: silentninjabee
-Section: Tweaks
