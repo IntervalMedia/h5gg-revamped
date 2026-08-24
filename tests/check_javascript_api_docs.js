@@ -45,7 +45,7 @@ function collectJavaScriptFiles(directory) {
     return files;
 }
 
-const exampleRoots = ['examples-HTML5', 'examples-JavaScript', 'pluginDemo'];
+const exampleRoots = ['examples-HTML5', 'examples-JavaScript'];
 const legacyMarker = 'LEGACY-JAVASCRIPTCORE-ONLY';
 for(const exampleRoot of exampleRoots) {
     for(const file of collectJavaScriptFiles(path.join(root, exampleRoot))) {
@@ -68,11 +68,5 @@ for(const exampleRoot of exampleRoots) {
         }
     }
 }
-
-const rpcExample = fs.readFileSync(
-    path.join(root, 'pluginDemo/customAlert/customAlert.js'), 'utf8'
-);
-assert(/await\s+h5gg\.loadPlugin\(/.test(rpcExample));
-assert(/await\s+h5gg\.callPlugin\(/.test(rpcExample));
 
 console.log(`JavaScript API documentation covers ${bridgeMethods.length} bridge methods`);

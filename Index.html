@@ -3,7 +3,7 @@
 <head>
 <title>H5GG</title>
 <meta charset="utf-8">
-<meta name="viewport" content="width=400, height=600, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"><meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width, initial-scale=0.75, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover"><meta name="color-scheme" content="light dark">
 
 <style>
 /* Modern iOS-Inspired Design System */
@@ -74,30 +74,15 @@
 
 /* Global Reset */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-html, body {
-    /* Constrain the size to your exact overlay dimensions */
-    width: 400px;
-    height: 600px;
-
-    /* Center it perfectly on the screen if the webview is full-screen */
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-
-    /* Round the corners of your new floating overlay */
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-
-    margin: 0;
-    overflow: hidden;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+html { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+body {
+    width: 100%; height: 100%; margin: 0; overflow: hidden; position: relative;
+    padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
+    display: flex; flex-direction: column; border-radius: 16px;
+    background-color: var(--bg-color); color: var(--text-color);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-    font-size: 14px;
-    -webkit-text-size-adjust: 100%;
+    font-size: 14px; -webkit-text-size-adjust: 100%;
 }
-body { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); display: flex; flex-direction: column; }
 *:not(input, textarea) { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 input, textarea { -webkit-user-select: text; user-select: text; }
 
@@ -105,12 +90,12 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 header {
     height: 50px; display: flex; align-items: center; justify-content: space-between;
     padding: 0 16px; background: var(--panel-bg); border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0; cursor: move;
+    flex-shrink: 0; position: relative; z-index: 200; cursor: move;
 }
-.brand-title { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.brand-title { min-width: 0; font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
 .brand-title span.h5 { color: #34c759; }
 .brand-title span.gg { color: var(--danger); }
-.header-actions { display: flex; gap: 8px; }
+.header-actions { display: flex; flex-shrink: 0; gap: 8px; }
 .icon-btn {
     background: transparent; border: none; color: var(--accent); font-size: 18px;
     width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -130,6 +115,8 @@ header {
 h2.section-title { font-size: 13px; text-transform: uppercase; color: var(--text-muted); margin: 0 0 8px 12px; font-weight: 600; letter-spacing: 0.5px; }
 .card-group { background: var(--panel-bg); border-radius: 12px; overflow: hidden; margin-bottom: 24px; border: 1px solid var(--border-color); }
 .card-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border-color); }
+.card-row > div { min-width: 0; max-width: 100%; }
+.card-row > div[style*="display:flex"] .compact-input { flex: 1 1 0; width: 0 !important; }
 .card-row:last-child { border-bottom: none; }
 .card-row label { font-weight: 500; font-size: 15px; }
 
@@ -153,7 +140,7 @@ button.danger-btn { color: var(--danger); }
 
 /* Bottom Navigation */
 .bottom-nav {
-    position: fixed; bottom: 0; left: 0; width: 100%; height: calc(60px + var(--safe-bottom));
+    position: relative; width: 100%; height: calc(60px + var(--safe-bottom)); flex-shrink: 0;
     background: var(--panel-bg-alpha); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding-bottom: var(--safe-bottom);
     z-index: 100;
@@ -292,12 +279,13 @@ button.danger-btn { color: var(--danger); }
             <div class="card-row">
                 <input id="hexInput" type="text" placeholder="十六进制特征，例如 90 ?? E? AF" style="flex:1; margin-right:8px;" />
                 <button class="action-btn" style="width:auto; padding:8px 16px;" onclick="doHexSearch()">十六进制搜索</button>
-                    </div>
             </div>
             <div class="card-row">
                 <label for="nearby_range">附近范围</label>
                 <input id="nearby_range" class="compact-input" value="0x100" type="text" />
             </div>
+        </div>
+    </div>
 
     <!-- TAB: RESULTS -->
     <div id="tab-results" class="tab-pane scrollbar">
@@ -545,34 +533,7 @@ document.addEventListener("DOMContentLoaded", function(){
     if(typeof h5gg!='undefined') {
         onClickClearResults();
 
-        // --- 400x800 Hardcoded Dimension Logic ---
-        setWindowDrag(0, 0, 400, 50);
-
-        // The host calls this global callback after setLayoutAction().
-        window.h5gg_onLayoutChange = function(screenWidth, screenHeight) {
-            // Check if user set a custom dragged size in localstorage, fallback to fixed 400x800.
-            let savedSize = localStorage.getItem('h5gg_window_size');
-            let w = 400, h = 800;
-            if(savedSize) {
-                try { let p = JSON.parse(savedSize); w = p.w || 400; h = p.h || 800; } catch(e){}
-            }
-
-            // Respect device boundaries just in case screen is smaller than 400x800
-            let finalW = Math.round(Math.min(w, screenWidth));
-            let finalH = Math.round(Math.min(h, screenHeight));
-
-            var x = (screenWidth - finalW) / 2;
-            var y = Math.max(20, (screenHeight - finalH) / 2);
-            setWindowRect(Math.round(x), Math.round(y), finalW, finalH);
-        };
-
-        setLayoutAction();
-
-        // Initialize immediately
-        let s = localStorage.getItem('h5gg_window_size');
-        let initW = 400, initH = 800;
-        if(s) { try { let p = JSON.parse(s); initW = p.w || 400; initH = p.h || 800; } catch(e){} }
-        setWindowRect(-1, -1, Math.round(initW), Math.round(initH));
+        setWindowDrag(0, 0, Math.round(innerWidth), 50);
 
         var checkprocs = async function() {
             var procs = await h5gg.getProcList();
@@ -600,47 +561,6 @@ document.addEventListener("DOMContentLoaded", function(){
         checkAutorun();
     }
 });
-
-// Resize Handle Logic
-window.toggleResizeHandle = function() {
-    let handle = document.getElementById('h5ggResizeHandle');
-    if(handle) {
-        handle.remove();
-        showToast("窗口大小调整已禁用");
-    } else {
-        installResizeHandle();
-        showToast("拖动右下角调整大小");
-    }
-};
-
-window.installResizeHandle = function() {
-    if(document.getElementById('h5ggResizeHandle')) return;
-    var handle = document.createElement('button');
-    handle.id = 'h5ggResizeHandle';
-    document.body.appendChild(handle);
-    var drag = null;
-
-    handle.addEventListener('pointerdown', function(e) {
-        let savedSize = localStorage.getItem('h5gg_window_size');
-        let w = 400, h = 800;
-        if(savedSize) { try { let p = JSON.parse(savedSize); w = p.w; h = p.h; } catch(e){} }
-        drag = { x: e.clientX, y: e.clientY, w: w, h: h };
-        handle.setPointerCapture(e.pointerId);
-        e.preventDefault();
-    });
-
-    handle.addEventListener('pointermove', function(e) {
-        if(!drag) return;
-        let newW = Math.max(300, drag.w + (e.clientX - drag.x));
-        let newH = Math.max(400, drag.h + (e.clientY - drag.y));
-        setWindowRect(-1, -1, Math.round(newW), Math.round(newH));
-        localStorage.setItem('h5gg_window_size', JSON.stringify({w: newW, h: newH}));
-    });
-
-    handle.addEventListener('pointerup', function() { drag = null; });
-    handle.addEventListener('pointercancel', function() { drag = null; });
-};
-
 
 function refreshProcList(procs) {
     $("#proctable button").remove();

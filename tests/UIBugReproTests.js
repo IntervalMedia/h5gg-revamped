@@ -26,8 +26,10 @@ window.prompt = function(message, value) {
 window.confirm = function() { return true; };
 window.h5gg_internel_version = 8;
 window.setWindowDrag = function() {};
-window.setLayoutAction = function(callback) { window.__mock.layoutAction = callback; callback(1024, 768); };
-window.setWindowRect = function(x,y,w,h) { window.__mock.rects.push({x,y,w,h}); };
+window.setLayoutAction = async function() {
+    if(typeof window.h5gg_onLayoutChange === 'function') window.h5gg_onLayoutChange(1024, 768);
+};
+window.setWindowRect = async function(x,y,w,h) { window.__mock.rects.push({x,y,w,h}); };
 window.setWindowVisible = function() {};
 window.setButtonImage = function() {};
 window.setFloatWindow = function() {};
@@ -147,6 +149,9 @@ async function openPage(fileName) {
     const client = await connect(target.webSocketDebuggerUrl);
     await client.send('Page.enable');
     await client.send('Runtime.enable');
+    await client.send('Emulation.setDeviceMetricsOverride', {
+        width: 430, height: 700, deviceScaleFactor: 3, mobile: true
+    });
     await client.send('Page.addScriptToEvaluateOnNewDocument', {source: JQUERY});
     await client.send('Page.addScriptToEvaluateOnNewDocument', {source: bridgeMockSource()});
     const loaded = client.event('Page.loadEventFired');
@@ -157,6 +162,47 @@ async function openPage(fileName) {
 }
 
 const checks = [
+    ['shell fills a resized window while header and navigation remain visible', async client => {
+        return evaluate(client, `
+            var header = document.querySelector('header');
+            var content = document.querySelector('.app-content');
+            var nav = document.querySelector('.bottom-nav');
+            var active = document.querySelector('.tab-pane.active');
+            active.scrollTop = active.scrollHeight;
+            var bodyRect = document.body.getBoundingClientRect();
+            var headerRect = header.getBoundingClientRect();
+            var navRect = nav.getBoundingClientRect();
+            var contentRect = content.getBoundingClientRect();
+            return Math.abs(bodyRect.width - innerWidth) <= 1 && Math.abs(bodyRect.height - innerHeight) <= 1 &&
+                headerRect.top >= -1 && headerRect.height > 0 &&
+                navRect.bottom <= innerHeight + 1 && navRect.height > 0 &&
+                contentRect.top >= headerRect.bottom - 1 && contentRect.bottom <= navRect.top + 1;
+        `);
+    }],
+    ['results and tools are populated top-level tabs', async client => {
+        return evaluate(client, `
+            var resultsButton = document.querySelectorAll('.nav-item')[1];
+            var toolsButton = document.querySelectorAll('.nav-item')[2];
+            switchTab('results', resultsButton);
+            var results = document.getElementById('tab-results');
+            var resultsVisible = results.parentElement.classList.contains('app-content') &&
+                getComputedStyle(results).display !== 'none' && results.getBoundingClientRect().height > 100 &&
+                !!results.querySelector('#results_count') && !!results.querySelector('#listdiv');
+            switchTab('tools', toolsButton);
+            var tools = document.getElementById('tab-tools');
+            var toolsVisible = tools.parentElement.classList.contains('app-content') &&
+                getComputedStyle(tools).display !== 'none' && tools.getBoundingClientRect().height > 100 &&
+                tools.querySelectorAll('button.action-btn').length >= 8;
+            return resultsVisible && toolsVisible;
+        `);
+    }],
+    ['viewport starts zoomed out for the embedded window', async client => {
+        return evaluate(client, `
+            var value = document.querySelector('meta[name="viewport"]').content;
+            var scale = /initial-scale=([0-9.]+)/.exec(value);
+            return /width=device-width/.test(value) && scale && Number(scale[1]) <= 0.8;
+        `);
+    }],
     ['search overlay remains visible until the bridge resolves and reports completion', async client => {
         return evaluate(client, `
             onClickSearchNumber();
@@ -208,10 +254,37 @@ const checks = [
             return __mock.loadedScripts.length === 1 && __mock.alerts.every(message => !message.includes('Load Error'));
         `);
     }],
-    ['window resizing has an accessible handle and persists its dimensions', async client => {
+    ['dragging the resize handle uses the current window-control contract', async client => {
         return evaluate(client, `
             var handle = document.querySelector('[data-window-resize]');
-            return !!handle && !!localStorage.getItem('h5gg_window_size');
+            if(!handle || typeof h5gg_onLayoutChange !== 'function') return false;
+            var saved = JSON.parse(localStorage.getItem('h5gg_window_size'));
+            handle.setPointerCapture = function() {};
+            handle.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:1,clientX:100,clientY:100}));
+            handle.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:1,clientX:160,clientY:150}));
+            handle.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1,clientX:160,clientY:150}));
+            var updated = JSON.parse(localStorage.getItem('h5gg_window_size'));
+            h5gg_onLayoutChange(1024, 768);
+            var request = __mock.rects[__mock.rects.length - 1];
+            return request && updated.width > saved.width && updated.height > saved.height &&
+                updated.width === request.w && updated.height === request.h;
+        `);
+    }],
+    ['alerts and toasts render as topmost modal layers', async client => {
+        return evaluate(client, `
+            showToast('Important notice');
+            alert('Blocking notice');
+            await new Promise(r => setTimeout(r, 30));
+            var toastLayer = document.querySelector('[data-ui-toast]');
+            var alertLayer = document.querySelector('[data-ui-alert]');
+            var nav = document.querySelector('.bottom-nav');
+            if(!toastLayer || !alertLayer) return false;
+            var toastCard = toastLayer.querySelector('[role="alert"]');
+            var alertCard = alertLayer.querySelector('[role="alertdialog"]');
+            return toastCard && alertCard &&
+                Number(getComputedStyle(toastLayer).zIndex) > Number(getComputedStyle(nav).zIndex) &&
+                Number(getComputedStyle(alertLayer).zIndex) > Number(getComputedStyle(toastLayer).zIndex) &&
+                getComputedStyle(alertLayer).pointerEvents !== 'none';
         `);
     }],
     ['script editor exposes API documentation and inserts a selected function call', async client => {

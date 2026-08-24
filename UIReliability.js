@@ -9,7 +9,7 @@
         baseAddress: 'Base Address', unavailable: 'Unavailable', copy: 'Copy', close: 'Close',
         viewer: 'Memory Viewer', address: 'Address', go: 'Go', copyAddress: 'Copy address',
         copyBytes: 'Copy 8-byte hex value', dumpStart: 'Use as dump start', dumpEnd: 'Use as dump end',
-        apiDocs: 'API Docs', insertCall: 'Insert call'
+        apiDocs: 'API Docs', insertCall: 'Insert call', okay: 'OK'
     } : {
         searching: '正在搜索内存…', complete: '搜索完成', failed: '搜索失败',
         bookmark: '书签', frozen: '已冻结', scriptRunning: '正在加载脚本…',
@@ -17,7 +17,7 @@
         baseAddress: '基址', unavailable: '不可用', copy: '复制', close: '关闭',
         viewer: '内存查看器', address: '地址', go: '跳转', copyAddress: '复制地址',
         copyBytes: '复制 8 字节十六进制值', dumpStart: '设为导出起始地址', dumpEnd: '设为导出结束地址',
-        apiDocs: 'API 文档', insertCall: '插入调用'
+        apiDocs: 'API 文档', insertCall: '插入调用', okay: '确定'
     };
 
     var style = document.createElement('style');
@@ -37,11 +37,58 @@
         '.h5gg-api-toolbar{display:flex;gap:4px;align-items:center;margin-bottom:4px}.h5gg-api-toolbar select{min-width:0;flex:1}.h5gg-api-docs{display:none;max-height:38%;overflow:auto;padding:6px;margin-bottom:4px;border:1px solid var(--border-color,#ccc);font-size:10px;line-height:1.4}.h5gg-api-docs.open{display:block}' +
         '.memory-line{display:grid;grid-template-columns:minmax(118px,auto) 1fr auto;gap:8px;align-items:center;padding:5px 3px;border-bottom:1px solid var(--border-color,#ddd);cursor:pointer;touch-action:manipulation}.memory-line:active{background:rgba(51,147,239,.14)}' +
         '#memoryContextMask{position:fixed;inset:0;z-index:120002;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}#memoryContextMenu{width:min(420px,96%);margin-bottom:8px;padding:6px;border-radius:12px;background:var(--bg-color,#fff)}#memoryContextMenu button{display:block;width:100%;min-height:40px;margin:3px 0}';
+    style.textContent +=
+        '.h5gg-notice-layer{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.48);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}' +
+        '.h5gg-notice-layer[data-ui-toast]{z-index:130000;pointer-events:none}.h5gg-notice-layer[data-ui-alert]{z-index:130010}' +
+        '.h5gg-notice-card{width:min(340px,90%);padding:18px;border:1px solid var(--border-color,rgba(255,255,255,.15));border-radius:16px;background:var(--panel-bg,var(--bg-color,#fff));color:var(--text-color,#111);box-shadow:0 18px 55px rgba(0,0,0,.45);text-align:center;font-size:14px;line-height:1.45;white-space:pre-wrap}' +
+        '.h5gg-notice-card button{display:block;width:100%;min-height:42px;margin-top:16px;border:0;border-top:1px solid var(--border-color,#ddd);background:transparent;color:var(--accent,#007aff);font:inherit;font-weight:600}';
     document.head.appendChild(style);
 
     function visible(node) {
         return node && getComputedStyle(node).display !== 'none';
     }
+
+    function removeNotice(kind) {
+        var notice = document.querySelector('[data-ui-' + kind + ']');
+        if(notice) notice.remove();
+    }
+
+    window.showToast = function(message) {
+        removeNotice('toast');
+        var layer = document.createElement('div');
+        layer.className = 'h5gg-notice-layer';
+        layer.dataset.uiToast = 'true';
+        var card = document.createElement('div');
+        card.className = 'h5gg-notice-card';
+        card.setAttribute('role', 'alert');
+        card.textContent = String(message == null ? '' : message);
+        layer.appendChild(card);
+        document.body.appendChild(layer);
+        setTimeout(function() { if(layer.parentNode) layer.remove(); }, 1800);
+    };
+
+    window.alert = function(message) {
+        removeNotice('alert');
+        var layer = document.createElement('div');
+        layer.className = 'h5gg-notice-layer';
+        layer.dataset.uiAlert = 'true';
+        var card = document.createElement('div');
+        card.className = 'h5gg-notice-card';
+        card.setAttribute('role', 'alertdialog');
+        card.setAttribute('aria-modal', 'true');
+        var copy = document.createElement('div');
+        copy.textContent = String(message == null ? '' : message);
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.textContent = text.okay;
+        close.onclick = function() { layer.remove(); };
+        card.appendChild(copy);
+        card.appendChild(close);
+        layer.appendChild(card);
+        layer.onclick = function(event) { if(event.target === layer) layer.remove(); };
+        document.body.appendChild(layer);
+        close.focus();
+    };
 
     function resetTransientUI() {
         ['popup_search_edit', 'popup_progress', 'popup_loadscripts', 'maskview', 'maskview_script'].forEach(function(id) {
@@ -587,6 +634,37 @@
         };
     }
 
+    var hostLayout = {width:0, height:0};
+
+    function readWindowSize() {
+        var parsed;
+        try { parsed = JSON.parse(localStorage.getItem('h5gg_window_size')); } catch(_) {}
+        var width = Number(parsed && (parsed.width || parsed.w));
+        var height = Number(parsed && (parsed.height || parsed.h));
+        return {
+            width: width > 0 ? width : Math.min(400, innerWidth || 400),
+            height: height > 0 ? height : Math.min(600, innerHeight || 600)
+        };
+    }
+
+    function saveWindowSize(width, height) {
+        var size = {width:Math.round(width), height:Math.round(height)};
+        localStorage.setItem('h5gg_window_size', JSON.stringify(size));
+        return size;
+    }
+
+    window.h5gg_onLayoutChange = function(screenWidth, screenHeight) {
+        hostLayout.width = Number(screenWidth) || innerWidth || 400;
+        hostLayout.height = Number(screenHeight) || innerHeight || 600;
+        var current = readWindowSize();
+        var width = Math.max(300, Math.min(current.width, hostLayout.width));
+        var height = Math.max(360, Math.min(current.height, hostLayout.height));
+        var saved = saveWindowSize(width, height);
+        if(typeof setWindowRect === 'function') {
+            setWindowRect(Math.max(0, Math.round((hostLayout.width-saved.width)/2)), Math.max(0, Math.round((hostLayout.height-saved.height)/2)), saved.width, saved.height);
+        }
+    };
+
     function installResizeHandle() {
         if(document.getElementById('h5ggResizeHandle')) return;
         var handle = document.createElement('button');
@@ -595,52 +673,53 @@
         handle.dataset.windowResize = 'true';
         handle.setAttribute('aria-label', english ? 'Resize H5GG window' : '调整 H5GG 窗口大小');
         document.body.appendChild(handle);
-        var saved;
-        try { saved = JSON.parse(localStorage.getItem('h5gg_window_size')); } catch(_) {}
-        if(!saved || !saved.width || !saved.height) {
-            saved = {width:Math.min(400, innerWidth || 400), height:Math.min(600, innerHeight || 600)};
-            localStorage.setItem('h5gg_window_size', JSON.stringify(saved));
-        }
+        var saved = readWindowSize();
+        saveWindowSize(saved.width, saved.height);
         if(typeof setLayoutAction === 'function') {
-            setLayoutAction(function(screenWidth, screenHeight) {
-                var current;
-                try { current = JSON.parse(localStorage.getItem('h5gg_window_size')); } catch(_) {}
-                current = current || saved;
-                var width = Math.max(320, Math.min(Number(current.width) || 400, screenWidth));
-                var height = Math.max(360, Math.min(Number(current.height) || 600, screenHeight));
-                setWindowRect(Math.max(0, (screenWidth-width)/2), Math.max(0, (screenHeight-height)/2), width, height);
-            });
+            setLayoutAction();
         }
         var drag = null;
         handle.addEventListener('pointerdown', function(event) {
-            var current;
-            try { current = JSON.parse(localStorage.getItem('h5gg_window_size')); } catch(_) {}
-            current = current || saved;
+            var current = readWindowSize();
             drag = {x:event.clientX, y:event.clientY, width:Number(current.width), height:Number(current.height)};
             handle.setPointerCapture(event.pointerId);
             event.preventDefault();
         });
         handle.addEventListener('pointermove', function(event) {
             if(!drag) return;
-            var width = Math.max(320, drag.width + event.clientX - drag.x);
-            var height = Math.max(360, drag.height + event.clientY - drag.y);
+            var maxWidth = hostLayout.width || Number.MAX_SAFE_INTEGER;
+            var maxHeight = hostLayout.height || Number.MAX_SAFE_INTEGER;
+            var width = Math.max(300, Math.min(drag.width + event.clientX - drag.x, maxWidth));
+            var height = Math.max(360, Math.min(drag.height + event.clientY - drag.y, maxHeight));
             setWindowRect(-1, -1, Math.round(width), Math.round(height));
-            localStorage.setItem('h5gg_window_size', JSON.stringify({width:Math.round(width),height:Math.round(height)}));
+            saveWindowSize(width, height);
         });
         handle.addEventListener('pointerup', function() { drag = null; });
         handle.addEventListener('pointercancel', function() { drag = null; });
         handle.addEventListener('keydown', function(event) {
             if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
-            var current = JSON.parse(localStorage.getItem('h5gg_window_size'));
+            var current = readWindowSize();
             if(event.key === 'ArrowLeft') current.width = Math.max(320, current.width - 10);
             if(event.key === 'ArrowRight') current.width += 10;
             if(event.key === 'ArrowUp') current.height = Math.max(360, current.height - 10);
             if(event.key === 'ArrowDown') current.height += 10;
-            localStorage.setItem('h5gg_window_size', JSON.stringify(current));
-            setWindowRect(-1, -1, current.width, current.height);
+            var saved = saveWindowSize(current.width, current.height);
+            setWindowRect(-1, -1, saved.width, saved.height);
             event.preventDefault();
         });
     }
+
+    window.installResizeHandle = installResizeHandle;
+    window.toggleResizeHandle = function() {
+        var handle = document.getElementById('h5ggResizeHandle');
+        if(handle) {
+            handle.remove();
+            showToast(english ? 'Window resizing disabled' : '已关闭窗口大小调整');
+        } else {
+            installResizeHandle();
+            showToast(english ? 'Drag the bottom-right corner to resize' : '拖动右下角调整窗口大小');
+        }
+    };
 
     document.addEventListener('DOMContentLoaded', function() {
         installResultDelegation();
