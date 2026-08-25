@@ -110,7 +110,8 @@ H5GG_LOGOS_DEFAULT_GENERATOR = internal
 include $(THEOS_MAKE_PATH)/tweak.mk
 
 .PHONY: help test package-normal package-rootless package-roothide package-all
-.NOTPARALLEL: package-all
+# Theos lifecycle phases must run in order even when MAKEFLAGS enables -j.
+.NOTPARALLEL: all stage package package-all
 
 H5GG_PACKAGE_ARCH_normal = iphoneos-arm
 H5GG_PACKAGE_ARCH_rootless = iphoneos-arm64

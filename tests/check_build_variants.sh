@@ -3,6 +3,13 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+for lifecycle_target in all stage package; do
+  if ! grep -Eq "^\\.NOTPARALLEL:.*[[:space:]]${lifecycle_target}([[:space:]]|$)" "$repo_root/Makefile"; then
+    echo "Theos lifecycle target '$lifecycle_target' must be serialized for parallel MAKEFLAGS" >&2
+    exit 1
+  fi
+done
+
 if [ -z "${THEOS:-}" ]; then
   echo "Skipping build-variant checks because THEOS is not configured"
   exit 0

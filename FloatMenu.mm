@@ -27,6 +27,63 @@ static H5GGBridgeValueKind H5GGBridgeKindForValue(id value) {
     return static_cast<H5GGBridgeValueKind>(0);
 }
 
+static id H5GGInvokeWindowAction(NSString* name, id action, NSArray* args, NSString** error) {
+    static NSSet<NSString*>* zeroArgumentActions = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        zeroArgumentActions = [NSSet setWithArray:@[
+            @"closeMenu", @"setFloatButton", @"setFloatWindow",
+            @"setButtonAction", @"setLayoutAction"
+        ]];
+    });
+
+    if([zeroArgumentActions containsObject:name]) {
+        if(args.count != 0) goto invalidCount;
+        void (^callback)(void) = action;
+        callback();
+        return nil;
+    }
+
+    if([name isEqualToString:@"setButtonImage"]) {
+        if(args.count != 1) goto invalidCount;
+        if(![args[0] isKindOfClass:NSString.class]) goto invalidArgument;
+        void (^callback)(NSString*) = action;
+        callback(args[0]);
+        return nil;
+    }
+
+    if([name isEqualToString:@"setWindowVisible"]) {
+        if(args.count != 1) goto invalidCount;
+        if(![args[0] isKindOfClass:NSNumber.class]) goto invalidArgument;
+        void (^callback)(bool) = action;
+        callback([args[0] boolValue]);
+        return nil;
+    }
+
+    if([name isEqualToString:@"setWindowRect"] ||
+       [name isEqualToString:@"setWindowDrag"] ||
+       [name isEqualToString:@"setWindowTouch"]) {
+        if(args.count != 4) goto invalidCount;
+        for(id value in args)
+            if(![value isKindOfClass:NSNumber.class]) goto invalidArgument;
+        void (^callback)(int, int, int, int) = action;
+        callback([args[0] intValue], [args[1] intValue],
+                 [args[2] intValue], [args[3] intValue]);
+        return nil;
+    }
+
+    if(error) *error = [NSString stringWithFormat:@"Unknown window action: %@", name];
+    return nil;
+
+invalidCount:
+    if(error) *error = [NSString stringWithFormat:@"Invalid argument count for %@", name];
+    return nil;
+
+invalidArgument:
+    if(error) *error = [NSString stringWithFormat:@"Invalid argument for %@", name];
+    return nil;
+}
+
 #pragma mark - FloatMenu implementation
 
 @interface FloatMenu () <WKScriptMessageHandler>
@@ -239,35 +296,15 @@ static NSString* _bridgeSource() {
 #pragma mark - Dialogs (native-side, used by Engine)
 
 - (void)alert:(NSString*)message {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.superview sendSubviewToBack:self];
-    });
     [ModalShow alert:@"H5GG" message:message InWindow:self.window];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.superview bringSubviewToFront:self];
-    });
 }
 
 - (BOOL)confirm:(NSString*)message {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.superview sendSubviewToBack:self];
-    });
-    BOOL result = [ModalShow confirm:message InWindow:self.window];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.superview bringSubviewToFront:self];
-    });
-    return result;
+    return [ModalShow confirm:message InWindow:self.window];
 }
 
 - (NSString*)prompt:(NSString*)text defaultText:(NSString*)defaultText {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.superview sendSubviewToBack:self];
-    });
-    NSString* result = [ModalShow prompt:text defaultText:defaultText InWindow:self.window];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.superview bringSubviewToFront:self];
-    });
-    return result;
+    return [ModalShow prompt:text defaultText:defaultText InWindow:self.window];
 }
 
 #pragma mark - WKNavigationDelegate
@@ -361,13 +398,7 @@ static NSString* _bridgeSource() {
 - (id)_dispatchMethod:(NSString*)methodName args:(NSArray*)args error:(NSString**)error {
     id action = self.actions[methodName];
     if(action && [action isKindOfClass:NSClassFromString(@"NSBlock")]) {
-        NSMethodSignature *signature = [action methodSignatureForSelector:@selector(invoke)];
-        NSUInteger parameterCount = signature.numberOfArguments > 2 ? signature.numberOfArguments - 2 : 0;
-        if(parameterCount != args.count) {
-            if(error) *error = [NSString stringWithFormat:@"Invalid argument count for %@", methodName];
-            return nil;
-        }
-        return [self _invokeBlock:action withArgs:args];
+        return H5GGInvokeWindowAction(methodName, action, args, error);
     }
 
     const H5GGBridgeMethod* method = H5GGBridgeMethodNamed(methodName.UTF8String);
@@ -441,28 +472,6 @@ static NSString* _bridgeSource() {
 }
 
 #pragma mark - Dynamic invocation helpers
-
-- (id)_invokeBlock:(id)block withArgs:(NSArray*)args {
-    if(!block) return nil;
-
-    NSMethodSignature *sig = [block methodSignatureForSelector:@selector(invoke)];
-    if(!sig) return nil;
-
-    NSUInteger argCount = sig.numberOfArguments;
-    NSUInteger paramCount = argCount > 2 ? argCount - 2 : 0;
-
-    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-    [inv setTarget:block];
-    [inv setSelector:@selector(invoke)];
-
-    for (NSUInteger i = 0; i < paramCount && i < args.count; i++) {
-        const char *type = [sig getArgumentTypeAtIndex:i + 2];
-        [self _setInvocationArgument:inv atIndex:i + 2 withType:type value:args[i]];
-    }
-
-    [inv invoke];
-    return [self _extractReturnValue:inv];
-}
 
 - (id)_invokeMethod:(const H5GGBridgeMethod*)method
             onObject:(id)object

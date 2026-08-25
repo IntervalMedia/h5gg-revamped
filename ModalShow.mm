@@ -1,9 +1,26 @@
 #import "ModalShow.h"
 #import "Localized.h"
+#import "makeWindow.h"
 #include "ModalRequestQueue.h"
 #import <dlfcn.h>
 
 #include <memory>
+
+@interface H5GGModalPresenter : UIViewController
+@property (nonatomic) UIInterfaceOrientationMask orientationMask;
+@end
+
+@implementation H5GGModalPresenter
+
+- (BOOL)shouldAutorotate {
+    return YES;
+}
+
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+    return self.orientationMask ?: UIInterfaceOrientationMaskAll;
+}
+
+@end
 
 @implementation ModalShow
 
@@ -13,18 +30,36 @@ static ModalRequestQueue requestQueue;
     NSLog(@"ModalShow present[%d] %@", [NSThread isMainThread], [NSThread currentThread].name);
 
     auto request = std::make_shared<ModalRequestQueue::Request>(requestQueue.enqueue());
+    __block UIWindow* dialogWindow = nil;
     dispatch_block_t finish = ^{
-        request->complete();
+        void (^cleanup)(void) = ^{
+            [dialogWindow setHidden:YES];
+            dialogWindow.rootViewController = nil;
+            dialogWindow = nil;
+            request->complete();
+        };
+        if(NSThread.isMainThread)
+            cleanup();
+        else
+            dispatch_async(dispatch_get_main_queue(), cleanup);
     };
 
     void(^submit)() = ^{
         NSLog(@"ModalShow running[%d] %@", [NSThread isMainThread], [NSThread currentThread].name);
-        UIViewController* presenter = window.rootViewController;
         UIViewController* controller = alert(finish);
-        if(!presenter || !controller) {
+        dialogWindow = makeWindow(NSStringFromClass(UIWindow.class));
+        if(!dialogWindow || !controller) {
             finish();
             return;
         }
+
+        H5GGModalPresenter* presenter = [H5GGModalPresenter new];
+        presenter.orientationMask = window.rootViewController.supportedInterfaceOrientations;
+        dialogWindow.rootViewController = presenter;
+        dialogWindow.backgroundColor = UIColor.clearColor;
+        dialogWindow.windowLevel = MAX(UIWindowLevelAlert + 1, window.windowLevel + 1);
+        [dialogWindow setHidden:NO];
+
         @try {
             [presenter presentViewController:controller animated:YES completion:nil];
         } @catch(NSException* exception) {
