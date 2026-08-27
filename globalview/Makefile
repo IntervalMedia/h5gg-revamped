@@ -11,7 +11,7 @@ THEOS_PLATFORM_DEB_COMPRESSION_TYPE = gzip
 
 include $(THEOS)/makefiles/common.mk
 
-JB_VARIANT = normal
+JB_VARIANT = roothide
 ifneq ($(filter rootless roothide,$(THEOS_PACKAGE_SCHEME)),)
 JB_VARIANT = $(THEOS_PACKAGE_SCHEME)
 endif

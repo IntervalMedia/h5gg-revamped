@@ -7,6 +7,7 @@
         bookmark: 'Bookmark', frozen: 'Frozen', scriptRunning: 'Loading script…',
         scriptComplete: 'Script loaded', scriptFailed: 'Unable to load script',
         baseAddress: 'Base Address', unavailable: 'Unavailable', copy: 'Copy', close: 'Close',
+        copyValue: 'Copy Value', copyAddressResult: 'Copy Address', choose: 'Choose an option',
         viewer: 'Memory Viewer', address: 'Address', go: 'Go', copyAddress: 'Copy address',
         copyBytes: 'Copy 8-byte hex value', dumpStart: 'Use as dump start', dumpEnd: 'Use as dump end',
         apiDocs: 'API Docs', insertCall: 'Insert call', okay: 'OK'
@@ -15,6 +16,7 @@
         bookmark: '书签', frozen: '已冻结', scriptRunning: '正在加载脚本…',
         scriptComplete: '脚本已加载', scriptFailed: '无法加载脚本',
         baseAddress: '基址', unavailable: '不可用', copy: '复制', close: '关闭',
+        copyValue: '复制数值', copyAddressResult: '复制地址', choose: '选择选项',
         viewer: '内存查看器', address: '地址', go: '跳转', copyAddress: '复制地址',
         copyBytes: '复制 8 字节十六进制值', dumpStart: '设为导出起始地址', dumpEnd: '设为导出结束地址',
         apiDocs: 'API 文档', insertCall: '插入调用', okay: '确定'
@@ -30,11 +32,22 @@
         '.result-row{touch-action:manipulation;-webkit-user-select:none;user-select:none;min-height:58px}' +
         '.result-icon-button.active{color:#f5b400!important;background:rgba(245,180,0,.14)!important}' +
         '.result-icon-button[data-result-action="freeze"].active{color:#43a5ff!important;background:rgba(67,165,255,.16)!important}' +
-        '#resultActionMask{position:fixed;inset:0;z-index:120002;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}' +
-        '#resultActionMenu{width:min(420px,96%);margin-bottom:8px;padding:6px;border-radius:12px;background:var(--panel-bg,var(--bg-color,#fff));color:var(--text-color,#111)}' +
-        '#resultActionMenu button{display:block;width:100%;min-height:40px;margin:3px 0}' +
+        '#resultActionMask{position:fixed;inset:0;z-index:120002;padding:16px;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}' +
+        '#resultActionMenu{border:1px solid var(--border-color,rgba(60,60,67,.15));border-radius:16px;overflow:hidden;background:var(--panel-bg,var(--bg-color,#fff));color:var(--text-color,#111);box-shadow:var(--shadow,0 18px 55px rgba(0,0,0,.4))}' +
+        '#resultActionMenu .result-action-title{display:block;padding:16px;border-bottom:1px solid var(--border-color,#ddd);font-size:16px}' +
+        '#resultActionMenu button{display:block;width:100%;min-height:52px;margin:0;padding:12px 16px;border:0;border-bottom:1px solid var(--border-color,#ddd);background:transparent;color:var(--accent,#007aff);font:inherit;font-size:16px;font-weight:600;text-align:center}' +
+        '#resultActionMenu button:last-child{border-bottom:0;color:var(--text-color,#111);font-weight:400}' +
+        'select.h5gg-native-select{display:none!important}' +
+        '.h5gg-custom-select{min-width:0;position:relative}.h5gg-custom-select.compact-input{width:120px!important}' +
+        '.h5gg-select-trigger{display:flex;width:100%;min-height:38px;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid transparent;border-radius:8px;background:var(--input-bg,rgba(116,116,128,.08));color:var(--text-color,#111);font:inherit;font-size:15px;text-align:left}' +
+        '.h5gg-select-trigger:after{content:"⌄";color:var(--text-muted,#777);font-size:16px}.h5gg-select-trigger:focus-visible{border-color:var(--accent,#007aff)}' +
+        '#h5ggSelectMask{position:fixed;inset:0;z-index:130020;padding:16px;background:rgba(0,0,0,.52);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}' +
+        '#h5ggSelectMenu{width:min(340px,90%);max-height:min(520px,80vh);overflow:auto;border:1px solid var(--border-color,#ddd);border-radius:16px;background:var(--panel-bg,var(--bg-color,#fff));box-shadow:var(--shadow,0 18px 55px rgba(0,0,0,.4))}' +
+        '#h5ggSelectMenu .h5gg-select-title{padding:16px;border-bottom:1px solid var(--border-color,#ddd);font-size:16px;font-weight:600;text-align:center}' +
+        '#h5ggSelectMenu button{display:block;width:100%;min-height:52px;padding:12px 16px;border:0;border-bottom:1px solid var(--border-color,#ddd);background:transparent;color:var(--text-color,#111);font:inherit;font-size:16px;text-align:left}' +
+        '#h5ggSelectMenu button[aria-selected="true"]{color:var(--accent,#007aff);font-weight:700}#h5ggSelectMenu button:last-child{border-bottom:0}' +
         '#h5ggResizeHandle{position:fixed;right:0;bottom:0;width:34px;height:34px;z-index:110000;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 45%,rgba(51,147,239,.8) 46% 53%,transparent 54% 62%,rgba(51,147,239,.8) 63% 70%,transparent 71%);border:0}' +
-        '.h5gg-api-toolbar{display:flex;gap:4px;align-items:center;margin-bottom:4px}.h5gg-api-toolbar select{min-width:0;flex:1}.h5gg-api-docs{display:none;max-height:38%;overflow:auto;padding:6px;margin-bottom:4px;border:1px solid var(--border-color,#ccc);font-size:10px;line-height:1.4}.h5gg-api-docs.open{display:block}' +
+        '.h5gg-api-toolbar{display:flex;gap:4px;align-items:center;margin-bottom:4px}.h5gg-api-toolbar select,.h5gg-api-toolbar .h5gg-custom-select{min-width:0;flex:1}.h5gg-api-docs{display:none;max-height:38%;overflow:auto;padding:6px;margin-bottom:4px;border:1px solid var(--border-color,#ccc);font-size:10px;line-height:1.4}.h5gg-api-docs.open{display:block}' +
         '.memory-line{display:grid;grid-template-columns:minmax(118px,auto) 1fr auto;gap:8px;align-items:center;padding:5px 3px;border-bottom:1px solid var(--border-color,#ddd);cursor:pointer;touch-action:manipulation}.memory-line:active{background:rgba(51,147,239,.14)}' +
         '#memoryContextMask{position:fixed;inset:0;z-index:120002;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}#memoryContextMenu{width:min(420px,96%);margin-bottom:8px;padding:6px;border-radius:12px;background:var(--bg-color,#fff)}#memoryContextMenu button{display:block;width:100%;min-height:40px;margin:3px 0}';
     style.textContent +=
@@ -46,6 +59,91 @@
 
     function visible(node) {
         return node && getComputedStyle(node).display !== 'none';
+    }
+
+    function closeCustomSelect() {
+        var mask = document.getElementById('h5ggSelectMask');
+        if(mask) mask.remove();
+    }
+
+    function selectLabel(select) {
+        var label = select.id && document.querySelector('label[for="' + select.id + '"]');
+        if(!label && select.previousElementSibling && select.previousElementSibling.tagName === 'LABEL') {
+            label = select.previousElementSibling;
+        }
+        return select.getAttribute('aria-label') || (label && label.textContent.trim()) || text.choose;
+    }
+
+    function syncCustomSelect(select) {
+        var wrapper = select.nextElementSibling;
+        var trigger = wrapper && wrapper.querySelector('.h5gg-select-trigger');
+        var option = select.options[select.selectedIndex];
+        if(trigger) {
+            trigger.textContent = option ? option.textContent : text.choose;
+            trigger.disabled = select.disabled;
+        }
+    }
+
+    function openCustomSelect(select) {
+        closeCustomSelect();
+        syncCustomSelect(select);
+        var mask = document.createElement('div');
+        mask.id = 'h5ggSelectMask';
+        var menu = document.createElement('div');
+        menu.id = 'h5ggSelectMenu';
+        menu.setAttribute('role', 'dialog');
+        menu.setAttribute('aria-modal', 'true');
+        var title = document.createElement('div');
+        title.className = 'h5gg-select-title';
+        title.textContent = selectLabel(select);
+        menu.appendChild(title);
+        Array.from(select.options).forEach(function(option, index) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = option.textContent;
+            button.disabled = option.disabled;
+            button.setAttribute('aria-selected', String(index === select.selectedIndex));
+            button.onclick = function() {
+                select.selectedIndex = index;
+                select.dispatchEvent(new Event('change', {bubbles:true}));
+                syncCustomSelect(select);
+                closeCustomSelect();
+            };
+            menu.appendChild(button);
+        });
+        mask.appendChild(menu);
+        mask.onclick = function(event) { if(event.target === mask) closeCustomSelect(); };
+        mask.onkeydown = function(event) { if(event.key === 'Escape') closeCustomSelect(); };
+        document.body.appendChild(mask);
+        var selected = menu.querySelector('[aria-selected="true"]');
+        if(selected) selected.focus();
+    }
+
+    function enhanceSelect(select) {
+        if(!select || select.dataset.customSelect === 'ready') return;
+        select.dataset.customSelect = 'ready';
+        select.classList.add('h5gg-native-select');
+        var wrapper = document.createElement('div');
+        wrapper.className = 'h5gg-custom-select' + (select.classList.contains('compact-input') ? ' compact-input' : '');
+        wrapper.dataset.customSelect = 'true';
+        ['width','minWidth','maxWidth','flex','margin','marginLeft','marginRight','alignSelf'].forEach(function(property) {
+            if(select.style[property]) wrapper.style[property] = select.style[property];
+        });
+        var trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'h5gg-select-trigger';
+        trigger.setAttribute('aria-haspopup', 'dialog');
+        trigger.setAttribute('aria-label', selectLabel(select));
+        trigger.onclick = function() { openCustomSelect(select); };
+        wrapper.appendChild(trigger);
+        select.parentNode.insertBefore(wrapper, select.nextSibling);
+        select.addEventListener('change', function() { syncCustomSelect(select); });
+        syncCustomSelect(select);
+    }
+
+    function installCustomSelects(root) {
+        if(root && root.matches && root.matches('select')) enhanceSelect(root);
+        if(root && root.querySelectorAll) root.querySelectorAll('select').forEach(enhanceSelect);
     }
 
     function removeNotice(kind) {
@@ -158,8 +256,8 @@
     window.showPopView = function(name, action, type, value) {
         var mask = $('#maskview');
         var popup = $('#popup_search_edit');
-        mask.show();
-        popup.show();
+        mask.css('display', 'flex');
+        popup.css('display', 'flex');
         popup.find('#popupTitle, #titleBar').first().html(name);
         popup.find('button#action').html(name);
         if(type) {
@@ -323,8 +421,10 @@
         closeResultActions();
         var mask = document.createElement('div');
         mask.id = 'resultActionMask';
-        mask.innerHTML = '<div id="resultActionMenu"><b style="display:block;padding:8px">'+escape(row.dataset.addr)+'</b>' +
+        mask.innerHTML = '<div id="resultActionMenu" class="modal-card" role="dialog" aria-modal="true" aria-label="'+escape(row.dataset.addr)+'"><b class="result-action-title">'+escape(row.dataset.addr)+'</b>' +
             '<button type="button" data-sheet-action="edit">'+(english ? 'Edit value' : '修改数值')+'</button>' +
+            '<button type="button" data-sheet-action="copy-value">'+text.copyValue+'</button>' +
+            '<button type="button" data-sheet-action="copy-address">'+text.copyAddressResult+'</button>' +
             '<button type="button" data-sheet-action="bookmark">'+text.bookmark+'</button>' +
             '<button type="button" data-sheet-action="freeze">'+text.frozen+'</button>' +
             '<button type="button" data-sheet-action="cancel">'+text.close+'</button></div>';
@@ -339,6 +439,11 @@
                 closeResultActions();
                 await window.openMemoryEditor(row.dataset.addr, row.dataset.type);
                 return;
+            }
+            if(action.dataset.sheetAction === 'copy-value' || action.dataset.sheetAction === 'copy-address') {
+                var copyValue = action.dataset.sheetAction === 'copy-value' ? row.dataset.value : row.dataset.addr;
+                var copied = typeof h5gg !== 'undefined' && typeof h5gg.copyText === 'function' ? await h5gg.copyText(copyValue) : false;
+                if(typeof showToast === 'function') showToast(copied === false ? text.unavailable : text.copy);
             }
             if(action.dataset.sheetAction === 'bookmark') {
                 await activateBookmark(row.querySelector('[data-result-action="bookmark"]'), row);
@@ -722,6 +827,12 @@
     };
 
     document.addEventListener('DOMContentLoaded', function() {
+        installCustomSelects(document);
+        new MutationObserver(function(records) {
+            records.forEach(function(record) {
+                record.addedNodes.forEach(function(node) { installCustomSelects(node); });
+            });
+        }).observe(document.body, {childList:true, subtree:true});
         installResultDelegation();
         installBaseButton();
         installResizeHandle();

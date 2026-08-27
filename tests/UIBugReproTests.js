@@ -217,6 +217,22 @@ const checks = [
             return pendingVisible && completed;
         `);
     }],
+    ['numeric input popups stay centered for every search action', async client => {
+        return evaluate(client, `
+            var openers = [onClickSearchNumber, onClickSearchNearby, onClickEditAll];
+            return openers.every(function(open) {
+                open();
+                var mask = document.getElementById('maskview');
+                var popup = document.getElementById('popup_search_edit');
+                var rect = popup.getBoundingClientRect();
+                var centered = getComputedStyle(mask).display === 'flex' &&
+                    Math.abs((rect.left + rect.width / 2) - innerWidth / 2) <= 2 &&
+                    Math.abs((rect.top + rect.height / 2) - innerHeight / 2) <= 2;
+                popup.querySelector('#cancel').click();
+                return centered;
+            });
+        `);
+    }],
     ['closing Settings removes conflicting modal layers and stale inputs', async client => {
         return evaluate(client, `
             onClickSearchNumber();
@@ -245,6 +261,50 @@ const checks = [
             await new Promise(r => setTimeout(r, 50));
             return actionVisible && __mock.bookmarks.length === 1 && __mock.frozen.length === 1 &&
                 buttons[0].classList.contains('active') && buttons[1].classList.contains('active');
+        `);
+    }],
+    ['result actions match input modal sizing and include copy actions', async client => {
+        return evaluate(client, `
+            renderResults(__mock.results);
+            var row = document.querySelector('.result-row');
+            onClickSearchNumber();
+            await new Promise(r => setTimeout(r, 300));
+            var inputWidth = document.getElementById('popup_search_edit').getBoundingClientRect().width;
+            document.querySelector('#popup_search_edit #cancel').click();
+            row.click();
+            await new Promise(r => setTimeout(r, 300));
+            var menu = document.getElementById('resultActionMenu');
+            var rect = menu.getBoundingClientRect();
+            var buttons = Array.from(menu.querySelectorAll('button'));
+            var centered = Math.abs((rect.left + rect.width / 2) - innerWidth / 2) <= 2 &&
+                Math.abs((rect.top + rect.height / 2) - innerHeight / 2) <= 2;
+            var sized = Math.abs(rect.width - inputWidth) <= 2 && buttons.every(function(button) {
+                return button.getBoundingClientRect().height >= 48;
+            });
+            var copyValue = menu.querySelector('[data-sheet-action="copy-value"]');
+            var copyAddress = menu.querySelector('[data-sheet-action="copy-address"]');
+            if(copyValue) copyValue.click();
+            row.click();
+            copyAddress = document.querySelector('[data-sheet-action="copy-address"]');
+            if(copyAddress) copyAddress.click();
+            await new Promise(r => setTimeout(r, 30));
+            return centered && sized && copyValue && copyAddress &&
+                __mock.copied.includes('42') && __mock.copied.includes('0x100000010');
+        `);
+    }],
+    ['iOS-safe custom selectors replace every visible native select', async client => {
+        return evaluate(client, `
+            openSettings();
+            await new Promise(r => setTimeout(r, 30));
+            var selects = Array.from(document.querySelectorAll('select'));
+            var nativeHidden = selects.length > 0 && selects.every(function(select) {
+                return getComputedStyle(select).display === 'none';
+            });
+            var enhanced = selects.every(function(select) {
+                return select.nextElementSibling && select.nextElementSibling.matches('[data-custom-select]');
+            });
+            var settingsTrigger = document.querySelector('#setSearchType + [data-custom-select] button');
+            return nativeHidden && enhanced && settingsTrigger && settingsTrigger.textContent.includes('I32');
         `);
     }],
     ['local script loading uses the native bridge and completes without URL errors', async client => {
