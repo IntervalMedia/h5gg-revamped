@@ -4,7 +4,7 @@
 await h5gg.require(8.0);
 
 //ModuleFileName: like "UnityFramework", or 0 for main executable
-var modules = await h5gg.getRangesList(0);
+var modules = await h5gg.getRangesList("ModuleFileName");
 
 var base = Number(modules[0].start);
 

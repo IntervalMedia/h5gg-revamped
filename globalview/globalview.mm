@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <pthread.h>
 #include <dlfcn.h>
+#include <libgen.h>
 
 #include "ContextHostManager.h"
 #include "globalview.h"
@@ -9,10 +10,6 @@
 #include "../makeWindow.h"
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "../incbin.h"
-
-#ifdef H5GG_BUILD_ROOTHIDE
-#import <roothide/roothide.h>
-#endif
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -28,14 +25,13 @@ NSString* _Nullable g_pinnedBundleId = nil;
 UIImage* _Nullable g_pinnedBundleIcon = nil;
 
 GVData GVSharedData = GVDataDefaultMake();
-GVImageTransfer GVSharedImage = GVImageTransferDefaultMake();
 
 FloatButton* _Nullable floatBtn;
 APAppView* _Nullable appView = nil;
 UIView* _Nullable hostView = nil;
 UIWindow* _Nullable GlobalView = nil;
 
-UIViewController * _Nullable getViewControllerWithView(UIView *view){
+UIViewController *getViewControllerWithView(UIView *view){
     UIResponder *responder = view;
     while ((responder = [responder nextResponder]))
         if ([responder isKindOfClass: [UIViewController class]])
@@ -105,9 +101,9 @@ void handleHostView(UIView* view, CGRect newFrame)
 
             if(childV==hostView) {
                 if(GVSharedData.touchableAll) {
-                    return CGRectContainsPoint(CGRectFromGVRect(GVSharedData.floatMenuRect), childP);
+                    return CGRectContainsPoint(GVSharedData.floatMenuRect, childP);
                 } else {
-                    return CGRectContainsPoint(CGRectFromGVRect(GVSharedData.touchableRect), childP);
+                    return CGRectContainsPoint(GVSharedData.touchableRect, childP);
                 }
             }
 
@@ -236,7 +232,7 @@ void toggleGlobalView()
 {
     static UIAlertController *alertloading = nil;
 
-    __unused static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t) {
+    static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t) {
                 
         if(hostView) {
             GVSharedData.viewHosted = YES;
@@ -260,7 +256,6 @@ void toggleGlobalView()
             {
                 NSLog(@"GlobalView=monitor=%d", running);
                 GVSharedData = GVDataDefaultMake();
-                GVSharedImage = GVImageTransferDefaultMake();
                 [hostView removeFromSuperview];
 
                 if (@available(iOS 13, *)) {
@@ -404,7 +399,7 @@ void initload()
     GlobalView.hidden = NO;
 
     //处理前台app变化时
-    __unused static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t){
+    static NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer*t){
         SpringBoard* sbapp = (SpringBoard*)UIApplication.sharedApplication;
 
         //NSLog(@"GlobalView=activeInterfaceOrientation=%d, front=%@", sbapp.activeInterfaceOrientation, sbapp._accessibilityFrontMostApplication);
@@ -423,25 +418,16 @@ void initload()
         static long long lastOrientation=sbapp.activeInterfaceOrientation;
         GVSharedData.curOrientation = (UIInterfaceOrientation)sbapp.activeInterfaceOrientation;
         if(lastOrientation!=sbapp.activeInterfaceOrientation) {
-            NSLog(@"GlobalView=rotate=%lld=>%lld", lastOrientation, sbapp.activeInterfaceOrientation);
+            NSLog(@"GlobalView=rotate=%d=>%d", lastOrientation, sbapp.activeInterfaceOrientation);
             lastOrientation=sbapp.activeInterfaceOrientation;
             [GlobalView private_updateToInterfaceOrientation:(UIInterfaceOrientation)sbapp.activeInterfaceOrientation animated:YES];
         }
 
-        static NSMutableData* iconBytes = nil;
-        static dispatch_once_t iconBytesOnce;
-        dispatch_once(&iconBytesOnce, ^{
-            iconBytes = [NSMutableData dataWithLength:GV_IMAGE_MAX_PAYLOAD];
-        });
-        iconBytes.length = GV_IMAGE_MAX_PAYLOAD;
-        uint32_t buttonImageSize = GVImageTransferConsume(&GVSharedImage,
-                                                          iconBytes.mutableBytes,
-                                                          (uint32_t)iconBytes.length);
-        if(buttonImageSize > 0) {
-            iconBytes.length = buttonImageSize;
-            NSData* iconData = iconBytes;
+        if(GVSharedData.buttonImageSize) {
+            NSData* iconData = [[NSData alloc] initWithBytes:GVSharedData.buttonImageData length:GVSharedData.buttonImageSize];
             g_pinnedBundleIcon = [[UIImage alloc] initWithData:iconData];
             if(g_pinnedBundleIcon) [floatBtn setIcon:g_pinnedBundleIcon];
+            GVSharedData.buttonImageSize = 0;
         }
 
         SBApplication *appToHost = applicationForID(g_pinnedBundleId);
@@ -453,7 +439,7 @@ void initload()
     }];
 }
 
-static void * _Nullable thread_running(void * _Nullable arg)
+static void* thread_running(void* arg)
 {
     LOGGER("run in newthread");
     //等一下, 等系统框架初始化完
@@ -462,10 +448,17 @@ static void * _Nullable thread_running(void * _Nullable arg)
     //通过主线程执行下面的代码
     dispatch_async(dispatch_get_main_queue(), ^{
         LOGGER("run in main");
-        initload();
+        __block NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval:1 repeats:YES block:^(NSTimer*t){
+        LOGGER("run in timer");
+            if (UIApplication.sharedApplication && UIApplication.sharedApplication.keyWindow) {
+                LOGGER("run in appdone");
+                [timer invalidate];
+                initload();
+            }
+        }];
     });
     
-    return nil;
+    return 0;
 }
 
 static void __attribute__((constructor)) _init_()
@@ -479,9 +472,16 @@ static void __attribute__((constructor)) _init_()
 
     if ([NSBundle.mainBundle.bundleIdentifier isEqualToString:@"com.apple.springboard"])
     {
-        NSString* dylibPath = [NSString stringWithUTF8String:di.dli_fname];
-        NSString* plistPath = [[dylibPath stringByDeletingPathExtension]
-            stringByAppendingPathExtension:@"plist"];
+        // NSString* infoPath = [NSString stringWithFormat:@"%s/Info.plist", dirname((char*)di.dli_fname)];
+        // if(infoPath) {
+        //     NSDictionary* info = [[NSDictionary alloc] initWithContentsOfFile:infoPath];
+        //     if(info)
+        //         g_pinnedBundleId = info[@"CFBundleIdentifier"];
+        // }
+
+        NSString* plistPath = [NSString stringWithUTF8String:di.dli_fname];
+        char* p = (char*)plistPath.UTF8String + strlen(di.dli_fname) - 5;
+        strcpy(p, "plist");
         
         NSDictionary* plist = [[NSDictionary alloc] initWithContentsOfFile:plistPath];
         NSLog(@"plist=%@\n%@\n%@\n%@", plistPath, plist, plist[@"Filter"], plist[@"Filter"][@"Bundles"]);
@@ -492,34 +492,16 @@ static void __attribute__((constructor)) _init_()
                     pthread_t thread;
                     pthread_attr_t attr;
                     pthread_attr_init(&attr);
-                    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-                    int result = pthread_create(&thread, &attr, thread_running, nil);
-                    pthread_attr_destroy(&attr);
-                    if(result != 0) LOGGER("GlobalView failed to start initialization thread: %d", result);
+                    pthread_create(&thread, &attr, thread_running, nil);
                 } else {
                     g_pinnedBundleId = bundleId;
                 }
             }
         }
     } else {
-        if(!GVDataIsCompatible(&GVSharedData, sizeof(GVSharedData), GV_CAPABILITY_ALL) ||
-           !GVImageTransferIsCompatible(&GVSharedImage, sizeof(GVSharedImage))) {
-            LOGGER("GlobalView protocol initialization failed");
-            return;
-        }
-
-        void (*SetGlobalViewV2)(char* dylib,
-                                UInt64 GVDataOffset,
-                                UInt64 GVImageOffset) = NULL;
-        *(void**)&SetGlobalViewV2 = dlsym(RTLD_DEFAULT, "SetGlobalViewV2");
-        if(!SetGlobalViewV2) {
-            LOGGER("GlobalView protocol v%u is not supported by the host",
-                   (unsigned)GV_PROTOCOL_VERSION);
-            return;
-        }
-        SetGlobalViewV2((char*)di.dli_fname,
-                        (UInt64)&GVSharedData-(UInt64)di.dli_fbase,
-                        (UInt64)&GVSharedImage-(UInt64)di.dli_fbase);
+        void (*SetGlobalView)(char* dylib, UInt64 GVDataOffset);
+        *(void**)&SetGlobalView = dlsym(RTLD_DEFAULT, "SetGlobalView");
+        SetGlobalView((char*)di.dli_fname, (UInt64)&GVSharedData-(UInt64)di.dli_fbase);
     }
 }
 
