@@ -1,5 +1,4 @@
-// LEGACY-JAVASCRIPTCORE-ONLY: This plugin returns a native Objective-C object
-// synchronously and is not compatible with the WKWebView Promise/RPC bridge.
+
 //put h5ggWebUdid.dylib into .app folder
 var WebUDID = h5gg.loadPlugin("WebUDID", "h5ggWebUdid.dylib");
 
@@ -14,4 +13,5 @@ setTimeout(function(){
     });
     
 }, 500);
+
 

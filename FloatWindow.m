@@ -55,6 +55,7 @@ extern GVData* PGVSharedData;
         should = YES;
     else
         should = YES;
+    dumpKeyWindow("FloatWindow shouldAutorotate");
     return should;
 }
 
@@ -66,6 +67,7 @@ extern GVData* PGVSharedData;
         uint64_t mask2 = 1 << UIApplication.sharedApplication.statusBarOrientation;
         mask = self.followOrientationMask | mask2;
     }
+    dumpKeyWindow("FloatWindow supportedOrientations");
     return mask;
 }
 
@@ -75,6 +77,7 @@ extern GVData* PGVSharedData;
         preferred = (UIInterfaceOrientation)PGVSharedData->curOrientation;
     else
         preferred = UIApplication.sharedApplication.statusBarOrientation;
+    dumpKeyWindow("FloatWindow preferredOrientation");
     return preferred;
 }
 
@@ -110,6 +113,7 @@ extern GVData* PGVSharedData;
     NSLog(@"FloatWindow setHidden=%d", hidden);
     if(hidden == NO) {
         ((FloatController*)self.rootViewController).followOrientationMask = UIApplication.sharedApplication.keyWindow.rootViewController.supportedInterfaceOrientations;
+        dumpKeyWindow("FloatWindow show");
     }
     [super setHidden:hidden];
     if(hidden == NO) {

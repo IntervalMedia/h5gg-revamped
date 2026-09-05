@@ -1,10 +1,5 @@
 
 *.i64
-/Outdated/*
-/Outdated/
-/Legacy/
-/examples-h5frida/
-/pluginDemo/h5frida*/
 .DS_Store
 .theos
 /AppDelegate.h
@@ -21,6 +16,4 @@
 /ViewController.h
 /ViewController.mm
 /viewdebug.m
-/packages/*.deb
-/packages/release-artifacts/*.deb
-Index-en.prototype.html
+/pluginDemo/h5frida15.1.24/libfrida-core-15.1.24.a
