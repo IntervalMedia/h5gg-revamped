@@ -3,6 +3,21 @@
 
 @implementation FloatButton
 
+static UIWindow * _Nullable GVForegroundWindow(void) {
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (![scene isKindOfClass:[UIWindowScene class]]) continue;
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            if (windowScene.activationState != UISceneActivationStateForegroundActive) continue;
+            for (UIWindow *window in windowScene.windows) {
+                if (window.isKeyWindow) return window;
+            }
+            if (windowScene.windows.count > 0) return windowScene.windows.firstObject;
+        }
+    }
+    return nil;
+}
+
 - (instancetype)init {
     self = [super initWithFrame:CGRectMake(20, 25, 50, 50)];
     if (self) {
@@ -19,6 +34,7 @@
         self.keepWindow = NO;
 
         __weak __typeof(self) weakSelf = self;
+        __block CGRect lastFrame = CGRectZero;
         self.frontTimer = [NSTimer scheduledTimerWithTimeInterval:0.2 repeats:YES block:^(NSTimer* t) {
             __strong __typeof(weakSelf) strongSelf = weakSelf;
             if(!strongSelf || strongSelf.hidden) return;
@@ -26,13 +42,17 @@
             if(strongSelf.keepFront) [strongSelf.superview bringSubviewToFront:strongSelf];
 
             if(!strongSelf.keepWindow) {
-                UIWindow *window = [UIApplication sharedApplication].keyWindow;
+                UIWindow *window = GVForegroundWindow();
                 if(strongSelf.superview != window) [window addSubview:strongSelf];
             }
 
             CGRect newFrame = strongSelf.superview.frame;
-            static CGRect lastFrame = {0};
             if(!CGRectEqualToRect(lastFrame, newFrame)) {
+                if(CGRectIsEmpty(lastFrame)) {
+                    lastFrame = newFrame;
+                    return;
+                }
+
                 float newX = newFrame.size.width * strongSelf.frame.origin.x / lastFrame.size.width;
                 float newY = newFrame.size.height * strongSelf.frame.origin.y / lastFrame.size.height;
 
@@ -102,27 +122,27 @@
 }
 
 - (void)setIconWithData:(NSData*)data {
-    if(!data) return;
-    self.backgroundColor = [UIColor clearColor];
+    if(data.length < 3) return;
 
     char magic[4] = {0};
     [data getBytes:magic length:3];
     if(magic[0] == 'G' && magic[1] == 'I' && magic[2] == 'F') {
         [self _loadGifWithData:data];
     } else {
-        self.image = [UIImage imageWithData:data];
-        self.animationImages = nil;
-        [self stopAnimating];
+        UIImage* image = [UIImage imageWithData:data];
+        if(!image) return;
+        [self setIcon:image];
     }
 }
 
 - (void)_loadGifWithData:(NSData*)data {
     CGImageSourceRef src = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
-    if(!src) { self.image = [UIImage imageWithData:data]; return; }
+    if(!src) return;
 
     size_t count = CGImageSourceGetCount(src);
     if(count <= 1) {
-        self.image = [UIImage imageWithData:data];
+        UIImage* image = [UIImage imageWithData:data];
+        if(image) [self setIcon:image];
         CFRelease(src);
         return;
     }
@@ -146,6 +166,8 @@
     }
     CFRelease(src);
 
+    if(frames.count == 0) return;
+    self.backgroundColor = [UIColor clearColor];
     self.animationImages = frames;
     self.animationDuration = dur > 0 ? dur : 1.0;
     self.animationRepeatCount = 0;

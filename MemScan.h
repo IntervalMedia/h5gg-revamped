@@ -10,6 +10,9 @@
 #include <map>
 #include <set>
 
+#include "MemoryResults.h"
+#include "MemoryReader.h"
+#include "MemoryValue.h"
 #include "vmtag.h"
 
 using namespace std;
@@ -34,26 +37,6 @@ extern "C" kern_return_t mach_vm_protect
  vm_prot_t new_protection
  );
 
-enum JJ_Search_Type
-{
-    JJ_Search_Type_Error,
-
-    JJ_Search_Type_Double,
-    JJ_Search_Type_ULong,
-    JJ_Search_Type_SLong,
-    JJ_Search_Type_Float,
-    JJ_Search_Type_UInt,
-    JJ_Search_Type_SInt,
-    JJ_Search_Type_UShort,
-    JJ_Search_Type_SShort,
-    JJ_Search_Type_UByte,
-    JJ_Search_Type_SByte,
-
-    JJ_Search_Type_Max,
-};
-
-extern const int JJ_Search_Type_Len[];
-
 enum JJ_Change_Type {
     JJ_Change_Unchanged = 1,
     JJ_Change_Changed,
@@ -61,26 +44,12 @@ enum JJ_Change_Type {
     JJ_Change_Decreased,
 };
 
-struct result_region {
-    uint64_t region_base;
-    size_t region_size;
-    vector<uint32_t> slides;
-    vector<int8_t> types;
-
-    result_region(uint64_t base, size_t size);
-};
-
-struct Result {
-    vector<result_region*> regions;
-    size_t count;
-};
-
 struct AddrRange {
     uint64_t start;
     uint64_t end;
 };
 
-class JJMemoryEngine
+class JJMemoryEngine : public JJMemoryReader
 {
     mach_port_t task;
     Result *result;
@@ -90,17 +59,27 @@ class JJMemoryEngine
     int lastNumberType;
 
     void freeResults();
-    bool readMemory(void* buf, uint64_t addr, size_t len);
+    size_t performRead(void* buf, uint64_t addr, size_t len) override;
     bool writeMemory(void* address, void *target, size_t len);
 
     uint64_t ScanData(uint64_t buffer, uint64_t size, void* target, int type);
+    uint64_t ScanDataAny(uint64_t buffer,
+                         uint64_t size,
+                         const vector<JJSearchValue>& values,
+                         int type);
 
     void* loadRegion(uint64_t base, uint64_t* psize, bool* remapped);
     void unloadRegion(void* buffer, uint64_t size, bool remapped);
 
-    void ScanRegion(AddrRange range, uint64_t base, uint64_t size, void* target, int type, vector<result_region*>* outResults);
-    void FirstScan(AddrRange range, void* target, int type);
-    void ScanAgain(AddrRange range, void* target, int type);
+    void ScanRegionAny(AddrRange range,
+                       uint64_t base,
+                       uint64_t size,
+                       const vector<JJSearchValue>& values,
+                       int type,
+                       vector<result_region*>* outResults);
+    void enumerateRegions(AddrRange range);
+    void FirstScanAny(AddrRange range, const vector<JJSearchValue>& values, int type);
+    void ScanAgainAny(AddrRange range, const vector<JJSearchValue>& values, int type);
     void saveSnapshot();
 
 public:
@@ -111,10 +90,14 @@ public:
     void SetFloatTolerance(float d);
 
     void JJScanMemory(AddrRange range, void* target, int type);
+    void JJScanMemoryAny(AddrRange range, const vector<JJSearchValue>& values, int type);
     void JJScanHexMemory(AddrRange range, const char* hexStr);
     void JJNearBySearch(size_t range, void *target, int type);
-    vector<pair<uint64_t, uint64_t>> JJFindPointers(uint64_t targetAddr, AddrRange range);
-    bool JJReadMemory(void* buf, uint64_t addr, int type);
+    vector<pair<uint64_t, uint64_t>> JJFindPointers(
+        uint64_t targetAddr,
+        AddrRange range,
+        size_t maxResults = 4096,
+        uint64_t maxScannedBytes = 512ULL * 1024ULL * 1024ULL);
     bool JJWriteMemory(void* address, void *target, int type);
     int JJWriteAll(void *target, int type);
 

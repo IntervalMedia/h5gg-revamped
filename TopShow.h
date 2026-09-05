@@ -4,8 +4,6 @@
 #import <UIKit/UIKit.h>
 #include "makeWindow.h"
 
-void dumpKeyWindow(const char* _Nonnull tag);
-
 NS_ASSUME_NONNULL_BEGIN
 
 @interface TopShow : UIViewController <UIDocumentPickerDelegate>
@@ -16,7 +14,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (void)present:(UIViewController* _Nonnull (^)(TopShow* controller))alert;
 + (void)alert:(NSString*)title message:(NSString*)message;
-+ (void)filePicker:(NSArray*)types callback:(void(^)(NSString*))callback;
++ (void)filePicker:(NSArray*)types
+          callback:(void(^)(NSString* _Nullable path))callback;
 - (void)dismiss;
 
 @end

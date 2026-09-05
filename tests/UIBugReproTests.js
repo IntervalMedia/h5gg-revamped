@@ -1,0 +1,420 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
+
+const ROOT = path.resolve(__dirname, '..');
+const CDP_HTTP = process.env.H5GG_CDP_HTTP || 'http://127.0.0.1:9333';
+const JQUERY = fs.readFileSync(path.join(ROOT, 'jquery.min.js'), 'utf8');
+const FIXTURE_PATH = path.join(ROOT, 'tests/fixtures/ui-load-script.js');
+
+function bridgeMockSource() {
+    return `
+window.__mock = {
+    alerts: [], prompts: [], copied: [], bookmarks: [], frozen: [], rects: [],
+    results: [{address:'0x100000010', type:'I32', value:'42'}],
+    searchPending: false, searchResolved: false, loadedScripts: []
+};
+window.alert = function(message) { window.__mock.alerts.push(String(message)); };
+window.prompt = function(message, value) {
+    window.__mock.prompts.push(String(message));
+    return String(message).toLowerCase().includes('bookmark') || String(message).includes('\u4e66\u7b7e') ? 'Test bookmark' : (value || '42');
+};
+window.confirm = function() { return true; };
+window.h5gg_internel_version = 8;
+window.setWindowDrag = function() {};
+window.setLayoutAction = async function() {
+    if(typeof window.h5gg_onLayoutChange === 'function') window.h5gg_onLayoutChange(1024, 768);
+};
+window.setWindowRect = async function(x,y,w,h) { window.__mock.rects.push({x,y,w,h}); };
+window.setWindowVisible = function() {};
+window.setButtonImage = function() {};
+window.setFloatWindow = function() {};
+window.h5gg = {
+    appendLog: async function() {},
+    clearResults: async function() {},
+    getProcList: async function() { return null; },
+    getResultsCount: async function() { return window.__mock.results.length; },
+    getResults: async function(count, from) { return window.__mock.results.slice(from, from + count); },
+    getValue: async function(address, type) { return type === 'U8' ? '17' : '42'; },
+    setValue: async function() { return true; },
+    editAll: async function() { return 1; },
+    setFloatTolerance: async function() {},
+    searchNumber: function() {
+        window.__mock.searchPending = true;
+        return new Promise(function(resolve) {
+            window.__mock.resolveSearch = function() {
+                window.__mock.searchPending = false;
+                window.__mock.searchResolved = true;
+                resolve(true);
+            };
+        });
+    },
+    searchNearby: async function() {}, searchHex: async function() {}, searchFilter: async function() {},
+    addSearchHistory: async function() {}, getSearchHistory: async function() { return []; }, clearSearchHistory: async function() {},
+    addBookmark: async function(address, name, type) { window.__mock.bookmarks.push({address,name,type}); return true; },
+    getBookmarks: async function() { return window.__mock.bookmarks.slice(); },
+    removeBookmark: async function() {}, clearBookmarks: async function() { window.__mock.bookmarks = []; },
+    freezeValue: async function(address, value, type) { window.__mock.frozen.push({address,value,type,status:'active'}); return true; },
+    getFrozenValues: async function() { return window.__mock.frozen.slice(); },
+    unfreezeValue: async function() {}, clearFrozenValues: async function() { window.__mock.frozen = []; },
+    copyText: async function(value) { window.__mock.copied.push(String(value)); return true; },
+    getLocalScripts: async function() { return [{name:'ui-load-script.js',path:${JSON.stringify(FIXTURE_PATH)}}]; },
+    pickScriptFile: async function() { return null; },
+    listScripts: async function() { return ['example.js']; },
+    loadScript: async function(name) { window.__mock.loadedScripts.push(name); return 'window.__bridgeLoadedScript = true;'; },
+    saveScript: async function() { return true; }, deleteScript: async function() { return true; }, getLastFileError: async function() { return null; },
+    getRangesList: async function() { return [{name:'TestBinary',start:'0x100000000',end:'0x100010000'}]; },
+    readMemoryPage: async function(address, size) {
+        var bytes = []; for(var i=0;i<size;i++) bytes.push(i & 255);
+        return {address:address, bytes:bytes};
+    },
+    readPointer: async function() { return '0x100000100'; },
+    dumpMemory: async function() { return true; }, cancelDump: async function() {}, getDumpStatus: async function() { return {state:'done',progress:1}; },
+    makeTweak: async function() { return ''; }
+};
+`;
+}
+
+class CDPClient {
+    constructor(socket) {
+        this.socket = socket;
+        this.nextId = 1;
+        this.pending = new Map();
+        this.events = new Map();
+        socket.addEventListener('message', event => {
+            const message = JSON.parse(event.data);
+            if (message.id) {
+                const pending = this.pending.get(message.id);
+                if (!pending) return;
+                this.pending.delete(message.id);
+                if (message.error) pending.reject(new Error(message.error.message));
+                else pending.resolve(message.result);
+                return;
+            }
+            const waiters = this.events.get(message.method) || [];
+            this.events.delete(message.method);
+            waiters.forEach(resolve => resolve(message.params));
+        });
+    }
+
+    send(method, params = {}) {
+        const id = this.nextId++;
+        return new Promise((resolve, reject) => {
+            this.pending.set(id, {resolve, reject});
+            this.socket.send(JSON.stringify({id, method, params}));
+        });
+    }
+
+    event(method) {
+        return new Promise(resolve => {
+            const waiters = this.events.get(method) || [];
+            waiters.push(resolve);
+            this.events.set(method, waiters);
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+}
+
+async function connect(url) {
+    const socket = new WebSocket(url);
+    await new Promise((resolve, reject) => {
+        socket.addEventListener('open', resolve, {once:true});
+        socket.addEventListener('error', reject, {once:true});
+    });
+    return new CDPClient(socket);
+}
+
+async function evaluate(client, expression) {
+    const reply = await client.send('Runtime.evaluate', {
+        expression: `(async function(){${expression}})()`,
+        awaitPromise: true,
+        returnByValue: true
+    });
+    if (reply.exceptionDetails) {
+        const detail = reply.exceptionDetails.exception && reply.exceptionDetails.exception.description;
+        throw new Error(detail || reply.exceptionDetails.text);
+    }
+    return reply.result.value;
+}
+
+async function openPage(fileName) {
+    const target = await fetch(`${CDP_HTTP}/json/new?about:blank`, {method:'PUT'}).then(response => response.json());
+    const client = await connect(target.webSocketDebuggerUrl);
+    await client.send('Page.enable');
+    await client.send('Runtime.enable');
+    await client.send('Emulation.setDeviceMetricsOverride', {
+        width: 430, height: 700, deviceScaleFactor: 3, mobile: true
+    });
+    await client.send('Page.addScriptToEvaluateOnNewDocument', {source: JQUERY});
+    await client.send('Page.addScriptToEvaluateOnNewDocument', {source: bridgeMockSource()});
+    const loaded = client.event('Page.loadEventFired');
+    await client.send('Page.navigate', {url:pathToFileURL(path.join(ROOT, fileName)).href});
+    await loaded;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return client;
+}
+
+const checks = [
+    ['shell fills a resized window while header and navigation remain visible', async client => {
+        return evaluate(client, `
+            var header = document.querySelector('header');
+            var content = document.querySelector('.app-content');
+            var nav = document.querySelector('.bottom-nav');
+            var active = document.querySelector('.tab-pane.active');
+            active.scrollTop = active.scrollHeight;
+            var bodyRect = document.body.getBoundingClientRect();
+            var headerRect = header.getBoundingClientRect();
+            var navRect = nav.getBoundingClientRect();
+            var contentRect = content.getBoundingClientRect();
+            return Math.abs(bodyRect.width - innerWidth) <= 1 && Math.abs(bodyRect.height - innerHeight) <= 1 &&
+                headerRect.top >= -1 && headerRect.height > 0 &&
+                navRect.bottom <= innerHeight + 1 && navRect.height > 0 &&
+                contentRect.top >= headerRect.bottom - 1 && contentRect.bottom <= navRect.top + 1;
+        `);
+    }],
+    ['results and tools are populated top-level tabs', async client => {
+        return evaluate(client, `
+            var resultsButton = document.querySelectorAll('.nav-item')[1];
+            var toolsButton = document.querySelectorAll('.nav-item')[2];
+            switchTab('results', resultsButton);
+            var results = document.getElementById('tab-results');
+            var resultsVisible = results.parentElement.classList.contains('app-content') &&
+                getComputedStyle(results).display !== 'none' && results.getBoundingClientRect().height > 100 &&
+                !!results.querySelector('#results_count') && !!results.querySelector('#listdiv');
+            switchTab('tools', toolsButton);
+            var tools = document.getElementById('tab-tools');
+            var toolsVisible = tools.parentElement.classList.contains('app-content') &&
+                getComputedStyle(tools).display !== 'none' && tools.getBoundingClientRect().height > 100 &&
+                tools.querySelectorAll('button.action-btn').length >= 8;
+            return resultsVisible && toolsVisible;
+        `);
+    }],
+    ['viewport starts zoomed out for the embedded window', async client => {
+        return evaluate(client, `
+            var value = document.querySelector('meta[name="viewport"]').content;
+            var scale = /initial-scale=([0-9.]+)/.exec(value);
+            return /width=device-width/.test(value) && scale && Number(scale[1]) <= 0.8;
+        `);
+    }],
+    ['search overlay remains visible until the bridge resolves and reports completion', async client => {
+        return evaluate(client, `
+            onClickSearchNumber();
+            document.querySelector('#datavalue').value = '42';
+            document.querySelector('#popup_search_edit #action').click();
+            await new Promise(r => setTimeout(r, 300));
+            var busy = document.querySelector('[data-search-progress]');
+            var pendingVisible = !!busy && getComputedStyle(busy).display !== 'none' && __mock.searchPending;
+            __mock.resolveSearch && __mock.resolveSearch();
+            await new Promise(r => setTimeout(r, 100));
+            var completed = !!document.querySelector('[data-search-status="complete"]');
+            return pendingVisible && completed;
+        `);
+    }],
+    ['numeric input popups stay centered for every search action', async client => {
+        return evaluate(client, `
+            var openers = [onClickSearchNumber, onClickSearchNearby, onClickEditAll];
+            return openers.every(function(open) {
+                open();
+                var mask = document.getElementById('maskview');
+                var popup = document.getElementById('popup_search_edit');
+                var rect = popup.getBoundingClientRect();
+                var centered = getComputedStyle(mask).display === 'flex' &&
+                    Math.abs((rect.left + rect.width / 2) - innerWidth / 2) <= 2 &&
+                    Math.abs((rect.top + rect.height / 2) - innerHeight / 2) <= 2;
+                popup.querySelector('#cancel').click();
+                return centered;
+            });
+        `);
+    }],
+    ['closing Settings removes conflicting modal layers and stale inputs', async client => {
+        return evaluate(client, `
+            onClickSearchNumber();
+            openSettings();
+            closeOverlay('settingsOverlay');
+            var stale = ['#popup_search_edit','#popup_progress','#maskview','#maskview_script']
+                .some(function(selector) { var node=document.querySelector(selector); return node && getComputedStyle(node).display !== 'none'; });
+            return !stale && !document.querySelector('#settingsOverlay');
+        `);
+    }],
+    ['result row opens actions reliably and bookmark/freeze controls become active', async client => {
+        return evaluate(client, `
+            renderResults(__mock.results);
+            var row = document.querySelector('.result-row');
+            for(var i=0;i<20;i++) {
+                row.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerType:'touch'}));
+                row.click();
+                if(typeof dismissResultActions === 'function') dismissResultActions();
+                if(typeof closeResultActions === 'function') closeResultActions();
+            }
+            row.click();
+            var actionVisible = !!document.querySelector('#resultActionMask, #uiResultActionMask') &&
+                Array.from(document.querySelectorAll('#resultActionMask, #uiResultActionMask')).some(n => getComputedStyle(n).display !== 'none');
+            var buttons = row.querySelectorAll('.result-icon-button');
+            buttons[0].click(); buttons[1].click();
+            await new Promise(r => setTimeout(r, 50));
+            return actionVisible && __mock.bookmarks.length === 1 && __mock.frozen.length === 1 &&
+                buttons[0].classList.contains('active') && buttons[1].classList.contains('active');
+        `);
+    }],
+    ['result actions match input modal sizing and include copy actions', async client => {
+        return evaluate(client, `
+            renderResults(__mock.results);
+            var row = document.querySelector('.result-row');
+            onClickSearchNumber();
+            await new Promise(r => setTimeout(r, 300));
+            var inputWidth = document.getElementById('popup_search_edit').getBoundingClientRect().width;
+            document.querySelector('#popup_search_edit #cancel').click();
+            row.click();
+            await new Promise(r => setTimeout(r, 300));
+            var menu = document.getElementById('resultActionMenu');
+            var rect = menu.getBoundingClientRect();
+            var buttons = Array.from(menu.querySelectorAll('button'));
+            var centered = Math.abs((rect.left + rect.width / 2) - innerWidth / 2) <= 2 &&
+                Math.abs((rect.top + rect.height / 2) - innerHeight / 2) <= 2;
+            var sized = Math.abs(rect.width - inputWidth) <= 2 && buttons.every(function(button) {
+                return button.getBoundingClientRect().height >= 48;
+            });
+            var copyValue = menu.querySelector('[data-sheet-action="copy-value"]');
+            var copyAddress = menu.querySelector('[data-sheet-action="copy-address"]');
+            if(copyValue) copyValue.click();
+            row.click();
+            copyAddress = document.querySelector('[data-sheet-action="copy-address"]');
+            if(copyAddress) copyAddress.click();
+            await new Promise(r => setTimeout(r, 30));
+            return centered && sized && copyValue && copyAddress &&
+                __mock.copied.includes('42') && __mock.copied.includes('0x100000010');
+        `);
+    }],
+    ['iOS-safe custom selectors replace every visible native select', async client => {
+        return evaluate(client, `
+            openSettings();
+            await new Promise(r => setTimeout(r, 30));
+            var selects = Array.from(document.querySelectorAll('select'));
+            var nativeHidden = selects.length > 0 && selects.every(function(select) {
+                return getComputedStyle(select).display === 'none';
+            });
+            var enhanced = selects.every(function(select) {
+                return select.nextElementSibling && select.nextElementSibling.matches('[data-custom-select]');
+            });
+            var settingsTrigger = document.querySelector('#setSearchType + [data-custom-select] button');
+            return nativeHidden && enhanced && settingsTrigger && settingsTrigger.textContent.includes('I32');
+        `);
+    }],
+    ['local script loading uses the native bridge and completes without URL errors', async client => {
+        return evaluate(client, `
+            onClickLoadScript(${JSON.stringify(FIXTURE_PATH)});
+            await new Promise(r => setTimeout(r, 150));
+            return __mock.loadedScripts.length === 1 && __mock.alerts.every(message => !message.includes('Load Error'));
+        `);
+    }],
+    ['dragging the resize handle uses the current window-control contract', async client => {
+        return evaluate(client, `
+            var handle = document.querySelector('[data-window-resize]');
+            if(!handle || typeof h5gg_onLayoutChange !== 'function') return false;
+            var saved = JSON.parse(localStorage.getItem('h5gg_window_size'));
+            handle.setPointerCapture = function() {};
+            handle.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:1,clientX:100,clientY:100}));
+            handle.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:1,clientX:160,clientY:150}));
+            handle.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1,clientX:160,clientY:150}));
+            var updated = JSON.parse(localStorage.getItem('h5gg_window_size'));
+            h5gg_onLayoutChange(1024, 768);
+            var request = __mock.rects[__mock.rects.length - 1];
+            return request && updated.width > saved.width && updated.height > saved.height &&
+                updated.width === request.w && updated.height === request.h;
+        `);
+    }],
+    ['alerts and toasts render as topmost modal layers', async client => {
+        return evaluate(client, `
+            showToast('Important notice');
+            alert('Blocking notice');
+            await new Promise(r => setTimeout(r, 30));
+            var toastLayer = document.querySelector('[data-ui-toast]');
+            var alertLayer = document.querySelector('[data-ui-alert]');
+            var nav = document.querySelector('.bottom-nav');
+            if(!toastLayer || !alertLayer) return false;
+            var toastCard = toastLayer.querySelector('[role="alert"]');
+            var alertCard = alertLayer.querySelector('[role="alertdialog"]');
+            return toastCard && alertCard &&
+                Number(getComputedStyle(toastLayer).zIndex) > Number(getComputedStyle(nav).zIndex) &&
+                Number(getComputedStyle(alertLayer).zIndex) > Number(getComputedStyle(toastLayer).zIndex) &&
+                getComputedStyle(alertLayer).pointerEvents !== 'none';
+        `);
+    }],
+    ['script editor exposes API documentation and inserts a selected function call', async client => {
+        return evaluate(client, `
+            await openScriptEditor();
+            var docs = document.querySelector('[data-api-docs]');
+            var insert = document.querySelector('[data-api-insert]');
+            var methods = document.querySelector('#h5ggApiMethod');
+            if(!docs || !insert || !methods || methods.options.length < 52) return false;
+            var editor = document.querySelector('#scriptEditor');
+            editor.value = '';
+            insert.click();
+            return editor.value.includes('h5gg.');
+        `);
+    }],
+    ['memory viewer starts at the binary base and offers row context actions', async client => {
+        return evaluate(client, `
+            await openMemoryViewer();
+            await new Promise(r => setTimeout(r, 50));
+            var input = document.querySelector('#viewerAddr');
+            var row = document.querySelector('[data-memory-address]');
+            if(row) row.click();
+            var menu = document.querySelector('[data-memory-context]');
+            return input && input.value.toLowerCase() === '0x100000000' && row && menu &&
+                menu.querySelector('[data-memory-action="copy-address"]') &&
+                menu.querySelector('[data-memory-action="copy-8-bytes"]') &&
+                menu.querySelector('[data-memory-action="dump-start"]') &&
+                menu.querySelector('[data-memory-action="dump-end"]');
+        `);
+    }],
+    ['dedicated Base Address control displays the binary base', async client => {
+        return evaluate(client, `
+            var button = document.querySelector('[data-base-address-button]');
+            if(!button) return false;
+            button.click();
+            await new Promise(r => setTimeout(r, 50));
+            return document.body.textContent.toLowerCase().includes('0x100000000');
+        `);
+    }]
+];
+
+async function main() {
+    let failures = 0;
+    for (const fileName of ['Index.html', 'Index-en.html']) {
+        const client = await openPage(fileName);
+        try {
+            for (const [name, check] of checks) {
+                try {
+                    const passed = await check(client);
+                    console.log(`${passed ? 'PASS' : 'FAIL'} ${fileName}: ${name}`);
+                    if (!passed) failures++;
+                } catch (error) {
+                    failures++;
+                    console.log(`FAIL ${fileName}: ${name}`);
+                    console.log(`     ${String(error.message).split('\n')[0]}`);
+                }
+            }
+        } finally {
+            client.close();
+        }
+    }
+    if (failures) {
+        console.error(`\n${failures} UI regression check(s) failed.`);
+        process.exitCode = 1;
+    } else {
+        console.log('\nAll UI regression checks passed.');
+    }
+}
+
+main().catch(error => {
+    console.error(error.stack || error);
+    process.exitCode = 1;
+});

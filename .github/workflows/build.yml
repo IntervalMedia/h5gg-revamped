@@ -27,6 +27,11 @@ jobs:
         run: |
           echo "THEOS=$PWD/theos" >> $GITHUB_ENV
           brew install ldid xz
+          # Download SDK
+          curl -L https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
+          mkdir -p $PWD/theos/sdks
+          tar xf sdk.tar.xz -C $PWD/theos/sdks
+          rm sdk.tar.xz
 
       - name: Setup Theos (Linux)
         if: runner.os == 'Linux'
@@ -40,16 +45,20 @@ jobs:
           rm tc.tar.xz
           echo "/opt/swift-5.8-ubuntu20.04/usr/bin" >> $GITHUB_PATH
           # Download SDK
-          curl -L https://github.com/theos/sdks/releases/download/latest/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
+          curl -L https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
           mkdir -p $PWD/theos/sdks
           tar xf sdk.tar.xz -C $PWD/theos/sdks
           rm sdk.tar.xz
 
-      - name: Build
-        run: make package FINALPACKAGE=1
+      - name: Run host verification
+        run: bash tests/run_tests.sh
+
+      - name: Build all jailbreak variants
+        run: ./build.sh all
 
       - name: Upload deb
         uses: actions/upload-artifact@v4
         with:
           name: H5GG-deb-${{ matrix.os }}
-          path: packages/*.deb
+          path: packages/release-artifacts/*.deb
+          if-no-files-found: error

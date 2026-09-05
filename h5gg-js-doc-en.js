@@ -1,6 +1,6 @@
-**************** H5GG JavaScript Engine Document (v8.0, WKWebView, async API) ********************
+**************** H5GG JavaScript Engine Document (v8.1, WKWebView, async API) ********************
 
-WARNING: This is H5GG-Revamped v8.0 with a new WKWebView bridge. All h5gg methods now return Promises and must be called with await. These APIs will NOT work with old H5GG versions (< v8.0).
+WARNING: H5GG-Revamped v8.1 uses the Promise-based WKWebView bridge introduced in v8.0. All h5gg methods return Promises and must be called with await. These APIs do not work with H5GG versions older than v8.0.
 
 Dual support (old sync style + new async) may be added in a future release.
 
@@ -29,7 +29,13 @@ await h5gg.clearResults(); //Clear search results
 await h5gg.getRangesList('module file name'); //Return module array with start, end, name attributes
 (module file name=0 returns app main module, no argument returns all modules)
 
-await h5gg.loadPlugin('Objective-C Class Name','dylib file path'); //Load a dylib plugin, returns an instance object
+const plugin = await h5gg.loadPlugin('Objective-C Class Name','dylib file path'); //WK plugins implement H5GGPluginRPC and return a JSON handle
+const reply = await h5gg.callPlugin(plugin.id, 'method name', ['JSON argument']); //Returns {ok,result} or {ok:false,error}
+
+await h5gg.searchHex('DE AD ?? E?', '0x0', '0x300000000'); //First call searches; later calls refine. ? is a wildcard nibble.
+await h5gg.searchFilter('100', 'I32', 0); //Filter current results: 0 equal, 2 greater, 3 less
+await h5gg.readMemoryPage('0x1000', 256); //Returns byte numbers/null markers, readable count, and complete flag
+await h5gg.dumpMemory('0x1000', '0x2000', 'dump.bin'); //Streams asynchronously; inspect getDumpStatus() or call cancelDump()
 
 For standalone CrosProc APP version only:
 

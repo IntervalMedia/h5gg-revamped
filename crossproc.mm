@@ -42,6 +42,7 @@ NSArray<NSDictionary<NSString*, id>*>* _Nullable getRunningProcess(void) {
         }
     }
 
+    free(process);
     return nil;
 }
 
@@ -64,11 +65,16 @@ size_t getMachoVMSize(pid_t pid, task_port_t task, mach_vm_address_t addr) {
     struct mach_header_64 header;
     mach_vm_size_t hdrsize = sizeof(header);
     kern_return_t kr = mach_vm_read_overwrite(task, addr, hdrsize, (mach_vm_address_t)&header, &hdrsize);
-    if(kr != KERN_SUCCESS)
+    if(kr != KERN_SUCCESS || hdrsize != sizeof(header))
         return 0;
 
     mach_vm_size_t lcsize = header.sizeofcmds;
+    if(lcsize < sizeof(struct load_command))
+        return 0;
+
     void* buf = malloc(lcsize);
+    if(!buf)
+        return 0;
 
     kr = mach_vm_read_overwrite(task, addr + hdrsize, lcsize, (mach_vm_address_t)buf, &lcsize);
     if(kr == KERN_SUCCESS) {
@@ -76,8 +82,20 @@ size_t getMachoVMSize(pid_t pid, task_port_t task, mach_vm_address_t addr) {
         uint64_t header_vaddr = -1;
 
         auto* lc = (struct load_command*)buf;
+        char* commandEnd = (char*)buf + lcsize;
         for(uint32_t i = 0; i < header.ncmds; i++) {
+            if((char*)lc + sizeof(*lc) > commandEnd ||
+               lc->cmdsize < sizeof(*lc) ||
+               (char*)lc + lc->cmdsize > commandEnd) {
+                vm_end = 0;
+                break;
+            }
+
             if(lc->cmd == LC_SEGMENT_64) {
+                if(lc->cmdsize < sizeof(struct segment_command_64)) {
+                    vm_end = 0;
+                    break;
+                }
                 auto* seg = (struct segment_command_64*)lc;
 
                 if(seg->fileoff == 0 && seg->filesize > 0) {
@@ -109,7 +127,7 @@ size_t getMachoVMSize(pid_t pid, task_port_t task, mach_vm_address_t addr) {
 NSArray<NSDictionary<NSString*, NSString*>*>* _Nullable getRangesList2(pid_t pid, task_port_t task, NSString* _Nullable filter) {
     NSMutableArray* results = [[NSMutableArray alloc] init];
 
-    task_dyld_info_data_t task_dyld_info;
+    task_dyld_info_data_t task_dyld_info = {};
     mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
     kern_return_t kr = task_info(task, TASK_DYLD_INFO, (task_info_t)&task_dyld_info, &count);
     NSLog(@"getmodules TASK_DYLD_INFO=%p %llx %d",
@@ -130,6 +148,9 @@ NSArray<NSDictionary<NSString*, NSString*>*>* _Nullable getRangesList2(pid_t pid
 
     mach_vm_address_t ii = aii.infoArray;
     uint32_t iiCount = aii.infoArrayCount;
+    if(iiCount > UINT32_MAX / sizeof(struct dyld_image_info64))
+        return results;
+
     mach_msg_type_number_t iiSize = iiCount * sizeof(struct dyld_image_info64);
 
     kr = mach_vm_read(task, ii, iiSize, (vm_offset_t*)&ii, &iiSize);
@@ -146,9 +167,12 @@ NSArray<NSDictionary<NSString*, NSString*>*>* _Nullable getRangesList2(pid_t pid
         NSLog(@"getmodules image[%d] %p %p", i, (void*)addr, (void*)path);
 
         char pathbuffer[PATH_MAX] = {};
-        mach_vm_size_t size3;
-        if(mach_vm_read_overwrite(task, path, MAXPATHLEN, (mach_vm_address_t)pathbuffer, &size3) != KERN_SUCCESS)
+        mach_vm_size_t size3 = sizeof(pathbuffer) - 1;
+        if(mach_vm_read_overwrite(task, path, sizeof(pathbuffer) - 1,
+                                  (mach_vm_address_t)pathbuffer, &size3) != KERN_SUCCESS)
             strcpy(pathbuffer, "<Unknown>");
+        else
+            pathbuffer[MIN(size3, sizeof(pathbuffer) - 1)] = '\0';
 
         NSLog(@"getmodules path=%s", pathbuffer);
 
