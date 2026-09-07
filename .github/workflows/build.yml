@@ -44,7 +44,8 @@ jobs:
           curl -L https://github.com/kabiroberai/swift-toolchain-linux/releases/download/v2.3.0/swift-5.8-ubuntu20.04.tar.xz -o tc.tar.xz
           tar xf tc.tar.xz -C /opt
           rm tc.tar.xz
-          echo "/opt/swift-5.8-ubuntu20.04/usr/bin" >> $GITHUB_PATH
+          # Theos invokes the cross-compiler through SDKBINPATH on Linux.
+          echo "SDKBINPATH=/opt/swift-5.8-ubuntu20.04/usr/bin" >> $GITHUB_ENV
           # Download SDK
           curl -fL https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz -o sdk.tar.xz
           mkdir -p "$PWD/theos/sdks"
